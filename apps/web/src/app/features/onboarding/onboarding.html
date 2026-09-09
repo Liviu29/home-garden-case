@@ -1,0 +1,94 @@
+<div class="page">
+  <section class="card anim-fade-up">
+    <header class="brand-header">
+      <span class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22">
+          <path
+            d="M12 21 V11 M12 13 C12 8 8 6.5 4.5 7 C5 11.5 8.5 13.6 12 13 Z M12 11 C12 6.5 15.5 4.5 19.5 5 C19 10 15.5 12 12 11 Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+          />
+        </svg>
+      </span>
+      <h1>Welcome to HomeGarden</h1>
+      <p class="tagline">Pick a profile to tend your gardens.</p>
+    </header>
+
+    @if (!showCreate()) {
+      <app-skeleton-group [loading]="status() === 'loading'">
+        <div ghost class="profile-ghosts">
+          @for (i of [1, 2, 3]; track i) {
+            <div class="profile-ghost">
+              <app-skeleton variant="circle" />
+              <app-skeleton variant="line" w="55%" />
+            </div>
+          }
+        </div>
+
+        @if (status() === 'error') {
+          <p class="error-line" role="alert">Couldn't load profiles right now.</p>
+          <button matButton class="press-feedback" (click)="load()">Try again</button>
+        } @else {
+          <ul class="profiles stagger-children">
+            @for (profile of profiles(); track profile.userId) {
+              <li>
+                <button class="profile press-feedback" type="button" (click)="select(profile)">
+                  <span class="avatar" aria-hidden="true">{{ initialsOf(profile) }}</span>
+                  <span class="who">
+                    <span class="name">{{ nameOf(profile) }}</span>
+                    <span class="email">{{ profile.emailAddress }}</span>
+                  </span>
+                  <span class="go" aria-hidden="true">→</span>
+                </button>
+              </li>
+            } @empty {
+              <li class="none">No profiles yet — create the first one below.</li>
+            }
+          </ul>
+        }
+      </app-skeleton-group>
+
+      <button matButton class="create-toggle press-feedback" (click)="showCreate.set(true)">
+        ＋ New profile
+      </button>
+    } @else {
+      <form class="create-form" [formGroup]="form" (ngSubmit)="create()">
+        <div class="name-row">
+          <mat-form-field appearance="outline">
+            <mat-label>First name</mat-label>
+            <input matInput formControlName="firstName" autocomplete="given-name" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Last name</mat-label>
+            <input matInput formControlName="lastName" autocomplete="family-name" />
+          </mat-form-field>
+        </div>
+        <mat-form-field appearance="outline">
+          <mat-label>Email address</mat-label>
+          <input matInput type="email" formControlName="emailAddress" autocomplete="email" />
+          @if (form.controls.emailAddress.hasError('required')) {
+            <mat-error>Email address is required</mat-error>
+          }
+          @if (form.controls.emailAddress.hasError('email')) {
+            <mat-error>That doesn't look like an email address</mat-error>
+          }
+        </mat-form-field>
+
+        @if (serverError()) {
+          <p class="error-line" role="alert">{{ serverError() }}</p>
+        }
+
+        <div class="form-actions">
+          <button matButton type="button" class="press-feedback" (click)="showCreate.set(false)">
+            Back
+          </button>
+          <button matButton="filled" type="submit" class="press-feedback">
+            {{ creating() ? 'Creating…' : 'Create & continue' }}
+          </button>
+        </div>
+      </form>
+    }
+  </section>
+</div>
