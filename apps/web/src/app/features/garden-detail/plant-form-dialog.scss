@@ -1,0 +1,66 @@
+.form {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: min(30rem, 84vw);
+  padding-top: var(--sp-2);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+
+  @media (max-width: 540px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.capacity-preview {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  background: var(--surface-2);
+  margin-bottom: var(--sp-3);
+  transition: border-color var(--dur-fast) var(--ease-out);
+
+  &.overcrowded {
+    border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+    background: var(--danger-soft);
+  }
+}
+
+.humidity-block {
+  display: grid;
+  gap: var(--sp-1);
+
+  mat-slider {
+    width: 100%;
+  }
+}
+
+.humidity-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+}
+
+.humidity-value {
+  font-weight: 650;
+  color: var(--text-1);
+  font-size: var(--fs-emphasis);
+}
+
+.target-hint {
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+
+.form-error {
+  color: var(--danger);
+  font-size: var(--fs-caption);
+  font-weight: 550;
+}
