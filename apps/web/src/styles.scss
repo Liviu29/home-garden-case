@@ -1,1 +1,125 @@
-/* You can add global styles to this file, and also import other style files */
+// ─────────────────────────────────────────────────────────────────────────────
+// Global styles — ItpHomeGarden web
+// Order: fonts → tokens → material theme → motion → base
+// ─────────────────────────────────────────────────────────────────────────────
+@use '@angular/material' as mat;
+
+@use 'styles/tokens';
+@use 'styles/motion';
+
+// Self-hosted variable fonts (docs/DESIGN-SYSTEM.md §2 — no external font CDNs)
+@use '@fontsource-variable/inter';
+@use '@fontsource-variable/sora';
+
+// ── Angular Material M3 theme, tuned to the Verdant palette ──────────────────
+html {
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$green-palette,
+        tertiary: mat.$chartreuse-palette,
+      ),
+      typography: (
+        plain-family: 'Inter Variable',
+        brand-family: 'Sora Variable',
+      ),
+      density: 0,
+    )
+  );
+
+  // Surface alignment: Material system tokens follow our neutral ramp
+  --mat-sys-surface: var(--surface-1);
+  --mat-sys-surface-container: var(--surface-1);
+  --mat-sys-surface-container-low: var(--surface-1);
+  --mat-sys-surface-container-high: var(--surface-1);
+  --mat-sys-background: var(--surface-0);
+  --mat-sys-outline-variant: var(--border);
+  --mat-sys-corner-medium: var(--radius-m);
+  --mat-sys-corner-large: var(--radius-l);
+}
+
+// ── Base ─────────────────────────────────────────────────────────────────────
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  line-height: 1.5;
+  color: var(--text-1);
+  background: var(--gradient-page) fixed, var(--surface-0);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  color: var(--text-1);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+h1 {
+  font-size: var(--fs-h1);
+}
+
+h2 {
+  font-size: var(--fs-h2);
+}
+
+h3 {
+  font-size: var(--fs-h3);
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--brand-600);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+// Visible focus for every interactive element (DESIGN-SYSTEM §7)
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-s);
+}
+
+// Numbers align in stats and tables
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+// Material dialog: our pop animation + radius
+.mat-mdc-dialog-surface {
+  border-radius: var(--radius-l) !important;
+  animation: dialog-pop 200ms var(--ease-out);
+}
+
+// Visually hidden (a11y)
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

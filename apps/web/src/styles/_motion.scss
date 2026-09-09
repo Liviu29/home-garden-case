@@ -1,0 +1,119 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Motion presets (docs/DESIGN-SYSTEM.md §5)
+// transform/opacity only; everything collapses under prefers-reduced-motion.
+// ─────────────────────────────────────────────────────────────────────────────
+
+@keyframes fade-up-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes dialog-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+// Utility classes
+.anim-fade-up {
+  animation: fade-up-in var(--dur-base) var(--ease-out) both;
+}
+
+.anim-fade-in {
+  animation: fade-in var(--dur-base) var(--ease-out) both;
+}
+
+// Staggered children — cap at 8 per DESIGN-SYSTEM §5
+.stagger-children > * {
+  animation: fade-up-in var(--dur-base) var(--ease-out) both;
+}
+
+@for $i from 1 through 8 {
+  .stagger-children > *:nth-child(#{$i}) {
+    animation-delay: #{($i - 1) * 40}ms;
+  }
+}
+
+.stagger-children > *:nth-child(n + 9) {
+  animation-delay: 320ms;
+}
+
+// Interactive card lift
+.lift-hover {
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-2);
+  }
+}
+
+// Button press feedback
+.press-feedback:active {
+  transform: scale(0.98);
+  transition: transform 90ms var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
+
+  .skeleton-shimmer::after {
+    animation: skeleton-pulse 2.5s ease-in-out infinite !important;
+  }
+}
