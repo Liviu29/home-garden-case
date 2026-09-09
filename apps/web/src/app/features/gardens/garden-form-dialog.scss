@@ -1,0 +1,45 @@
+.form {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: min(26rem, 80vw);
+  padding-top: var(--sp-2);
+}
+
+.coords {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+}
+
+.humidity-block {
+  display: grid;
+  gap: var(--sp-1);
+  margin-bottom: var(--sp-3);
+
+  mat-slider {
+    width: 100%;
+  }
+}
+
+.humidity-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+}
+
+.humidity-value {
+  font-weight: 650;
+  color: var(--text-1);
+  font-size: var(--fs-emphasis);
+}
+
+.form-error {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
+  border-radius: var(--radius-s);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-caption);
+}

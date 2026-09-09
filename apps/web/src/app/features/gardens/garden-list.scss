@@ -1,0 +1,91 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: var(--sp-4);
+}
+
+.card {
+  position: relative;
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-6);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-l);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+
+  // hover sheen (DESIGN-SYSTEM §2)
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--gradient-sheen);
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease-out);
+    pointer-events: none;
+  }
+
+  &:hover::before {
+    opacity: 1;
+  }
+}
+
+.ghost-card {
+  gap: var(--sp-3);
+}
+
+.card-link {
+  display: grid;
+  gap: var(--sp-3);
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: none;
+  }
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  padding-right: var(--sp-6);
+}
+
+.name {
+  font-size: var(--fs-emphasis);
+  font-weight: 650;
+}
+
+.chip {
+  flex: none;
+  font-size: var(--fs-caption);
+  padding: 0.125rem var(--sp-2);
+  border-radius: var(--radius-pill);
+
+  &.humidity {
+    background: var(--info-soft);
+    color: var(--info-blue);
+    border: 1px solid color-mix(in srgb, var(--info-blue) 25%, transparent);
+  }
+}
+
+.location {
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+  margin-top: calc(-1 * var(--sp-2));
+}
+
+.meta {
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+}
+
+.kebab {
+  position: absolute;
+  top: var(--sp-3);
+  right: var(--sp-3);
+  color: var(--text-3);
+}
