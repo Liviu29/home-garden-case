@@ -23,10 +23,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
           fill="var(--brand-400)"
           opacity="0.9"
         />
-        <path
-          d="M60 54 C60 42 70 36 80 38 C78 50 70 56 60 54 Z"
-          fill="var(--brand-600)"
-        />
+        <path d="M60 54 C60 42 70 36 80 38 C78 50 70 56 60 54 Z" fill="var(--brand-600)" />
         <ellipse cx="60" cy="92" rx="22" ry="5" fill="var(--surface-3)" />
       </svg>
       <h3 class="title">{{ title() }}</h3>

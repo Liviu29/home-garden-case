@@ -11,7 +11,11 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSliderModule } from '@angular/material/slider';
 import { Garden, PLANT_TYPES, Plant, PlantInput } from '../../core/api/models';
 import { CapacityBar } from '../../shared/ui/capacity-bar/capacity-bar';
-import { remainingCapacity, usedSurfaceArea, wouldOvercrowd } from '../../shared/utils/garden-insights';
+import {
+  remainingCapacity,
+  usedSurfaceArea,
+  wouldOvercrowd,
+} from '../../shared/utils/garden-insights';
 import { GardenDetailStore } from './garden-detail-store';
 
 export interface PlantFormData {
@@ -122,8 +126,9 @@ export class PlantFormDialog {
       gardenId: this.data.garden.gardenId,
     };
 
-    const result = this.isEdit
-      ? await this.data.store.updatePlant(this.data.plant!.plantId, input)
+    const existing = this.data.plant;
+    const result = existing
+      ? await this.data.store.updatePlant(existing.plantId, input)
       : await this.data.store.createPlant(input);
 
     if (result.ok) {

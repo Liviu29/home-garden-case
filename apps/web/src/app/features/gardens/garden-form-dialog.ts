@@ -86,8 +86,9 @@ export class GardenFormDialog {
       longitude: raw.longitude,
     };
 
-    const result = this.isEdit
-      ? await this.store.update(this.data.garden!.gardenId, input)
+    const existing = this.data.garden;
+    const result = existing
+      ? await this.store.update(existing.gardenId, input)
       : await this.store.create(input);
 
     if (result.ok) {
@@ -99,7 +100,9 @@ export class GardenFormDialog {
 }
 
 function noWhitespaceOnly(control: { value: string }): { whitespace: true } | null {
-  return control.value.trim().length === 0 && control.value.length > 0 ? { whitespace: true } : null;
+  return control.value.trim().length === 0 && control.value.length > 0
+    ? { whitespace: true }
+    : null;
 }
 
 /** Mirrors the backend's refine: both coordinates or neither. */

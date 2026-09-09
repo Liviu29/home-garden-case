@@ -34,10 +34,7 @@ export class ToastStore {
 
   /** Error toasts persist until dismissed (DESIGN-SYSTEM §6). */
   error(message: string, action?: { label: string; run: () => void }): void {
-    this.push(
-      { tone: 'error', message, actionLabel: action?.label, action: action?.run },
-      false,
-    );
+    this.push({ tone: 'error', message, actionLabel: action?.label, action: action?.run }, false);
   }
 
   dismiss(id: number): void {

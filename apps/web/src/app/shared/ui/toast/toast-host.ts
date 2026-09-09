@@ -31,7 +31,12 @@ import { ToastStore } from '../../../core/errors/toast-store';
               {{ toast.actionLabel }}
             </button>
           }
-          <button class="close" type="button" aria-label="Dismiss" (click)="store.dismiss(toast.id)">
+          <button
+            class="close"
+            type="button"
+            aria-label="Dismiss"
+            (click)="store.dismiss(toast.id)"
+          >
             ×
           </button>
         </div>

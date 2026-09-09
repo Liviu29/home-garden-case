@@ -21,7 +21,9 @@ export class GardensApi {
   }
 
   getById(gardenId: number): Promise<Garden> {
-    return requestAsPromise(this.http.get<GardenDto>(`/gardens/${gardenId}`).pipe(map(mapToGarden)));
+    return requestAsPromise(
+      this.http.get<GardenDto>(`/gardens/${gardenId}`).pipe(map(mapToGarden)),
+    );
   }
 
   create(input: GardenInput): Promise<Garden> {

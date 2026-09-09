@@ -77,7 +77,11 @@ function extractServerMessage(body: unknown): string | null {
     if (typeof first === 'string') {
       return first;
     }
-    if (first && typeof first === 'object' && typeof (first as Record<string, unknown>)['message'] === 'string') {
+    if (
+      first &&
+      typeof first === 'object' &&
+      typeof (first as Record<string, unknown>)['message'] === 'string'
+    ) {
       return (first as Record<string, string>)['message'];
     }
   }

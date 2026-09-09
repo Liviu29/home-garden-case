@@ -12,7 +12,13 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
     <figure class="gauge">
       <svg viewBox="0 0 200 118" role="img" [attr.aria-label]="ariaLabel()">
         <!-- track -->
-        <path [attr.d]="ARC" fill="none" stroke="var(--surface-2)" stroke-width="14" stroke-linecap="round" />
+        <path
+          [attr.d]="ARC"
+          fill="none"
+          stroke="var(--surface-2)"
+          stroke-width="14"
+          stroke-linecap="round"
+        />
         <!-- value arc -->
         <path
           [attr.d]="ARC"

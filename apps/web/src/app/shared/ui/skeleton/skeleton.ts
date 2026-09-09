@@ -13,7 +13,12 @@ export type SkeletonVariant = 'line' | 'title' | 'circle' | 'rect' | 'card';
   host: {
     '[attr.aria-hidden]': 'true',
   },
-  template: `<span class="ghost skeleton-shimmer" [class]="variant()" [style.width]="width()" [style.height]="height()"></span>`,
+  template: `<span
+    class="ghost skeleton-shimmer"
+    [class]="variant()"
+    [style.width]="width()"
+    [style.height]="height()"
+  ></span>`,
   styles: `
     :host {
       display: block;

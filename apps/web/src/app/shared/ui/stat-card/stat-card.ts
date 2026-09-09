@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  effect,
-  input,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, input, signal } from '@angular/core';
 
 /**
  * Dashboard stat tile with a count-up number tween (DESIGN-SYSTEM §5/6).

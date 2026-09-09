@@ -65,27 +65,35 @@ interface Block {
       animation: fade-up-in var(--dur-base) var(--ease-out) both;
 
       &.vegetable {
-        background: linear-gradient(160deg, var(--hue-vegetable-soft), color-mix(in srgb, var(--hue-vegetable) 28%, white));
+        background: linear-gradient(
+          160deg,
+          var(--hue-vegetable-soft),
+          color-mix(in srgb, var(--hue-vegetable) 28%, white)
+        );
         border: 1px solid color-mix(in srgb, var(--hue-vegetable) 35%, transparent);
       }
 
       &.fruit {
-        background: linear-gradient(160deg, var(--hue-fruit-soft), color-mix(in srgb, var(--hue-fruit) 22%, white));
+        background: linear-gradient(
+          160deg,
+          var(--hue-fruit-soft),
+          color-mix(in srgb, var(--hue-fruit) 22%, white)
+        );
         border: 1px solid color-mix(in srgb, var(--hue-fruit) 30%, transparent);
       }
 
       &.flower {
-        background: linear-gradient(160deg, var(--hue-flower-soft), color-mix(in srgb, var(--hue-flower) 22%, white));
+        background: linear-gradient(
+          160deg,
+          var(--hue-flower-soft),
+          color-mix(in srgb, var(--hue-flower) 22%, white)
+        );
         border: 1px solid color-mix(in srgb, var(--hue-flower) 30%, transparent);
       }
 
       &.free {
         border: 1.5px dashed var(--border-strong);
-        background: repeating-linear-gradient(
-          -45deg,
-          transparent 0 8px,
-          var(--surface-2) 8px 16px
-        );
+        background: repeating-linear-gradient(-45deg, transparent 0 8px, var(--surface-2) 8px 16px);
       }
     }
 
