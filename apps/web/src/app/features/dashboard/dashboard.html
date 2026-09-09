@@ -1,0 +1,138 @@
+<!-- Hero panel on the signature dark gradient -->
+<section class="hero anim-fade-up">
+  <div class="hero-text">
+    <h1 class="hero-title">{{ greeting() }}</h1>
+    <p class="hero-sub">
+      @if (gardens.count() > 0) {
+        {{ gardens.count() }} {{ gardens.count() === 1 ? 'garden' : 'gardens' }} under your care —
+        here's how they're doing.
+      } @else {
+        Your green empire starts with a single bed.
+      }
+    </p>
+  </div>
+  <a matButton="filled" routerLink="/gardens" class="hero-cta press-feedback">Manage gardens</a>
+</section>
+
+<app-skeleton-group [loading]="gardens.isLoading()">
+  <div ghost>
+    <div class="stats-grid">
+      @for (i of [1, 2, 3]; track i) {
+        <app-skeleton variant="card" h="9rem" />
+      }
+    </div>
+    <app-skeleton variant="title" w="30%" />
+    <div class="insight-ghosts">
+      @for (i of [1, 2]; track i) {
+        <app-skeleton variant="rect" h="4.5rem" />
+      }
+    </div>
+  </div>
+
+  @if (gardens.hasFailed()) {
+    <app-empty-state
+      title="Couldn't load the overview"
+      message="The greenhouse network is acting up. Give it another try."
+    >
+      <button matButton="filled" class="press-feedback" (click)="gardens.load()">Try again</button>
+    </app-empty-state>
+  } @else if (gardens.isEmpty()) {
+    <app-empty-state
+      title="No gardens yet"
+      message="Create your first garden to unlock the dashboard insights."
+    >
+      <a matButton="filled" routerLink="/gardens" class="press-feedback">Create a garden</a>
+    </app-empty-state>
+  } @else {
+    <!-- Count-up stat tiles -->
+    <div class="stats-grid stagger-children">
+      <app-stat-card [value]="gardens.count()" label="Gardens">
+        <svg icon viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <path d="M4 20 H20 M6 20 V10 L12 5 L18 10 V20" />
+        </svg>
+      </app-stat-card>
+      <app-stat-card [value]="totalPlants()" label="Plants growing">
+        <svg icon viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <path d="M12 21 V11 M12 13 C12 8 8 6.5 4.5 7 C5 11.5 8.5 13.6 12 13 Z M12 11 C12 6.5 15.5 4.5 19.5 5 C19 10 15.5 12 12 11 Z" />
+        </svg>
+      </app-stat-card>
+      <app-stat-card [value]="totalArea()" label="m² of growing space" suffix=" m²">
+        <svg icon viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <rect x="4" y="4" width="16" height="16" rx="2" />
+          <path d="M4 12 H20 M12 4 V20" />
+        </svg>
+      </app-stat-card>
+    </div>
+
+    <!-- Attention list -->
+    @if (attention().length > 0) {
+      <section class="section anim-fade-up" aria-labelledby="attention-heading">
+        <h2 id="attention-heading" class="section-title">Needs attention</h2>
+        <div class="attention-list stagger-children">
+          @for (insight of attention(); track insight.garden.gardenId) {
+            <a class="attention-row lift-hover" [routerLink]="['/gardens', insight.garden.gardenId]">
+              <span class="warn-dot" aria-hidden="true">!</span>
+              <span class="attention-info">
+                <span class="attention-name">{{ insight.garden.gardenName }}</span>
+                <span class="attention-reason">{{ insight.attentionReason }}</span>
+              </span>
+              <span class="attention-metric tabular">
+                @if (insight.plants; as plants) {
+                  {{ usedOf(plants) | number: '1.0-1' }} / {{ insight.garden.totalSurfaceArea }} m²
+                }
+              </span>
+            </a>
+          }
+        </div>
+      </section>
+    }
+
+    <!-- Humidity vs target, per garden (deferred below the fold) -->
+    @defer (on viewport) {
+      <section class="section anim-fade-up" aria-labelledby="humidity-heading">
+        <h2 id="humidity-heading" class="section-title">Humidity vs target</h2>
+        <div class="insight-grid stagger-children">
+          @for (insight of insights(); track insight.garden.gardenId) {
+            <a class="insight-card lift-hover" [routerLink]="['/gardens', insight.garden.gardenId]">
+              <div class="insight-top">
+                <span class="insight-name">{{ insight.garden.gardenName }}</span>
+                @if (insight.delta !== null) {
+                  <span
+                    class="delta tabular"
+                    [class.above]="insight.delta > 5"
+                    [class.below]="insight.delta < -5"
+                  >
+                    {{ insight.delta > 0 ? '▲ +' : insight.delta < 0 ? '▼ ' : '● ' }}{{ insight.delta | number: '1.0-0' }}
+                  </span>
+                } @else if (insight.plants !== undefined) {
+                  <span class="delta">no plants</span>
+                } @else {
+                  <app-skeleton variant="line" w="2.5rem" />
+                }
+              </div>
+              <p class="insight-target">target {{ insight.garden.targetHumidityLevel }}%</p>
+              @if (insight.plants; as plants) {
+                <app-capacity-bar
+                  [used]="usedOf(plants)"
+                  [total]="insight.garden.totalSurfaceArea"
+                  [showLabel]="false"
+                />
+                <p class="insight-meta">
+                  {{ plants.length }} {{ plants.length === 1 ? 'plant' : 'plants' }} ·
+                  {{ insight.occupancy * 100 | number: '1.0-0' }}% occupied
+                </p>
+              } @else {
+                <app-skeleton variant="rect" h="0.5rem" />
+                <app-skeleton variant="line" w="50%" />
+              }
+            </a>
+          }
+        </div>
+      </section>
+    } @placeholder {
+      <div class="insight-ghosts">
+        <app-skeleton variant="rect" h="4.5rem" />
+      </div>
+    }
+  }
+</app-skeleton-group>
