@@ -10,6 +10,11 @@ export const createGardenSchema = z
   .object({
     gardenName: z.string().min(1, 'Garden name is required').trim(),
     totalSurfaceArea: z.number().nonnegative('Total surface area must be a non-negative number'),
+    targetHumidityLevel: z
+      .number()
+      .min(0, 'Target humidity level must be between 0 and 100')
+      .max(100, 'Target humidity level must be between 0 and 100')
+      .default(50),
     locationDescription: z.string().nullable().optional(),
     latitude: z
       .number()

@@ -1,5 +1,6 @@
 import { Kysely, Migrator } from 'kysely';
 import { migration001 } from './migrations/migration001';
+import { migration002 } from './migrations/migration002';
 import { Database } from './types';
 
 export class MigratorService {
@@ -15,6 +16,7 @@ export class MigratorService {
       provider: {
         getMigrations: async () => ({
           migration001,
+          migration002,
         }),
       },
     });

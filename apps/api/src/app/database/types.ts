@@ -25,6 +25,7 @@ export interface GardenTable {
   gardenName: string;
   totalSurfaceArea: number; // in square meters
   locationDescription: string | null; // e.g., "Backyard", "Patio"
+  targetHumidityLevel: Generated<number>; // configurable target humidity (0-100)
   latitude: number | null; // optional geographic coordinate
   longitude: number | null; // optional geographic coordinate
   createdAt: ColumnType<Date, string | undefined, never>;
