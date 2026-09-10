@@ -40,9 +40,26 @@ export default [
     plugins: {
       prettier,
     },
-    // Override or add rules here
     rules: {
       'prettier/prettier': 'error',
+    },
+  },
+  {
+    // Application code: a non-null assertion is a claim the compiler cannot
+    // check and the user pays for at runtime. There are none today, and this
+    // keeps it that way.
+    files: ['**/*.ts'],
+    ignores: ['**/*.spec.ts', '**/*.config.ts'],
+    rules: {
+      '@typescript-eslint/no-non-null-assertion': 'error',
+    },
+  },
+  {
+    // Specs: `fixture.find(...)!` states an invariant the fixture guarantees.
+    // A wrong assertion fails the test loudly, which is the point of a test.
+    files: ['**/*.spec.ts'],
+    rules: {
+      '@typescript-eslint/no-non-null-assertion': 'off',
     },
   },
 ];
