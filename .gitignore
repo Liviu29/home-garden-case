@@ -48,3 +48,7 @@ db.sqlite
 # Angular / Nx build caches
 .angular
 apps/*/.angular
+
+# Local agent/tooling state (per-developer, never shared)
+.claude/
+.cursor/
