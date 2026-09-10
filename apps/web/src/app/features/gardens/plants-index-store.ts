@@ -1,5 +1,7 @@
-import { inject, untracked } from '@angular/core';
+import { inject } from '@angular/core';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
+import { rxMethod } from '@ngrx/signals/rxjs-interop';
+import { distinctUntilChanged, pipe, tap } from 'rxjs';
 import { PlantsApi } from '../../core/api/plants-api';
 import { Plant } from '../../core/api/models';
 import { QueryCache, cacheKeys } from '../../core/resilience/query-cache';
@@ -9,11 +11,20 @@ interface PlantsIndexState {
   byGarden: Readonly<Record<number, readonly Plant[]>>;
 }
 
+/** Same ids, same order → the fan-out already ran; nothing to do. */
+const sameIds = (a: readonly number[], b: readonly number[]): boolean =>
+  a.length === b.length && a.every((id, i) => id === b[i]);
+
 /**
  * Cross-feature index of plants per garden (used by the gardens grid and the
  * dashboard for occupancy/humidity insights). Each garden's plants load
  * through the SWR cache, in parallel, individually retried — so the N+1 shape
  * of the API (API-INTEGRATION.md gap #2) never blocks the primary content.
+ *
+ * THIS STORE OWNS THE FAN-OUT. Components declare a source of garden ids and
+ * nothing more; they do not orchestrate N requests, and they do not write to
+ * this store. That ownership split is what removed the `untracked()` calls
+ * this file used to need — see `ensureForGardens` below.
  */
 export const PlantsIndexStore = signalStore(
   { providedIn: 'root' },
@@ -23,43 +34,58 @@ export const PlantsIndexStore = signalStore(
     const cache = inject(QueryCache);
 
     const apply = (gardenId: number, plants: readonly Plant[]): void => {
-      // Skip identical writes: keeps renders minimal AND guarantees loops
-      // terminate even when called from within a reactive context.
+      // Skip identical writes: keeps renders minimal.
       if (store.byGarden()[gardenId] === plants) {
         return;
       }
       patchState(store, { byGarden: { ...store.byGarden(), [gardenId]: plants } });
     };
 
+    const loadOne = (gardenId: number): void => {
+      const { cached, revalidate } = cache.swr(cacheKeys.plantsOfGarden(gardenId), () =>
+        api.getByGarden(gardenId),
+      );
+      if (cached) {
+        apply(gardenId, cached);
+      }
+      revalidate
+        ?.then((plants) => apply(gardenId, plants))
+        .catch(() => {
+          // Insight data is progressive enhancement — cards render without it.
+        });
+    };
+
     return {
       /**
-       * Kick off (or refresh) plant loads for the given gardens; non-blocking.
+       * Load (or refresh) plants for a set of gardens; non-blocking.
        *
-       * Callers invoke this from `effect()`s that track the garden list. The
-       * warm-cache path reads AND writes `byGarden` synchronously, so it runs
-       * inside `untracked()` — otherwise the caller's effect would register
-       * `byGarden` as a dependency of its own write and loop forever
-       * (zoneless lesson, learned the hard way; see git history).
+       * `rxMethod` is deliberate, not decoration. It accepts a *signal* as its
+       * source, so a caller passes `gardenIds` once instead of running an
+       * `effect()` that both reads the garden list and writes this store — the
+       * self-dependency that previously forced `untracked()` around the
+       * warm-cache path. The handler runs in a subscription, outside any
+       * reactive consumer, so a write here can never re-trigger the read that
+       * produced it. `distinctUntilChanged` also collapses recomputations of
+       * the source that yield the same ids, so an unchanged garden list costs
+       * nothing.
+       *
+       * The same method still accepts a plain array for one-shot imperative
+       * callers, so there is one API rather than two.
        */
-      loadFor(gardenIds: readonly number[]): void {
-        for (const gardenId of gardenIds) {
-          const { cached, revalidate } = cache.swr(cacheKeys.plantsOfGarden(gardenId), () =>
-            api.getByGarden(gardenId),
-          );
-          if (cached) {
-            untracked(() => apply(gardenId, cached));
-          }
-          revalidate
-            ?.then((plants) => apply(gardenId, plants))
-            .catch(() => {
-              // Insight data is progressive enhancement — cards render without it.
-            });
-        }
-      },
+      ensureForGardens: rxMethod<readonly number[]>(
+        pipe(
+          distinctUntilChanged(sameIds),
+          tap((gardenIds) => {
+            for (const gardenId of gardenIds) {
+              loadOne(gardenId);
+            }
+          }),
+        ),
+      ),
 
       /** Write-through used by GardenDetailStore after plant mutations. */
       setPlants(gardenId: number, plants: readonly Plant[]): void {
-        untracked(() => apply(gardenId, plants));
+        apply(gardenId, plants);
         cache.set(cacheKeys.plantsOfGarden(gardenId), plants);
       },
     };

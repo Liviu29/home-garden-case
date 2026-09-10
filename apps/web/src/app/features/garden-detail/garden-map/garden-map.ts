@@ -23,6 +23,7 @@ import {
   capacityStatus,
   freeSurfaceArea,
   occupancyRatio,
+  plantHumidityDelta,
   usedSurfaceArea,
 } from '../../../shared/utils/garden-insights';
 import {
@@ -255,9 +256,7 @@ export class GardenMap {
       const label = labelText;
 
       const plant = plants.find((pl) => pl.plantId === p.plantId);
-      const humidityDelta = plant
-        ? plant.idealHumidityLevel - this.garden().targetHumidityLevel
-        : 0;
+      const humidityDelta = plant ? plantHumidityDelta(this.garden(), plant) : 0;
       const visual = resolvePlantVisual(
         plant ?? {
           plantId: p.plantId,
@@ -438,7 +437,7 @@ export class GardenMap {
 
   protected readonly selectedHumidityDelta = computed(() => {
     const plant = this.selectedPlant();
-    return plant ? plant.idealHumidityLevel - this.garden().targetHumidityLevel : 0;
+    return plant ? plantHumidityDelta(this.garden(), plant) : 0;
   });
 
   protected readonly tooltip = signal<TooltipView | null>(null);

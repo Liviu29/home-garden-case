@@ -66,7 +66,7 @@ Deletes apply to the UI immediately and roll back from a snapshot on failure. Th
 
 ### Rendering budget
 
-Zoneless + OnPush + signals (change detection only where a signal changed); every route is a lazy `loadComponent` chunk; the Garden Map ships in its own `@defer (on viewport; prefetch on idle)` chunk behind a dimension-matched ghost; stable `track` on every `@for`; capacity bars animate on `transform` only; self-hosted variable fonts with `font-display: swap`; icons inline. Production initial transfer ~130 kB gz, enforced by `angular.json` budgets — the build fails on regression.
+Zoneless + OnPush + signals (change detection only where a signal changed); every route is a lazy `loadComponent` chunk; the Garden Map ships in its own `@defer (on viewport; prefetch on idle)` chunk behind a dimension-matched ghost — measured, its value here is the **lazy chunk boundary**, not delayed work: on a desktop viewport the map is above the fold, so the trigger fires immediately (the trigger is self-tuning — it genuinely defers only on viewports where the map starts off-screen), and the dimension-matched placeholder keeps CLS at 0.025 on a 1440×900 laptop and 0.000 on a 375×812 phone; stable `track` on every `@for`; capacity bars animate on `transform` only; self-hosted variable fonts with `font-display: swap`; icons inline. Production initial transfer ~130 kB gz, enforced by `angular.json` budgets — the build fails on regression.
 
 ## Cache invalidation
 
@@ -90,7 +90,7 @@ Freshness is 30 s. That is a product choice, not a technical one: garden data ch
 
 The cache stores the in-flight promise, not just the settled value, so **identical concurrent GETs collapse into one request**. This matters specifically here:
 
-- The dashboard's effect and the gardens grid's effect both call `PlantsIndexStore.loadFor(ids)`. Without de-duplication, navigating between them mid-flight would double the fan-out.
+- The dashboard and the gardens grid both declare a garden-id source to `PlantsIndexStore.ensureForGardens(...)`, which owns the fan-out. Without de-duplication, navigating between them mid-flight would double it. Measured on the current build: a cold session issues exactly one request per resource, client-side navigation with a fresh cache issues **zero**, and hover-prefetch followed by a click collapses to one — all asserted by `request-ownership.spec.ts` rather than claimed.
 - Hover-prefetch (below) and the subsequent real navigation ask for the same key within milliseconds. De-duplication is what makes prefetch free rather than a doubled request.
 - `GardenDetailStore` additionally guards **ordering**, not just count: each `load()` takes a monotonic token and a response whose token is stale is discarded. De-duplication prevents duplicate work; the token prevents garden A's slow response from overwriting garden B's screen — a real hazard when responses take up to 2 seconds and the user can click faster than that.
 

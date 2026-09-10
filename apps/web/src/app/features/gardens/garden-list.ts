@@ -1,9 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { computed, inject, ChangeDetectionStrategy, Component, Injector } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenuModule } from '@angular/material/menu';
-import { effect } from '@angular/core';
 import { Garden, Plant } from '../../core/api/models';
 import { usedSurfaceArea } from '../../shared/utils/garden-insights';
 import { PlantsIndexStore } from './plants-index-store';
@@ -19,7 +18,6 @@ import { GardenFormDialog } from './garden-form-dialog';
 import { GardensStore } from './gardens-store';
 import { GARDEN_SORT_LABEL, GardenSort, filterAndSortGardens } from './garden-view';
 import { PrefetchGarden } from './prefetch-garden';
-import { computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -58,15 +56,14 @@ export class GardenList {
   private readonly dialog = inject(MatDialog);
   private readonly confirm = inject(ConfirmService);
 
+  /** The source the plants index follows; the store owns the fan-out itself. */
+  private readonly gardenIds = computed(() => this.store.gardens().map((g) => g.gardenId));
+
   constructor() {
     void this.store.load();
-    // Enrich cards with occupancy as gardens (or new gardens) arrive.
-    effect(() => {
-      const ids = this.store.gardens().map((g) => g.gardenId);
-      if (ids.length > 0) {
-        this.plantsIndex.loadFor(ids);
-      }
-    });
+    // Declare the source once. No component-level effect, no writes from here
+    // into a shared store — the index enriches cards as gardens arrive (F-02).
+    this.plantsIndex.ensureForGardens(this.gardenIds, { injector: inject(Injector) });
   }
 
   protected readonly sortOptions = Object.entries(GARDEN_SORT_LABEL) as [GardenSort, string][];

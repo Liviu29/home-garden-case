@@ -5,7 +5,7 @@ The working agreement for this codebase. Derived from battle-tested guidelines u
 ## 1. Target stack
 
 - **Angular 22**, standalone components only (no NgModules — folders group, not modules).
-- **Zoneless** change detection (`provideZonelessChangeDetection()`); all components `ChangeDetectionStrategy.OnPush`.
+- **Zoneless** change detection — Angular 22's default, so no provider call is needed (and none is made); verified by `zone.js` being absent from the workspace and the production bundle. All components `ChangeDetectionStrategy.OnPush`.
 - **TypeScript strict** + `noImplicitOverride`, `noFallthroughCasesInSwitch`, `strictTemplates`. Never switch these off to "make it compile".
 - **SCSS** for styles, **typed Reactive Forms**, **signals + NgRx SignalStore** for state.
 - Package manager: npm, `package-lock.json` committed.

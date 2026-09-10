@@ -267,6 +267,7 @@
 .attention-body {
   flex: 1;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-1);
   min-width: 0;
 }
@@ -276,13 +277,19 @@
   justify-content: space-between;
   align-items: baseline;
   gap: var(--sp-2);
+  min-width: 0;
 }
 
 .attention-name {
   font-weight: 650;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .attention-badge {
+  flex: none;
   font-size: var(--fs-caption);
   font-weight: 650;
   color: var(--accent-amber);
@@ -299,11 +306,13 @@
 .attention-reason {
   font-size: var(--fs-caption);
   color: var(--text-2);
+  overflow-wrap: anywhere;
 }
 
 .attention-metric {
   font-size: var(--fs-caption);
   color: var(--text-3);
+  overflow-wrap: anywhere;
 }
 
 .attention-cta {
@@ -393,6 +402,11 @@
 
 .health-card {
   display: grid;
+  // minmax(0, …) rather than the implicit `auto`: grid items default to
+  // min-width:auto, which refuses to shrink below their content's intrinsic
+  // minimum. An unbreakable garden name would otherwise push every row of the
+  // card past the card's own edge (and past the viewport at 375px).
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-2);
   padding: var(--sp-4);
   background: var(--surface-1);
@@ -428,10 +442,14 @@
   justify-content: space-between;
   align-items: baseline;
   gap: var(--sp-2);
+  min-width: 0;
 }
 
 .health-name {
   font-weight: 650;
+  // min-width:0 is what lets the ellipsis actually engage — without it the
+  // flex item's automatic minimum size wins and the text just overflows.
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -445,15 +463,23 @@
 .health-meta {
   font-size: var(--fs-caption);
   color: var(--text-2);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .health-humidity {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: baseline;
   gap: var(--sp-2);
+  min-width: 0;
   font-size: var(--fs-caption);
   color: var(--text-3);
+
+  > * {
+    min-width: 0;
+  }
 }
 
 .health-cta {

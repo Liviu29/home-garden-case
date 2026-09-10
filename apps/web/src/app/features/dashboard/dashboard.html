@@ -124,6 +124,7 @@
 
   @if (gardens.hasFailed()) {
     <app-empty-state
+      [headingLevel]="2"
       title="Couldn't load the overview"
       message="The greenhouse network is acting up. Give it another try."
     >
@@ -131,6 +132,7 @@
     </app-empty-state>
   } @else if (gardens.isEmpty()) {
     <app-empty-state
+      [headingLevel]="2"
       title="No gardens yet"
       message="Create your first garden to unlock the dashboard insights."
     >

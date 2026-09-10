@@ -1,6 +1,6 @@
 <app-plant-artwork-defs />
 
-<nav class="breadcrumb anim-fade-in">
+<nav class="breadcrumb anim-fade-in" aria-label="Breadcrumb">
   <a routerLink="/gardens">Gardens</a>
   <span aria-hidden="true">/</span>
   <span>{{ store.garden()?.gardenName ?? '…' }}</span>
@@ -9,6 +9,7 @@
 @if (store.gardenMissing()) {
   <!-- 404 / invalid id: the garden really is gone (backend audit fix #3) -->
   <app-empty-state
+    [headingLevel]="1"
     title="Garden not found"
     message="It may have been deleted, or the link is out of date."
   >
@@ -17,6 +18,7 @@
 } @else if (store.gardenFailed()) {
   <!-- 5xx / network: the garden probably exists — offer a retry, not a lie -->
   <app-empty-state
+    [headingLevel]="1"
     title="Couldn't load this garden"
     message="The greenhouse network is acting up. Your garden is still there."
   >
@@ -138,8 +140,12 @@
           }
         </div>
         @if (store.plantsStatus() === 'ready') {
-          <!-- The map ships in its own deferred chunk: detail's critical
-               content renders first, the twin hydrates when it scrolls in. -->
+          <!-- The map ships in its own lazy chunk, which is the real win here:
+               it stays out of the detail route's bundle. On a desktop viewport
+               the map is above the fold, so this trigger fires immediately —
+               `on viewport` is chosen because it is self-tuning (it genuinely
+               defers on viewports where the map starts off-screen) and the
+               dimension-matched ghost keeps the hydration shift-free. -->
           @defer (on viewport; prefetch on idle) {
             <app-garden-map
               [garden]="garden"

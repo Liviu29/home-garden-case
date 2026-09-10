@@ -26,10 +26,16 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
         <path d="M60 54 C60 42 70 36 80 38 C78 50 70 56 60 54 Z" fill="var(--brand-600)" />
         <ellipse cx="60" cy="92" rx="22" ry="5" fill="var(--surface-3)" />
       </svg>
-      @if (headingLevel() === 1) {
-        <h1 class="title">{{ title() }}</h1>
-      } @else {
-        <h3 class="title">{{ title() }}</h3>
+      @switch (headingLevel()) {
+        @case (1) {
+          <h1 class="title">{{ title() }}</h1>
+        }
+        @case (2) {
+          <h2 class="title">{{ title() }}</h2>
+        }
+        @default {
+          <h3 class="title">{{ title() }}</h3>
+        }
       }
       <p class="message">{{ message() }}</p>
       <div class="action">
@@ -70,6 +76,14 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 export class EmptyState {
   readonly title = input.required<string>();
   readonly message = input<string>('');
-  /** 1 on standalone pages (the 404 page must own an h1 — REM-013), 3 inside sections. */
-  readonly headingLevel = input<1 | 3>(3);
+  /**
+   * Semantic level only — the visual size is fixed by `.title`, so callers
+   * place the heading correctly in the document outline without changing how
+   * it looks (F-08).
+   *
+   * - `1` — the empty state IS the page (404, an unloadable route).
+   * - `2` — a page-level empty state sitting directly under the page `h1`.
+   * - `3` — nested inside a section that already has its own `h2` (default).
+   */
+  readonly headingLevel = input<1 | 2 | 3>(3);
 }

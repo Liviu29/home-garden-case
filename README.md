@@ -6,6 +6,28 @@ A garden management UI built on the provided Fastify backend, engineered so the 
 | ---------------------------------------------------- | ----------------------------------------------------- |
 | ![Dashboard](docs/screenshots/05-dashboard-full.png) | ![Garden detail](docs/screenshots/07-detail-full.png) |
 
+## Suggested review path
+
+The `docs/` tree is thorough; here is the shortest route through it.
+
+**If you have 10 minutes**
+
+1. This README — what was built, and how the hostile API was handled.
+2. [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) — layering, data flow, and why each boundary exists.
+3. [docs/adr/](docs/adr/) — seven decision records, one page each. ADR-004 (resilience) and ADR-007 (visualization engine) carry the most weight.
+
+**If you have longer**
+
+- [docs/architecture/](docs/architecture/) — state management, API integration, error handling, performance/caching, accessibility, testing strategy.
+- [docs/design/](docs/design/) — the design system, the async-UX rules behind the skeleton-first loading model, and the Garden Map interaction design.
+- [docs/backend/](docs/backend/) — the contract audit of the provided API, and the endpoint × UI-state matrix.
+- [docs/PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md) — DEV/PROD configuration, hosting requirements, and the release gate.
+
+**Background, not required reading**
+
+- [docs/process/](docs/process/) — the working record: implementation plan, remediation log, cleanup log. These are **dated snapshots** kept as evidence of how the work proceeded; they describe the state at the time they were written, not the current tree.
+- [docs/reviews/](docs/reviews/) — an independent architect-level review of the finished code (strengths, findings, and what was done about each).
+
 ## Quick start
 
 ```sh
@@ -87,8 +109,8 @@ Why it's more than eye candy on _this_ backend: the layout is a **pure, determin
 The architecture is the part built to be read ([ADR-007](docs/adr/ADR-007-garden-visualization-engine.md)):
 
 - **Renderer choice**: PixiJS v8 + pixi-viewport were evaluated seriously and **rejected with data** — for a scene of tens of plots, SVG matches the visual quality with a ~100 kB-smaller chunk, native design-token/dark-mode support, real focusable plant nodes (no `aria-hidden` canvas + parallel DOM), jsdom-testable units and Playwright-assertable output. The exit strategy is real: the renderer consumes a plain view model, so swapping it for Pixi later touches one component.
-- **Boundary discipline**: layout (`garden-map-layout.ts`) and camera (`map-camera.ts`) are pure TS with 25 specs (determinism, order-independence, area-honesty, clamping); the SignalStore owns business state, the map owns only UI state (selection, camera); HUD numbers come from the same domain functions the forms use.
-- **Lazy by default**: the map ships in its own `@defer (on viewport; prefetch on idle)` chunk (~12 kB gz after the planner features) behind a dimension-matched ghost, so the screen's critical content never waits for the showcase.
+- **Boundary discipline**: layout (`garden-map-layout.ts`) and camera (`map-camera.ts`) are pure TS, unit-tested for determinism, order-independence, area-honesty and clamping; the SignalStore owns business state, the map owns only UI state (selection, camera); HUD numbers come from the same domain functions the forms use.
+- **Lazy by default**: the map ships in its own `@defer (on viewport; prefetch on idle)` chunk (~12 kB gz after the planner features) behind a dimension-matched ghost. Being precise about what that buys: the win is **keeping the map out of the detail route's chunk**, not delaying its render — on a desktop viewport the map is above the fold and the trigger fires at once. The placeholder is dimension-matched, so hydration costs no layout shift (measured CLS 0.025 at 1440×900, 0.000 at 375×812).
 - Create/edit forms gained **smart presets** (garden size, target humidity, plant area) via one reusable typed chip component — product-level suggestions that write through the form controls, so validators and server verdicts stay authoritative.
 
 The map is also a **planner** ([docs/design/INTERACTIVE-GARDEN-UX.md](docs/design/INTERACTIVE-GARDEN-UX.md)): beds can be **dragged into place** (drag-vs-pan threshold, clamped to the garden, amber warning on overlaps) with the arrangement persisted per garden in versioned localStorage — _visual-only by design_: positions never touch capacity math or the backend, and undo/redo (20 steps) plus a confirmed "Reset layout" keep the deterministic auto-layout one click away. A **fullscreen mode**, a five-toggle **layers menu** (labels, footprints, grid, humidity preference — explicitly "preference vs target, not a measurement" — and free space), zoom-dependent label detail, and map search round out the planner. Adding a plant now starts from a **ranked plant catalog**: 27 curated presets scored for _this_ garden by a pure, explainable function (humidity proximity, area fit, variety — each card states its reasons), picking prefills the form without bypassing a single validator, custom plants stay first-class, and the dialog fits 1440×900 with **no internal scroll** (Playwright-asserted). An external plant API was deliberately left as a documented provider seam — the assignment never depends on an API key. A 3D "Explore" mode was evaluated and **deferred with written rationale** (ADR-007): a second renderer re-imports every cost the engine decision rejected, to show the same honest data.

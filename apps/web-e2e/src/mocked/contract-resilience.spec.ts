@@ -32,6 +32,11 @@ test.describe('slow-API navigation safety', () => {
       route.fulfill({ json: [plantDto({ plantId: 22, gardenId: 2, name: 'Speedy', area: 3 })] }),
     );
 
+    // The event that could corrupt this screen is the abandoned garden-1
+    // response landing late. Arm the wait BEFORE navigating so we synchronize
+    // on that exact response rather than guessing a duration.
+    const abandonedResponse = page.waitForResponse((r) => r.url().includes('/api/gardens/1'));
+
     // Enter the slow garden from the list (client-side routing), then leave
     // again before it resolves — the classic 200–2000 ms API pattern.
     await page.goto('/gardens');
@@ -48,8 +53,16 @@ test.describe('slow-API navigation safety', () => {
       .click();
 
     await expect(page.getByRole('heading', { name: 'Fast Garden' })).toBeVisible();
-    // Let the abandoned garden-1 response land: it must never appear here.
-    await page.waitForTimeout(3000);
+
+    // Let the abandoned garden-1 response actually land, then give the app a
+    // full render cycle to react to it. Two rAFs is a browser event, not a
+    // sleep: it resolves as fast as the machine can paint.
+    await abandonedResponse;
+    await page.evaluate(
+      () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(null)))),
+    );
+
+    // The stale response must not have replaced the current garden.
     await expect(page.getByRole('heading', { name: 'Fast Garden' })).toBeVisible();
     await expect(page.getByRole('cell', { name: /Slowpoke/ })).toHaveCount(0);
   });

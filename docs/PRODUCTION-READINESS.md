@@ -159,9 +159,10 @@ Everything below was run on the final tree, cold (`--skip-nx-cache`), against th
 | Backend tests            | —                                                  | N/A: the provided API ships no test suite, and adding one was out of scope for a frontend case                |
 | Lint                     | `npm run lint` (api + web + web-e2e)               | PASS — **0 errors, 0 warnings**                                                                               |
 | Typecheck                | `npm run typecheck`                                | PASS — strict + `strictTemplates`                                                                             |
-| Unit / component         | `npm run test`                                     | PASS — **156 tests, 22 files**                                                                                |
-| E2E deterministic        | `nx e2e web-e2e --project=mocked --retries=0`      | PASS — **46 tests, 3 consecutive clean runs**                                                                 |
-| E2E real backend         | `nx e2e web-e2e --project=integration --retries=0` | PASS — **6 flows**                                                                                            |
+| Unit / component         | `npm run test`                                     | PASS — full suite green; run the command for the current count                                                |
+| Coverage                 | `npm run test:coverage`                            | PASS — **≥95% enforced** on statements, branches, functions and lines; the build fails below it               |
+| E2E deterministic        | `nx e2e web-e2e --project=mocked --retries=0`      | PASS — whole project green, repeated consecutive clean runs at zero retries                                   |
+| E2E real backend         | `nx e2e web-e2e --project=integration --retries=0` | PASS — every flow green against the real slow/flaky API                                                       |
 | Production build         | `npm run build`                                    | PASS — within budgets                                                                                         |
 | Spinner ban              | `npm run check:no-spinners`                        | PASS — 0 spinners                                                                                             |
 | Production bundle served | `node tools/serve-dist.mjs`                        | PASS — boot, routing, deep-link refresh, `/api` proxy, both themes, 375→1920 px with zero horizontal overflow |
@@ -170,14 +171,14 @@ Everything below was run on the final tree, cold (`--skip-nx-cache`), against th
 
 |                               | Raw       | Transfer (gz) |
 | ----------------------------- | --------- | ------------- |
-| **Initial total**             | 485.56 kB | **129.48 kB** |
-| `garden-detail` (lazy)        | 170.02 kB | 34.98 kB      |
-| `garden-map` (lazy, `@defer`) | 49.13 kB  | 12.06 kB      |
-| `dashboard` (lazy)            | 30.39 kB  | 7.67 kB       |
-| `onboarding` (lazy)           | 19.43 kB  | 5.31 kB       |
-| `garden-list` (lazy)          | 11.84 kB  | 3.85 kB       |
-| `profile-dialog` (lazy)       | 4.75 kB   | 1.85 kB       |
-| styles                        | 18.57 kB  | 3.86 kB       |
+| **Initial total**             | 485.81 kB | **129.58 kB** |
+| `garden-detail` (lazy)        | 170.33 kB | 35.06 kB      |
+| `garden-map` (lazy, `@defer`) | 49.60 kB  | 12.29 kB      |
+| `dashboard` (lazy)            | 30.87 kB  | 7.72 kB       |
+| `onboarding` (lazy)           | 19.46 kB  | 5.32 kB       |
+| `garden-list` (lazy)          | 12.02 kB  | 3.88 kB       |
+| `profile-dialog` (lazy)       | 4.75 kB   | 1.83 kB       |
+| styles                        | 18.68 kB  | 3.89 kB       |
 
 Lazy boundaries were verified in the emitted output, not by reading imports. There is
 no Three.js or other heavy visualization dependency — the 3D mode was evaluated and

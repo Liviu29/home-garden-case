@@ -8,6 +8,16 @@
 
   a {
     color: var(--text-2);
+    // WCAG 2.2 SC 2.5.8 (Target Size, Minimum): caption text is ~20px tall, so
+    // the link needs vertical room to clear 24px. Padding grows the real hit
+    // area; the negative margin keeps the row's visual rhythm unchanged. The
+    // separator and current-page label are not interactive, so nothing overlaps.
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding-inline: var(--sp-1);
+    margin-inline: calc(-1 * var(--sp-1));
+    border-radius: var(--radius-s);
   }
 }
 

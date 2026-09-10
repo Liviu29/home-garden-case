@@ -14,8 +14,11 @@ import { defineConfig, devices } from '@playwright/test';
  *   empty responses — plus axe scans, keyboard and mobile smoke.
  *   Deterministic: no retries needed.
  *
- * Synchronization policy: wait for observable behaviour (roles, dialog
- * lifecycle) — `waitForTimeout` is banned from specs.
+ * Synchronization policy: wait for observable behaviour — roles, dialog
+ * lifecycle, `waitForResponse`, MutationObserver, animation frames. There are
+ * ZERO `waitForTimeout` calls in the suite; the only `setTimeout`s live inside
+ * `page.route` handlers, where they SIMULATE the backend's 200–2000 ms latency
+ * rather than make a test wait for time to pass.
  */
 export default defineConfig({
   testDir: './src',

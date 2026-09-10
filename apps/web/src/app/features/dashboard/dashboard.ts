@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@angular/core';
+import { computed, inject, ChangeDetectionStrategy, Component, Injector } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -77,14 +77,13 @@ export class Dashboard {
   protected readonly gardens = inject(GardensStore);
   protected readonly plantsIndex = inject(PlantsIndexStore);
 
+  /** The source the plants index follows; the store owns the fan-out itself. */
+  private readonly gardenIds = computed(() => this.gardens.gardens().map((g) => g.gardenId));
+
   constructor() {
     void this.gardens.load();
-    effect(() => {
-      const ids = this.gardens.gardens().map((g) => g.gardenId);
-      if (ids.length > 0) {
-        this.plantsIndex.loadFor(ids);
-      }
-    });
+    // Declare the source once — see PlantsIndexStore.ensureForGardens (F-02).
+    this.plantsIndex.ensureForGardens(this.gardenIds, { injector: inject(Injector) });
   }
 
   protected readonly greeting = computed(() => {

@@ -54,6 +54,15 @@ export function averageHumidity(plants: readonly Plant[]): number | null {
   return plants.reduce((sum, p) => sum + p.idealHumidityLevel, 0) / plants.length;
 }
 
+/**
+ * Signed drift for ONE plant: what it wants minus what the garden targets.
+ * Same comparison the garden-level aggregate uses, in one place — the detail
+ * table, the map inspector and the map's plot chips all read it from here.
+ */
+export function plantHumidityDelta(garden: Garden, plant: Plant): number {
+  return plant.idealHumidityLevel - garden.targetHumidityLevel;
+}
+
 /** Signed drift between what plants want and what the garden targets. */
 export function humidityDelta(garden: Garden, plants: readonly Plant[]): number | null {
   const avg = averageHumidity(plants);

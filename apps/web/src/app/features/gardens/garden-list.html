@@ -38,6 +38,7 @@
 
   @if (store.hasFailed()) {
     <app-empty-state
+      [headingLevel]="2"
       title="Couldn't load your gardens"
       message="The greenhouse network is acting up. Give it another try."
     >
@@ -45,6 +46,7 @@
     </app-empty-state>
   } @else if (store.isEmpty() && !store.creating()) {
     <app-empty-state
+      [headingLevel]="2"
       title="No gardens yet"
       message="Create your first garden to start planning beds, plants and humidity targets."
     >
@@ -54,6 +56,7 @@
     </app-empty-state>
   } @else if (noMatches()) {
     <app-empty-state
+      [headingLevel]="2"
       title="No gardens match"
       message="Nothing matches your search — try a different name or clear the filter."
     >
@@ -70,7 +73,7 @@
         >
           <a class="card-link" [routerLink]="['/gardens', garden.gardenId]">
             <div class="card-top">
-              <h3 class="name">{{ garden.gardenName }}</h3>
+              <h2 class="name">{{ garden.gardenName }}</h2>
               <span class="chip humidity" title="Target humidity">
                 💧 {{ garden.targetHumidityLevel }}%
               </span>

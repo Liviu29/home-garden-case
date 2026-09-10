@@ -55,7 +55,7 @@ export class GardenFormDialog {
     // so a warm cache costs nothing (REM-002).
     const existing = this.data.garden;
     if (existing) {
-      this.plantsIndex.loadFor([existing.gardenId]);
+      this.plantsIndex.ensureForGardens([existing.gardenId]);
     }
   }
 

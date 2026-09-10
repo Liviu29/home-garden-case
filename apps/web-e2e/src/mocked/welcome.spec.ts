@@ -55,17 +55,29 @@ test.describe('welcome / profile selection', () => {
       await route.fulfill({ json: one });
     });
 
-    const seenZeroState: boolean[] = [];
-    await page.goto('/welcome');
-    for (let i = 0; i < 20; i++) {
-      seenZeroState.push((await page.locator('.zero-state').count()) > 0);
-      await page.waitForTimeout(50);
-    }
+    // A MutationObserver sees EVERY intermediate DOM state, where polling on a
+    // timer only samples some of them — so this is both deterministic and a
+    // strictly stronger assertion than the sampling loop it replaces.
+    await page.addInitScript(() => {
+      (window as unknown as { __zeroStateSeen: boolean }).__zeroStateSeen = false;
+      const check = (): void => {
+        if (document.querySelector('.zero-state')) {
+          (window as unknown as { __zeroStateSeen: boolean }).__zeroStateSeen = true;
+        }
+      };
+      new MutationObserver(check).observe(document, { childList: true, subtree: true });
+      check();
+    });
 
-    expect(seenZeroState).not.toContain(true);
+    await page.goto('/welcome');
     await expect(page.getByRole('button', { name: /Liviu-Petrut Nita/ })).toBeVisible({
       timeout: 10_000,
     });
+
+    const zeroStateEverRendered = await page.evaluate(
+      () => (window as unknown as { __zeroStateSeen: boolean }).__zeroStateSeen,
+    );
+    expect(zeroStateEverRendered).toBe(false);
   });
 
   test('selecting a profile is synchronous — immediate navigation, no manufactured loading', async ({

@@ -1,4 +1,5 @@
 import { Garden, Plant } from '../../core/api/models';
+import { usedSurfaceArea } from './garden-insights';
 
 /**
  * Pure, deterministic layout for the Garden Map (ADR-007).
@@ -77,7 +78,10 @@ export function computeGardenMapLayout(garden: Garden, plants: readonly Plant[])
     .filter((p) => p.surfaceAreaRequired > 0)
     .sort((a, b) => b.surfaceAreaRequired - a.surfaceAreaRequired || a.plantId - b.plantId);
 
-  const usedArea = ordered.reduce((sum, p) => sum + p.surfaceAreaRequired, 0);
+  // Single source of truth: the map's fullness is the SAME number the HUD,
+  // the forms and the server's overcrowding rule use. The map may scale it
+  // (fitFactor) but must never compute it independently.
+  const usedArea = usedSurfaceArea(ordered);
   const fitFactor = usedArea > totalArea ? Math.sqrt(totalArea / usedArea) : 1;
   const drawnUsed = Math.min(usedArea, totalArea);
 

@@ -15,6 +15,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenuModule } from '@angular/material/menu';
 import { Garden, Plant } from '../../core/api/models';
+import { plantHumidityDelta } from '../../shared/utils/garden-insights';
 import { CapacityBar } from '../../shared/ui/capacity-bar/capacity-bar';
 import { CapacityStatusChip } from '../../shared/ui/capacity-status/capacity-status';
 import { ConfirmService } from '../../shared/ui/confirm-dialog/confirm-dialog';
@@ -171,7 +172,7 @@ export class GardenDetail {
   }
 
   protected humidityDeltaOf(plant: Plant, garden: Garden): number {
-    return plant.idealHumidityLevel - garden.targetHumidityLevel;
+    return plantHumidityDelta(garden, plant);
   }
 
   /** Table row → map selection (the map centers it; two-way via model). */

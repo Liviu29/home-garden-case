@@ -1,4 +1,5 @@
 import { Garden, Plant } from '../../core/api/models';
+import { occupancyRatio, usedSurfaceArea } from './garden-insights';
 import { computeGardenMapLayout } from './garden-map-layout';
 
 const garden = (totalSurfaceArea: number): Garden => ({
@@ -178,6 +179,56 @@ describe('computeGardenMapLayout (deterministic digital-twin layout)', () => {
   });
 });
 
+/**
+ * F-05 guard: the map must never compute capacity independently.
+ *
+ * The drawn "used" region is the part of the surface not covered by the free
+ * band. If the layout re-derives used area itself, these ratios drift from
+ * `garden-insights` — the single authority the HUD, the forms and the server's
+ * overcrowding rule all share.
+ */
+describe('capacity single source of truth (F-05)', () => {
+  const cases: ReadonlyArray<{ label: string; total: number; areas: readonly number[] }> = [
+    { label: '0% — empty garden', total: 20, areas: [] },
+    { label: '50% — half planted', total: 20, areas: [6, 4] },
+    { label: '97.5% — almost full', total: 20, areas: [10, 5, 4.5] },
+    { label: '100% — exact fit', total: 20, areas: [12, 8] },
+    { label: 'decimal areas', total: 13.7, areas: [1.1, 2.35, 0.05, 4.9] },
+    { label: 'over capacity (fitFactor < 1)', total: 10, areas: [8, 7] },
+  ];
+
+  for (const { label, total, areas } of cases) {
+    it(`agrees with garden-insights: ${label}`, () => {
+      const g = garden(total);
+      const plants = areas.map((area, i) => plant(i + 1, area));
+      const layout = computeGardenMapLayout(g, plants);
+
+      const drawnUsedWidth = layout.width - (layout.freeBand?.w ?? 0);
+      const drawnOccupancy = drawnUsedWidth / layout.width;
+      // Over-capacity gardens clamp at 100% drawn; the domain ratio may exceed 1.
+      const expected = Math.min(1, occupancyRatio(g, plants));
+
+      expect(drawnOccupancy).toBeCloseTo(expected, 9);
+      expect(layout.plots.reduce((sum, p) => sum + p.requiredArea, 0)).toBeCloseTo(
+        usedSurfaceArea(plants),
+        9,
+      );
+    });
+  }
+
+  it('excludes a plant from its own capacity on edit, exactly as the domain does', () => {
+    const g = garden(20);
+    // Editing plant 1 from 12 m² to 15 m²: the domain excludes the plant's own
+    // area from the check, so 15 + 5 = 20 fits exactly. The map must redraw to
+    // the same 100%, not to some independently derived number.
+    const afterEdit = [plant(1, 15), plant(2, 5)];
+    const layout = computeGardenMapLayout(g, afterEdit);
+    const drawnOccupancy = (layout.width - (layout.freeBand?.w ?? 0)) / layout.width;
+
+    expect(usedSurfaceArea(afterEdit)).toBe(20);
+    expect(drawnOccupancy).toBeCloseTo(occupancyRatio(g, afterEdit), 9);
+  });
+});
 describe('applyPositions / findOverlappingPlots (planner extensions)', () => {
   const base = () => computeGardenMapLayout(garden(40), [plant(1, 6), plant(2, 4), plant(3, 2)]);
 
@@ -226,5 +277,26 @@ describe('applyPositions / findOverlappingPlots (planner extensions)', () => {
     expect(overlaps.has(1)).toBe(true);
     expect(overlaps.has(2)).toBe(true);
     expect(overlaps.has(3)).toBe(false);
+  });
+});
+
+describe('computeGardenMapLayout — degenerate surfaces', () => {
+  it('gives every plot a defined box even when the used region collapses', () => {
+    // A garden with (effectively) no surface leaves squarify nothing to divide,
+    // so each plot falls back to a zero box rather than `undefined` reaching
+    // the SVG as NaN.
+    const layout = computeGardenMapLayout(garden(0), [plant(1, 5), plant(2, 3)]);
+
+    for (const plot of layout.plots) {
+      expect(Number.isFinite(plot.x)).toBe(true);
+      expect(Number.isFinite(plot.y)).toBe(true);
+      expect(Number.isFinite(plot.w)).toBe(true);
+      expect(Number.isFinite(plot.h)).toBe(true);
+    }
+  });
+
+  it('drops zero-area plants rather than drawing an invisible bed', () => {
+    const layout = computeGardenMapLayout(garden(20), [plant(1, 0), plant(2, 5)]);
+    expect(layout.plots.map((p) => p.plantId)).toEqual([2]);
   });
 });
