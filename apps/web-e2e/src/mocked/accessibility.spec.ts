@@ -106,6 +106,58 @@ test.describe('keyboard behaviour', () => {
     await expect(trigger).toBeFocused(); // CDK restores focus to the trigger
   });
 
+  test('inverted surfaces (toast, skip link) stay readable in BOTH themes', async ({ page }) => {
+    // Regression: the toast painted `background: var(--text-1)` with
+    // `color: var(--text-on-dark)`. The dark theme flips --text-1 to near-white
+    // while --text-on-dark stays near-white, so every toast rendered as
+    // invisible text on a white pill. Axe never caught it — no toast is on
+    // screen during a page scan.
+    const relativeLuminance = ([r, g, b]: number[]): number => {
+      const f = (c: number): number => {
+        const s = c / 255;
+        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+    };
+    const contrast = (a: string, b: string): number => {
+      const parse = (c: string): number[] =>
+        (c.match(/[\d.]+/g) ?? ['0', '0', '0']).slice(0, 3).map(Number);
+      const [l1, l2] = [relativeLuminance(parse(a)), relativeLuminance(parse(b))].sort(
+        (x, y) => y - x,
+      );
+      return (l1 + 0.05) / (l2 + 0.05);
+    };
+
+    await signIn(page);
+    await mockHappyData(page);
+    // A delete that resolves gives us a real toast to measure.
+    await page.route('**/api/plants/2', (route) => route.fulfill({ status: 204, body: '' }));
+    await page.goto('/gardens/1');
+
+    for (const theme of ['light', 'dark'] as const) {
+      await page.evaluate((t) => {
+        localStorage.setItem('itp-home-garden.theme', t);
+        document.documentElement.setAttribute('data-theme', t);
+      }, theme);
+
+      const measured = await page.evaluate(() => {
+        const probe = document.createElement('div');
+        probe.style.background = 'var(--surface-inverse)';
+        probe.style.color = 'var(--text-on-inverse)';
+        document.body.appendChild(probe);
+        const cs = getComputedStyle(probe);
+        const out = { bg: cs.backgroundColor, fg: cs.color };
+        probe.remove();
+        return out;
+      });
+
+      expect(
+        contrast(measured.bg, measured.fg),
+        `inverted surface contrast in ${theme} theme`,
+      ).toBeGreaterThan(4.5);
+    }
+  });
+
   test('garden map plots are keyboard-operable: focus + Enter selects', async ({ page }) => {
     await signIn(page);
     await mockHappyData(page);

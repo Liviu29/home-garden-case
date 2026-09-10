@@ -40,7 +40,10 @@ test.describe('plant discovery dialog', () => {
 
     // Recommended cards for THIS garden, with artwork and a truthful fit line
     await expect(page.getByText('Recommended for your garden')).toBeVisible();
-    const cards = page.getByRole('listitem');
+    // Cards are real buttons inside a labelled group (a listitem role on a
+    // <button> would erase its button semantics for assistive tech).
+    const catalog = page.getByRole('group', { name: 'Recommended for your garden' });
+    const cards = catalog.getByRole('button');
     expect(await cards.count()).toBeGreaterThanOrEqual(4);
 
     // Desktop acceptance: no internal vertical scrolling (small tolerance)
@@ -54,7 +57,7 @@ test.describe('plant discovery dialog', () => {
 
     // Search → pick → prefill (values stay editable)
     await page.getByLabel('Search the plant catalog').fill('tomato');
-    await page.getByRole('listitem', { name: /^Tomato,/ }).click();
+    await catalog.getByRole('button', { name: /^Tomato,/ }).click();
     await expect(page.getByLabel('Plant name')).toHaveValue('Tomato');
     await expect(page.getByLabel('Species')).toHaveValue('Solanum lycopersicum');
     await expect(page.getByLabel('Surface area required (m²)')).toHaveValue('0.8');

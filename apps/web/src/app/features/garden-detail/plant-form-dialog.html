@@ -15,12 +15,14 @@
           (input)="onQueryInput($event)"
         />
       </mat-form-field>
-      <p class="catalog-heading">Recommended for your garden</p>
-      <div class="preset-cards" role="list">
+      <p class="catalog-heading" id="catalog-heading">Recommended for your garden</p>
+      <!-- role="group", not role="list": a listitem role on a <button> replaces
+           its button role, so screen readers announce "list item" and drop the
+           press affordance (aria-pressed is not valid there either). -->
+      <div class="preset-cards" role="group" aria-labelledby="catalog-heading">
         @for (rec of cards(); track rec.preset.id) {
           <button
             type="button"
-            role="listitem"
             class="preset-card press-feedback"
             [class.selected]="selectedPresetId() === rec.preset.id"
             [class.no-fit]="!rec.fitsAvailableArea"

@@ -61,8 +61,8 @@ import { ToastStore } from '../../../core/errors/toast-store';
       gap: var(--sp-3);
       padding: var(--sp-3) var(--sp-4);
       border-radius: var(--radius-pill);
-      background: var(--text-1);
-      color: var(--text-on-dark);
+      background: var(--surface-inverse);
+      color: var(--text-on-inverse);
       box-shadow: var(--shadow-3);
       font-size: var(--fs-body);
     }
@@ -94,7 +94,9 @@ import { ToastStore } from '../../../core/errors/toast-store';
     .action {
       flex: none;
       border: 0;
-      background: rgb(255 255 255 / 0.14);
+      // Tinted with the pill's own foreground, so the affordance survives the
+      // inverted surface flipping from near-black (light) to near-white (dark).
+      background: color-mix(in srgb, var(--text-on-inverse) 14%, transparent);
       color: inherit;
       font: inherit;
       font-weight: 600;
@@ -103,7 +105,7 @@ import { ToastStore } from '../../../core/errors/toast-store';
       cursor: pointer;
 
       &:hover {
-        background: rgb(255 255 255 / 0.22);
+        background: color-mix(in srgb, var(--text-on-inverse) 24%, transparent);
       }
     }
 
@@ -111,7 +113,7 @@ import { ToastStore } from '../../../core/errors/toast-store';
       flex: none;
       border: 0;
       background: transparent;
-      color: var(--text-on-dark-dim);
+      color: color-mix(in srgb, var(--text-on-inverse) 72%, transparent);
       font-size: 1.125rem;
       cursor: pointer;
       line-height: 1;

@@ -19,6 +19,12 @@
   --text-on-dark: #fafaf9;
   --text-on-dark-dim: #d6d3d1;
 
+  // Inverted surface: elements that deliberately contrast with the page
+  // (toasts, the skip link). These must flip WITH the theme — reusing
+  // --text-1 as a background silently collapses to no contrast in dark.
+  --surface-inverse: #1c1917;
+  --text-on-inverse: #fafaf9; // 16.3:1
+
   // Brand & semantic
   --brand-400: #22c55e;
   --brand-500: #16a34a;
@@ -132,6 +138,9 @@
   --text-1: #fafaf9;
   --text-2: #d6d3d1;
   --text-3: #a5a09b; // 5.6:1 on surface-1 dark
+
+  --surface-inverse: #f4f4f3;
+  --text-on-inverse: #1c1917; // 15.4:1
 
   --brand-soft: #142a1c;
   --brand-soft-border: #1e4229;
