@@ -171,6 +171,32 @@ positions; nothing upstream would change. If shipped it would be `@defer`red
 behind an explicit user action, renderer-only, with the plan view remaining
 the accessible default.
 
+## The fit amendment: the camera measures its stage
+
+The world is drawn at a fixed 1.6 aspect (area-honest: `width × height` always
+equals `totalSurfaceArea`), but the panel it lives in is a layout outcome —
+wide on desktop, tall on mobile, the viewport's own shape in fullscreen. With
+`preserveAspectRatio="meet"`, any mismatch letterboxes: on a 2.07-wide panel
+the garden was pinned to ~46% of the width, padded with dead lawn on both
+sides, and every zoom level inherited that margin.
+
+Two changes, one outcome — zoom 1 means _"this garden fills this panel"_:
+
+- **The stage takes the world's aspect ratio in CSS** (`aspect-ratio: 1.6`,
+  capped by `max-height`), so the common case needs no measurement at all.
+- **The camera's content box is grown to the stage's measured ratio** and
+  centred on the garden, which covers the cases CSS cannot: fullscreen, mobile,
+  and any layout where `max-height` binds. This is the one `ResizeObserver` in
+  the engine; it feeds a signal, and the camera's reset source stays the _world_
+  so resizing a window never snaps a zoomed-in gardener back to fit.
+
+A related defect surfaced in the same pass: a stroke-width without
+`vector-effect: non-scaling-stroke` is expressed in **map units**, and the
+world is only ~5.7 units wide. The name-plate's `0.5px` border was rendering
+69 px thick at fit and ten times that zoomed in. Every stroke in the scene is
+now screen-constant, and an e2e guard sweeps the rendered SVG for any stroke
+wider than 10 px so the next one is caught by a test rather than by eye.
+
 ## Exit strategy
 
 The renderer depends only on `GardenMapLayout` (plain immutable rects in map

@@ -1,8 +1,11 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
+  afterNextRender,
   computed,
+  inject,
   input,
   linkedSignal,
   model,
@@ -177,10 +180,59 @@ export class GardenMap {
 
   /** Visual-arrangement overlaps (never a capacity verdict — see docs). */
   protected readonly overlappingIds = computed(() => findOverlappingPlots(this.layout().plots));
-  private readonly content = computed(() => ({
+  /**
+   * Aspect ratio of the rendered stage (width / height). The panel's shape is
+   * a layout outcome, not a constant — wide on desktop, tall on mobile, the
+   * viewport's own shape in fullscreen — so it is measured rather than
+   * assumed. `null` until the observer reports, which keeps the first paint
+   * identical to the world's own ratio.
+   */
+  private readonly viewportRatio = signal<number | null>(null);
+
+  private readonly destroyRef = inject(DestroyRef);
+
+  constructor() {
+    afterNextRender(() => {
+      // jsdom has no ResizeObserver; the null ratio then keeps the world's own
+      // shape, which is exactly the pre-measurement behaviour the specs assert.
+      if (typeof ResizeObserver === 'undefined') {
+        return;
+      }
+      const observer = new ResizeObserver(([entry]) => {
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0) {
+          this.viewportRatio.set(width / height);
+        }
+      });
+      observer.observe(this.mapSvg().nativeElement);
+      this.destroyRef.onDestroy(() => observer.disconnect());
+    });
+  }
+
+  /**
+   * The camera's world box: the garden grown to the STAGE's aspect ratio and
+   * centred on it.
+   *
+   * `preserveAspectRatio="meet"` letterboxes a viewBox whose shape differs
+   * from its element. The world is a fixed 1.6 wide; on a 2.07-wide panel the
+   * garden was pinned to ~46% of the width with dead lawn either side, and
+   * every zoom level inherited that margin. Growing the box on the roomier
+   * axis makes zoom 1 mean "this garden fills this panel", whatever shape the
+   * panel happens to be.
+   */
+  private readonly world = computed(() => ({
     width: this.layout().width,
     height: this.layout().height,
   }));
+
+  private readonly content = computed(() => {
+    const { width, height } = this.world();
+    const ratio = this.viewportRatio() ?? width / height;
+    const wide = ratio >= width / height;
+    const w = wide ? height * ratio : width;
+    const h = wide ? height : width / ratio;
+    return { width: w, height: h, x: (width - w) / 2, y: (height - h) / 2 };
+  });
   protected readonly cornerR = computed(() => this.layout().width * 0.035);
 
   protected readonly plotViews = computed<readonly PlotView[]>(() => {
@@ -321,7 +373,10 @@ export class GardenMap {
   );
 
   // ── Camera (resets whenever the surface dimensions change) ───────────────
-  private readonly camera = linkedSignal<CameraState>(() => fitCamera(this.content()));
+  // Sourced from the WORLD, not the viewport-shaped box: resizing the window
+  // must not snap a zoomed-in gardener back to fit. Both share a centre, so
+  // the reset lands in the same place either way.
+  private readonly camera = linkedSignal<CameraState>(() => fitCamera(this.world()));
   protected readonly viewBox = computed(() => viewBoxOf(this.camera(), this.content()));
   protected readonly zoomPercent = computed(() => Math.round(this.camera().zoom * 100));
   protected readonly minZoom = MIN_ZOOM;

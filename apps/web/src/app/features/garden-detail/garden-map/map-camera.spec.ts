@@ -72,4 +72,24 @@ describe('MapCamera (pure pan/zoom math)', () => {
     expect(cam.cx).toBeCloseTo(5, 5);
     expect(cam.cy).toBeCloseTo(3.125, 5);
   });
+
+  it('clamps against a content box that does not start at the origin', () => {
+    // The map component hands the camera a box grown to the STAGE's aspect
+    // ratio and centred on the garden, so its origin is negative. Clamping
+    // relative to 0 would have let the view drift off that box.
+    const box = { width: 8, height: 4, x: -1, y: -0.5 };
+
+    expect(fitCamera(box)).toEqual({ cx: 3, cy: 1.5, zoom: 1 });
+
+    const zoomed = zoomBy(fitCamera(box), box, 2);
+    const far = panBy(zoomed, box, 999, 999);
+    // Half-spans at 2x are 2 and 1, so the centre stops that far from the
+    // box's real far edge (-1 + 8 = 7, -0.5 + 4 = 3.5).
+    expect(far.cx).toBeCloseTo(5, 6);
+    expect(far.cy).toBeCloseTo(2.5, 6);
+
+    const near = panBy(zoomed, box, -999, -999);
+    expect(near.cx).toBeCloseTo(1, 6);
+    expect(near.cy).toBeCloseTo(0.5, 6);
+  });
 });

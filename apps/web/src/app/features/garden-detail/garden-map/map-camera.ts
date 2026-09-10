@@ -20,13 +20,24 @@ export const MIN_ZOOM = 0.5;
 export const MAX_ZOOM = 10;
 export const ZOOM_STEP = 1.4;
 
+/**
+ * The camera's world box. `x`/`y` default to the origin; the map component
+ * passes a box grown to the VIEWPORT's aspect ratio and centred on the
+ * garden, so zoom 1 fills the panel instead of letterboxing inside it.
+ */
 interface ContentSize {
   readonly width: number;
   readonly height: number;
+  readonly x?: number;
+  readonly y?: number;
 }
 
 export function fitCamera(content: ContentSize): CameraState {
-  return { cx: content.width / 2, cy: content.height / 2, zoom: 1 };
+  return {
+    cx: (content.x ?? 0) + content.width / 2,
+    cy: (content.y ?? 0) + content.height / 2,
+    zoom: 1,
+  };
 }
 
 /** The visible rect in map units for a given state. */
@@ -50,12 +61,12 @@ function clampState(state: CameraState, content: ContentSize): CameraState {
   const zoom = clamp(state.zoom, MIN_ZOOM, MAX_ZOOM);
   const halfW = content.width / zoom / 2;
   const halfH = content.height / zoom / 2;
-  const axis = (value: number, half: number, size: number): number =>
-    half >= size / 2 ? size / 2 : clamp(value, half, size - half);
+  const axis = (value: number, half: number, size: number, origin: number): number =>
+    half >= size / 2 ? origin + size / 2 : clamp(value, origin + half, origin + size - half);
   return {
     zoom,
-    cx: axis(state.cx, halfW, content.width),
-    cy: axis(state.cy, halfH, content.height),
+    cx: axis(state.cx, halfW, content.width, content.x ?? 0),
+    cy: axis(state.cy, halfH, content.height, content.y ?? 0),
   };
 }
 

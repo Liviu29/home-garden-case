@@ -117,6 +117,10 @@ test.describe('drag positioning (visual layout only)', () => {
     await openPlan(page);
     const map = page.getByRole('region', { name: 'Garden plan' });
     const plot = map.getByRole('button', { name: /Basil/ });
+    // The stage takes the world's aspect ratio, so its height follows the
+    // panel width — scroll the bed into view rather than assuming it sits
+    // above the fold at any particular viewport.
+    await plot.scrollIntoViewIfNeeded();
     // Let the one-shot grow-in settle so geometry measurements are stable.
     await expect
       .poll(async () => (await plot.boundingBox())!.x, { timeout: 3000 })

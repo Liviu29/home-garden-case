@@ -138,6 +138,51 @@ test.describe('delayed load (map Test 3)', () => {
 });
 
 test.describe('viewport controls (map Test 4)', () => {
+  test('the plan fills its stage, and no stroke scales with the map', async ({ page }) => {
+    // Two bugs this locks down, both invisible to a DOM-only assertion:
+    //
+    // 1. Letterboxing. The world is drawn at a fixed 1.6 aspect; when the
+    //    stage was a shorter box, `preserveAspectRatio="meet"` pinned the
+    //    garden to ~46% of the width and padded it with dead lawn.
+    // 2. Scaling strokes. A stroke-width without `vector-effect:
+    //    non-scaling-stroke` is in MAP UNITS, and the world is ~5.7 units
+    //    wide — the name-plate's "0.5px" border rendered 69px thick at fit
+    //    and ten times that zoomed in.
+    await signIn(page);
+    await mockGarden(page, { plants });
+    await openMap(page);
+
+    const map = page.getByRole('region', { name: 'Garden plan' });
+    await expect(map).toBeVisible();
+    await map.getByRole('button', { name: /Lavender/ }).click();
+
+    const geometry = await page.evaluate(() => {
+      const svg = document.querySelector('.map-panel svg[viewBox]') as SVGSVGElement;
+      const rect = svg.getBoundingClientRect();
+      const [, , vw, vh] = svg.getAttribute('viewBox')!.split(/\s+/).map(Number);
+      const scale = rect.width / vw;
+
+      let widestStrokePx = 0;
+      for (const el of svg.querySelectorAll('*')) {
+        const cs = getComputedStyle(el);
+        const declared = parseFloat(cs.strokeWidth);
+        if (!declared || cs.stroke === 'none') continue;
+        const px =
+          cs.getPropertyValue('vector-effect') === 'non-scaling-stroke'
+            ? declared
+            : declared * scale;
+        widestStrokePx = Math.max(widestStrokePx, px);
+      }
+
+      return { stageRatio: rect.width / rect.height, viewBoxRatio: vw / vh, widestStrokePx };
+    });
+
+    // The visible rect must have the stage's shape, or `meet` letterboxes it.
+    expect(Math.abs(geometry.viewBoxRatio - geometry.stageRatio)).toBeLessThan(0.05);
+    // Nothing in a garden plan is legitimately a 10px-thick line.
+    expect(geometry.widestStrokePx).toBeLessThan(10);
+  });
+
   test('zoom in/out updates the level; Fit returns to 100%; Reset clears selection', async ({
     page,
   }) => {
