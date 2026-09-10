@@ -1,3 +1,4 @@
+import { ApiError } from '../../core/errors/api-error';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
@@ -147,5 +148,272 @@ describe('PlantFormDialog (capacity behaviour, the reviewer-facing rule)', () =>
     expect(el.textContent).toContain('only');
     await fixture.componentInstance['submit']();
     expect(store.createPlant).not.toHaveBeenCalled();
+  });
+});
+
+describe('PlantFormDialog — catalog search, presets and submit paths', () => {
+  type DialogApi = {
+    query: { (): string; set: (v: string) => void };
+    cards: () => readonly { preset: { commonName: string } }[];
+    applyPreset: (rec: unknown) => void;
+    selectedPresetId: () => string | null;
+    fitBadge: (rec: unknown) => string;
+    previewUsed: () => number;
+    requires: () => number;
+    remainingAfterSave: () => number;
+    overcrowds: () => boolean;
+    serverError: () => string | null;
+    form: { patchValue: (v: Record<string, unknown>) => void };
+    submit: () => Promise<void>;
+  };
+
+  const api = (fixture: { componentInstance: unknown }) =>
+    fixture.componentInstance as unknown as DialogApi;
+
+  let ref: { close: ReturnType<typeof vi.fn> };
+
+  const mountWith = async (
+    data: { plant: Plant | null; plants: readonly Plant[] },
+    store = storeStub(),
+  ) => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [PlantFormDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { garden, ...data, store } },
+        { provide: MatDialogRef, useValue: ref },
+      ],
+    });
+    const fixture = TestBed.createComponent(PlantFormDialog);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    return { fixture, vm: api(fixture), store };
+  };
+
+  beforeEach(() => {
+    ref = { close: vi.fn() };
+  });
+
+  describe('catalog', () => {
+    it('shows the best matches for this garden when the search is empty', async () => {
+      const { vm } = await mountWith({ plant: null, plants: [] });
+      expect(vm.cards().length).toBeGreaterThan(0);
+      expect(vm.cards().length).toBeLessThanOrEqual(8);
+    });
+
+    it('filters by common name', async () => {
+      const { vm } = await mountWith({ plant: null, plants: [] });
+      vm.query.set('tom');
+      expect(vm.cards().every((c) => /tom/i.test(c.preset.commonName))).toBe(true);
+    });
+
+    it('filters by scientific name too', async () => {
+      const { vm } = await mountWith({ plant: null, plants: [] });
+      vm.query.set('solanum');
+      expect(vm.cards().length).toBeGreaterThan(0);
+    });
+
+    it('returns nothing for a query that matches neither name', async () => {
+      const { vm } = await mountWith({ plant: null, plants: [] });
+      vm.query.set('zzzznotaplant');
+      expect(vm.cards()).toHaveLength(0);
+    });
+
+    it('applying a preset fills the form and marks the card selected', async () => {
+      const { fixture, vm } = await mountWith({ plant: null, plants: [] });
+      const first = vm.cards()[0];
+
+      vm.applyPreset(first);
+      fixture.detectChanges();
+
+      expect(vm.selectedPresetId()).not.toBeNull();
+    });
+
+    it('badges every fit quality the ranking can produce', async () => {
+      // A roomy empty garden yields humidity-based badges…
+      const roomy = await mountWith({ plant: null, plants: [] });
+      const roomyBadges = roomy.vm.cards().map((c) => roomy.vm.fitBadge(c));
+      expect(roomyBadges.length).toBeGreaterThan(0);
+      for (const badge of roomyBadges) {
+        expect(badge).toMatch(/Excellent fit|Good fit|Prefers \d+% humidity/);
+      }
+
+      // …and a nearly-full garden yields the "won't fit" badge instead.
+      const nearlyFull = await mountWith({
+        plant: null,
+        plants: [{ ...existingPlant, surfaceAreaRequired: garden.totalSurfaceArea - 0.1 }],
+      });
+      const tightBadges = nearlyFull.vm.cards().map((c) => nearlyFull.vm.fitBadge(c));
+      expect(tightBadges.some((b) => /^Needs \d/.test(b))).toBe(true);
+    });
+  });
+
+  describe('capacity preview', () => {
+    it("adds this form's request to the OTHER plants, not to itself, when editing", async () => {
+      const { vm } = await mountWith({ plant: existingPlant, plants: [existingPlant] });
+      // Editing the only plant: the other plants total 0, so the preview is
+      // whatever the form currently asks for.
+      expect(vm.previewUsed()).toBe(vm.requires());
+    });
+
+    it('never previews a negative footprint', async () => {
+      const { fixture, vm } = await mountWith({ plant: null, plants: [] });
+      vm.form.patchValue({ surfaceAreaRequired: -5 });
+      fixture.detectChanges();
+
+      expect(vm.requires()).toBe(0);
+      expect(vm.previewUsed()).toBeGreaterThanOrEqual(0);
+    });
+
+    it('reports the remaining area after saving as-is', async () => {
+      const { fixture, vm } = await mountWith({ plant: null, plants: [] });
+      vm.form.patchValue({ surfaceAreaRequired: 5 });
+      fixture.detectChanges();
+
+      expect(vm.remainingAfterSave()).toBe(garden.totalSurfaceArea - 5);
+    });
+  });
+
+  describe('submit', () => {
+    const fill = (vm: DialogApi) =>
+      vm.form.patchValue({
+        plantName: 'Tomato',
+        species: 'Solanum',
+        plantType: 'vegetable',
+        surfaceAreaRequired: 2,
+        idealHumidityLevel: 60,
+      });
+
+    it('creates when there is no plant to edit', async () => {
+      const { vm, store } = await mountWith({ plant: null, plants: [] });
+      fill(vm);
+
+      await vm.submit();
+
+      expect(store.createPlant).toHaveBeenCalled();
+      expect(ref.close).toHaveBeenCalledWith(true);
+    });
+
+    it('updates when editing an existing plant', async () => {
+      const { vm, store } = await mountWith({ plant: existingPlant, plants: [existingPlant] });
+      fill(vm);
+
+      await vm.submit();
+
+      expect(store.updatePlant).toHaveBeenCalledWith(existingPlant.plantId, expect.anything());
+      expect(store.createPlant).not.toHaveBeenCalled();
+    });
+
+    it('renders a functional verdict inline and keeps the dialog open', async () => {
+      const store = storeStub();
+      store.createPlant.mockResolvedValue({
+        ok: false,
+        error: new ApiError('functional', 'Garden would be overcrowded', 400),
+      });
+      const { vm } = await mountWith({ plant: null, plants: [] }, store);
+      fill(vm);
+
+      await vm.submit();
+
+      expect(vm.serverError()).toBe('Garden would be overcrowded');
+      expect(ref.close).not.toHaveBeenCalled();
+    });
+
+    it('leaves a technical failure to the toast layer', async () => {
+      const store = storeStub();
+      store.createPlant.mockResolvedValue({
+        ok: false,
+        error: new ApiError('technical', 'Server exploded', 500),
+      });
+      const { vm } = await mountWith({ plant: null, plants: [] }, store);
+      fill(vm);
+
+      await vm.submit();
+
+      expect(vm.serverError()).toBeNull();
+      expect(ref.close).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('PlantFormDialog — every validation message renders', () => {
+  type Vm = {
+    form: { patchValue: (v: Record<string, unknown>) => void; markAllAsTouched: () => void };
+    serverError: { set: (v: string) => void };
+  };
+
+  const mountFresh = async (plant: Plant | null = null) => {
+    const store = storeStub();
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [PlantFormDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { garden, plants: [], plant, store } },
+        { provide: MatDialogRef, useValue: { close: vi.fn() } },
+      ],
+    });
+    const fixture = TestBed.createComponent(PlantFormDialog);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    return {
+      fixture,
+      vm: fixture.componentInstance as unknown as Vm,
+      el: fixture.nativeElement as HTMLElement,
+      store,
+    };
+  };
+
+  const show = async (values: Record<string, unknown>) => {
+    const { fixture, vm, el } = await mountFresh();
+    vm.form.patchValue(values);
+    vm.form.markAllAsTouched();
+    fixture.detectChanges();
+    return el.textContent ?? '';
+  };
+
+  it('plant name is required', async () => {
+    expect(await show({ plantName: '' })).toContain('Plant name is required');
+  });
+
+  it('species is required', async () => {
+    expect(await show({ species: '' })).toContain('Species is required');
+  });
+
+  it('plantation date is required', async () => {
+    expect(await show({ plantationDate: null })).toContain('Plantation date is required');
+  });
+
+  it('surface area is required', async () => {
+    expect(await show({ surfaceAreaRequired: null })).toContain('Surface area is required');
+  });
+
+  it("surface area can't be negative", async () => {
+    expect(await show({ surfaceAreaRequired: -2 })).toContain("Surface area can't be negative");
+  });
+
+  it('renders a server error inline', async () => {
+    const { fixture, vm, el } = await mountFresh();
+    vm.serverError.set('The greenhouse said no.');
+    fixture.detectChanges();
+    expect(el.textContent).toContain('The greenhouse said no.');
+  });
+
+  it('shows the catalog picker when creating and hides it when editing', async () => {
+    const creating = await mountFresh(null);
+    expect(creating.el.textContent).toContain('Recommended for your garden');
+
+    const editing = await mountFresh(existingPlant);
+    expect(editing.el.textContent).not.toContain('Recommended for your garden');
+  });
+
+  it('ghosts the submit button while the store is saving — never a spinner', async () => {
+    const { fixture, el, store } = await mountFresh();
+    store.saving.set(true);
+    fixture.detectChanges();
+
+    expect(el.querySelector('mat-spinner, .mat-mdc-progress-spinner')).toBeNull();
+    expect(el.querySelector('.btn-ghost')).not.toBeNull();
   });
 });

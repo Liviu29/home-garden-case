@@ -1,4 +1,4 @@
-import { Plant } from '../../core/api/models';
+import { PLANT_TYPES, Plant } from '../../core/api/models';
 import { computeVegetation, resolvePlantVisual } from './plant-visual-resolver';
 
 const plant = (
@@ -86,5 +86,40 @@ describe('computeVegetation (deterministic growth clusters)', () => {
     const veg = computeVegetation(3, 0.6, 0.5, 0.45);
     expect(veg[0].size).toBeGreaterThanOrEqual(0.45);
     expect(veg[0].size).toBeLessThanOrEqual(0.5);
+  });
+});
+
+describe('resolvePlantVisual — every plantType maps to a category', () => {
+  const base = {
+    plantId: 1,
+    plantName: 'Something',
+    species: 'sp',
+    plantationDate: '2026-04-01T00:00:00.000Z',
+    surfaceAreaRequired: 1,
+    idealHumidityLevel: 50,
+    gardenId: 1,
+    createdAt: '',
+    updatedAt: '',
+  };
+
+  it.each(PLANT_TYPES)('%s → a stable category with a palette and rotation', (plantType) => {
+    const visual = resolvePlantVisual({ ...base, plantType });
+
+    expect(visual.category).toBeTruthy();
+    expect(visual.symbolId).toMatch(/^pv-/);
+    expect(visual.palette).toBeTruthy();
+    expect(visual.rotation).toBeGreaterThanOrEqual(-14);
+    expect(visual.rotation).toBeLessThanOrEqual(14);
+  });
+
+  it('is deterministic for the same plant', () => {
+    const plant = { ...base, plantType: 'vegetable' as const };
+    expect(resolvePlantVisual(plant)).toEqual(resolvePlantVisual(plant));
+  });
+
+  it('varies with the plant id, so a bed of the same species is not uniform', () => {
+    const a = resolvePlantVisual({ ...base, plantId: 1, plantType: 'vegetable' as const });
+    const b = resolvePlantVisual({ ...base, plantId: 2, plantType: 'vegetable' as const });
+    expect([a.palette, a.rotation]).not.toEqual([b.palette, b.rotation]);
   });
 });

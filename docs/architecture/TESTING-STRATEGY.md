@@ -26,3 +26,40 @@ Coverage follows risk, not percentages. The case asks for _useful_ coverage of c
 Presentational components with no branching (StatCard, PageHeader), Material internals, and pixel styling — snapshot tests of markup would pin refactors without catching behaviour bugs.
 
 Run: `npx nx test web` · `npx nx e2e web-e2e` (the config boots api+web; `--project=mocked` runs the deterministic suite alone). The split rationale: integration keeps real-contract confidence, mocked guarantees the states randomness can't (a persistent 500, an exact 2.5 s delay, an empty list).
+
+## Coverage gate
+
+`npm run test:coverage` enforces **95%** on statements, branches, functions and
+lines (`coverageThresholds` in `apps/web/angular.json`). The build fails below
+the line — verified by temporarily raising the bar and watching it fail, not by
+assuming.
+
+Two configuration decisions make that number mean something:
+
+- **`coverageInclude` names every application file**, so a file with no spec at
+  all counts as 0% rather than being absent from the report. Without it the
+  headline was 80%; with it the same tree measured 72%.
+- **`coverageExclude` is deliberately short** — `*.spec.ts`, the two type-only
+  DTO modules (no runtime statements to execute), and `app.config.ts` /
+  `app.routes.ts` (declarative provider and route arrays, exercised by the app
+  booting in every e2e run). Nothing was excluded to flatter the number.
+
+Templates are counted too. That matters more than it sounds: an Angular
+template compiles each `@if`/`@for` block and **each event listener** into its
+own function, so template function coverage only moves when a test actually
+renders that state and fires that control. Reaching the gate therefore forced
+the component specs to drive the real DOM — clicking the menu item rather than
+calling the method behind it — which is the stronger test either way.
+
+Three things are covered by the Playwright suites instead, and are documented
+here rather than worked around:
+
+- `Logger.warn`'s production early-return depends on `isDevMode()`, a
+  process-wide flag. Mocking it needs Vitest isolation on and code-splitting
+  off — a 6× slower suite for one line.
+- `GardensStore`'s persisted search/sort parsing runs during module
+  evaluation; re-running it needs `vi.resetModules()`, which leaks across the
+  shared module registry this suite runs in (tried; it broke three unrelated
+  specs).
+- The `@defer`ed Garden Map renders through `DeferBlockState.Complete` in unit
+  tests because jsdom never fires an intersection.

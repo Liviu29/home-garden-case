@@ -1,3 +1,4 @@
+import { SessionStore } from '../../core/auth/session-store';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
@@ -114,5 +115,171 @@ describe('Dashboard (aggregate insights a user notices)', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Everything looks healthy');
     expect(fixture.nativeElement.querySelectorAll('.attention-card').length).toBe(0);
+  });
+});
+
+describe('Dashboard — greeting, KPI edges and insight tones', () => {
+  const GARDENS = [garden(1, 'Alpha'), garden(2, 'Beta', 10, 90), garden(3, 'Gamma', 0)];
+
+  type DashApi = {
+    greeting: () => string;
+    insights: () => readonly {
+      statusLabel: string;
+      statusTone: string;
+      severity: number;
+      garden: { gardenId: number };
+    }[];
+    attention: () => readonly unknown[];
+    utilizationPct: () => number;
+    totalArea: () => number;
+    plantsSettled: () => boolean;
+  };
+
+  let gardensApi: Record<string, ReturnType<typeof vi.fn>>;
+  let plantsApi: Record<string, ReturnType<typeof vi.fn>>;
+
+  const mountDash = async (over: Partial<Record<number, Plant[]>> = {}) => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        provideNoopAnimations(),
+        { provide: APP_CONFIG, useValue: TEST_CONFIG },
+        { provide: GardensApi, useValue: gardensApi },
+        {
+          provide: PlantsApi,
+          useValue: {
+            getByGarden: vi.fn((id: number) => Promise.resolve(over[id] ?? [])),
+          },
+        },
+      ],
+    });
+    const fixture = TestBed.createComponent(Dashboard);
+    fixture.detectChanges();
+    const vm = fixture.componentInstance as unknown as DashApi;
+    // Two waits, deliberately. `plantsSettled()` is `every()` over the garden
+    // list, so it is vacuously TRUE before the gardens themselves arrive —
+    // waiting on it alone races the test past the state under assertion.
+    await vi.waitFor(() => expect(vm.insights().length).toBeGreaterThan(0));
+    await vi.waitFor(() => expect(vm.plantsSettled()).toBe(true));
+    fixture.detectChanges();
+    return { fixture, vm };
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    gardensApi = { getAll: vi.fn().mockResolvedValue(GARDENS) };
+    plantsApi = { getByGarden: vi.fn().mockResolvedValue([]) };
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  describe('greeting', () => {
+    it.each([
+      { hour: 8, expected: 'Good morning' },
+      { hour: 14, expected: 'Good afternoon' },
+      { hour: 21, expected: 'Good evening' },
+    ])('says "$expected" at $hour:00', async ({ hour, expected }) => {
+      vi.setSystemTime(new Date(2026, 3, 1, hour, 0, 0));
+      const { vm } = await mountDash();
+      expect(vm.greeting()).toContain(expected);
+    });
+
+    it('uses the profile first name when there is a session', async () => {
+      vi.setSystemTime(new Date(2026, 3, 1, 8, 0, 0));
+      const { vm } = await mountDash();
+      TestBed.inject(SessionStore).signIn({
+        userId: 1,
+        emailAddress: 'a@b.c',
+        firstName: 'Liviu',
+        lastName: null,
+        age: null,
+      });
+      expect(vm.greeting()).toBe('Good morning, Liviu');
+    });
+
+    it('greets anonymously with no session', async () => {
+      vi.setSystemTime(new Date(2026, 3, 1, 8, 0, 0));
+      const { vm } = await mountDash();
+      expect(vm.greeting()).toBe('Good morning');
+    });
+  });
+
+  describe('insight status', () => {
+    it("shows an ellipsis while a garden's plants are unknown", async () => {
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [
+          provideRouter([]),
+          provideNoopAnimations(),
+          { provide: APP_CONFIG, useValue: TEST_CONFIG },
+          { provide: GardensApi, useValue: gardensApi },
+          {
+            provide: PlantsApi,
+            useValue: { getByGarden: vi.fn().mockReturnValue(new Promise(() => undefined)) },
+          },
+        ],
+      });
+      const fixture = TestBed.createComponent(Dashboard);
+      fixture.detectChanges();
+      await vi.waitFor(() =>
+        expect((fixture.componentInstance as unknown as DashApi).insights().length).toBe(3),
+      );
+
+      const vm = fixture.componentInstance as unknown as DashApi;
+      expect(vm.insights()[0].statusLabel).toBe('…');
+      expect(vm.insights()[0].statusTone).toBe('neutral');
+      expect(vm.plantsSettled()).toBe(false);
+    });
+
+    it('says "No plants yet" for an empty garden', async () => {
+      const { vm } = await mountDash();
+      expect(vm.insights().some((i) => i.statusLabel === 'No plants yet')).toBe(true);
+    });
+
+    it('flags humidity attention when plants drift but capacity is fine', async () => {
+      const { vm } = await mountDash({ 2: [plant(21, 2, 1, 20)] });
+      const beta = vm.insights().find((i) => i.garden.gardenId === 2);
+      expect(beta?.statusLabel).toBe('Humidity attention');
+      expect(beta?.statusTone).toBe('warning');
+    });
+
+    it('capacity outranks humidity when a garden is nearly full', async () => {
+      const { vm } = await mountDash({ 2: [plant(21, 2, 10, 20)] });
+      const beta = vm.insights().find((i) => i.garden.gardenId === 2);
+      expect(beta?.statusLabel).not.toBe('Humidity attention');
+    });
+
+    it('sorts a full garden above a nearly-full one', async () => {
+      const { vm } = await mountDash({ 1: [plant(11, 1, 20)], 2: [plant(21, 2, 9.5)] });
+      const full = vm.insights().find((i) => i.garden.gardenId === 1);
+      const nearly = vm.insights().find((i) => i.garden.gardenId === 2);
+      expect(full!.severity).toBeLessThan(nearly!.severity);
+    });
+  });
+
+  describe('KPI edges', () => {
+    it('reports 0% utilization when there is no growing space at all', async () => {
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [
+          provideRouter([]),
+          provideNoopAnimations(),
+          { provide: APP_CONFIG, useValue: TEST_CONFIG },
+          {
+            provide: GardensApi,
+            useValue: { getAll: vi.fn().mockResolvedValue([garden(3, 'Z', 0)]) },
+          },
+          { provide: PlantsApi, useValue: plantsApi },
+        ],
+      });
+      const fixture = TestBed.createComponent(Dashboard);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const vm = fixture.componentInstance as unknown as DashApi;
+      expect(vm.totalArea()).toBe(0);
+      expect(vm.utilizationPct()).toBe(0);
+    });
   });
 });

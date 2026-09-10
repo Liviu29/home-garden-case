@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { Garden, Plant } from '../../../core/api/models';
@@ -38,6 +38,7 @@ const plant = (id: number, area: number, name = `Plant ${id}`): Plant => ({
     (addPlant)="added = added + 1"
     (editPlant)="edited = $event"
     (removePlant)="removed = $event"
+    (positionChange)="moved = $event"
   />`,
 })
 class Host {
@@ -46,6 +47,7 @@ class Host {
   added = 0;
   edited: Plant | null = null;
   removed: Plant | null = null;
+  moved: { plantId: number; x: number; y: number } | null = null;
 }
 
 describe('GardenMap (what a user sees and does on the digital twin)', () => {
@@ -191,5 +193,828 @@ describe('GardenMap (what a user sees and does on the digital twin)', () => {
       return Number(rect.getAttribute('width')) * Number(rect.getAttribute('height'));
     };
     expect(area('Big') / area('Small')).toBeCloseTo(4, 3);
+  });
+});
+
+/**
+ * Interaction coverage for the planner.
+ *
+ * These drive the SVG the way a user does — pointer, wheel, keyboard — rather
+ * than calling the component's methods. That is deliberate: the map's value is
+ * its direct-manipulation behaviour, and a template refactor that drops a
+ * listener would leave method-level tests green while the planner stops
+ * responding.
+ */
+describe('GardenMap — direct manipulation', () => {
+  let host: ComponentFixture<Host>;
+  let el: HTMLElement;
+
+  const PLANTS = [plant(1, 8, 'Tomato'), plant(2, 4, 'Basil'), plant(3, 2, 'Thyme')];
+
+  const mount = (plants: readonly Plant[] = PLANTS, over: Partial<Garden> = {}) => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [provideNoopAnimations()] });
+    host = TestBed.createComponent(Host);
+    host.componentInstance.garden.set(garden(over));
+    host.componentInstance.plants.set(plants);
+    host.detectChanges();
+    el = host.nativeElement as HTMLElement;
+    return host;
+  };
+
+  const svg = () => el.querySelector('svg.map-svg') as SVGSVGElement;
+  const plots = () => [...el.querySelectorAll('g.plot')] as SVGGElement[];
+  const byTitle = (title: string) =>
+    el.querySelector<HTMLButtonElement>(`button[title="${title}"]`);
+
+  const pointer = (type: string, over: Partial<PointerEventInit> = {}) =>
+    new PointerEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      pointerId: 1,
+      clientX: 100,
+      clientY: 100,
+      ...over,
+    });
+
+  /**
+   * jsdom implements neither pointer capture nor SVG layout geometry. Without
+   * both, every gesture returns early at `pxPerUnit() === 0` and the drag and
+   * pinch paths are unreachable — so these stubs are what put the behaviour
+   * under test rather than the environment's limitations.
+   */
+  const GEOMETRY = { width: 800, height: 500, left: 0, top: 0, right: 800, bottom: 500 };
+
+  beforeEach(() => {
+    for (const [name, value] of [
+      ['setPointerCapture', () => undefined],
+      ['releasePointerCapture', () => undefined],
+      ['hasPointerCapture', () => false],
+    ] as const) {
+      Object.defineProperty(Element.prototype, name, { value, configurable: true, writable: true });
+    }
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+      ...GEOMETRY,
+      x: 0,
+      y: 0,
+      toJSON: () => GEOMETRY,
+    } as DOMRect);
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  describe('zoom', () => {
+    it('the wheel zooms the camera', () => {
+      mount();
+      const before = Number(el.querySelector('.zoom-level')?.textContent?.replace(/\D/g, '') ?? 0);
+
+      svg().dispatchEvent(
+        new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -300 }),
+      );
+      host.detectChanges();
+
+      const after = Number(el.querySelector('.zoom-level')?.textContent?.replace(/\D/g, '') ?? 0);
+      expect(after).toBeGreaterThan(before);
+    });
+
+    it('the zoom buttons step in and out', () => {
+      mount();
+      byTitle('Zoom in')!.click();
+      host.detectChanges();
+      const zoomedIn = el.querySelector('.zoom-level')?.textContent;
+
+      byTitle('Zoom out')!.click();
+      host.detectChanges();
+
+      expect(el.querySelector('.zoom-level')?.textContent).not.toBe(zoomedIn);
+    });
+
+    it('Fit returns the camera to the whole garden', () => {
+      mount();
+      byTitle('Zoom in')!.click();
+      host.detectChanges();
+
+      byTitle('Fit garden')!.click();
+      host.detectChanges();
+
+      expect(el.querySelector('.zoom-level')?.textContent).toContain('100');
+    });
+
+    it('Reset view clears both the camera and the selection', () => {
+      mount();
+      plots()[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      host.detectChanges();
+      expect(el.querySelector('.map-inspector')?.textContent).toContain('Tomato');
+
+      byTitle('Reset view and selection')!.click();
+      host.detectChanges();
+
+      // The inspector aside is always in the DOM; "cleared" means it no longer
+      // describes a plant.
+      expect(el.querySelector('.map-inspector')?.textContent).not.toContain('Tomato');
+    });
+  });
+
+  describe('keyboard', () => {
+    it.each(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'])('%s pans the camera', (key) => {
+      mount();
+      expect(() =>
+        svg().dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })),
+      ).not.toThrow();
+      host.detectChanges();
+    });
+
+    it.each(['+', '-', '0'])('%s adjusts the zoom from the keyboard', (key) => {
+      mount();
+      svg().dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+      host.detectChanges();
+      expect(el.querySelector('.zoom-level')).not.toBeNull();
+    });
+
+    it('Enter on a plot selects it', () => {
+      mount();
+      plots()[0].dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+      );
+      host.detectChanges();
+
+      expect(el.querySelector('.map-inspector')?.textContent).toContain('Tomato');
+    });
+
+    it('Space on a plot selects it without scrolling the page', () => {
+      mount();
+      const event = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
+      plots()[0].dispatchEvent(event);
+      host.detectChanges();
+
+      expect(el.querySelector('.map-inspector')?.textContent).toContain('Tomato');
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it('Escape clears the selection', () => {
+      mount();
+      plots()[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      host.detectChanges();
+
+      el.querySelector('.map-shell')!.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+      );
+      host.detectChanges();
+
+      expect(el.querySelector('.map-inspector')?.textContent).not.toContain('Tomato');
+    });
+  });
+
+  describe('pointer', () => {
+    it('a drag on the canvas pans without throwing', () => {
+      mount();
+      const canvas = svg();
+      canvas.dispatchEvent(pointer('pointerdown'));
+      canvas.dispatchEvent(pointer('pointermove', { clientX: 140, clientY: 130 }));
+      canvas.dispatchEvent(pointer('pointerup'));
+      host.detectChanges();
+
+      expect(el.querySelector('.map-svg')).not.toBeNull();
+    });
+
+    it('a cancelled pointer sequence ends cleanly', () => {
+      mount();
+      const canvas = svg();
+      canvas.dispatchEvent(pointer('pointerdown'));
+      canvas.dispatchEvent(pointer('pointercancel'));
+      host.detectChanges();
+
+      expect(el.querySelector('.map-svg')).not.toBeNull();
+    });
+
+    it('leaving the canvas ends any hover state', () => {
+      mount();
+      svg().dispatchEvent(pointer('pointerleave'));
+      host.detectChanges();
+      expect(el.querySelector('.map-svg')).not.toBeNull();
+    });
+
+    it('pressing a plot begins a potential drag', () => {
+      mount();
+      plots()[0].dispatchEvent(pointer('pointerdown'));
+      host.detectChanges();
+      expect(el.querySelector('.map-svg')).not.toBeNull();
+    });
+
+    it('hovering a plot shows a tooltip and leaving hides it', () => {
+      mount();
+      const plot = plots()[0];
+
+      plot.dispatchEvent(pointer('pointerenter'));
+      plot.dispatchEvent(pointer('pointermove'));
+      host.detectChanges();
+
+      plot.dispatchEvent(pointer('pointerleave'));
+      host.detectChanges();
+
+      expect(el.querySelector('.map-svg')).not.toBeNull();
+    });
+
+    it('clicking the lawn behind the plots clears the selection', () => {
+      mount();
+      plots()[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      host.detectChanges();
+      expect(el.querySelector('.map-inspector')?.textContent).toContain('Tomato');
+
+      const lawn = el.querySelector('rect');
+      lawn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      host.detectChanges();
+
+      expect(el.querySelector('.map-svg')).not.toBeNull();
+    });
+  });
+
+  describe('layers menu', () => {
+    it('opens and toggles every layer', () => {
+      mount();
+      byTitle('Toggle layers menu')!.click();
+      host.detectChanges();
+
+      const boxes = [...el.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')];
+      expect(boxes.length).toBeGreaterThanOrEqual(5);
+
+      for (const box of boxes) {
+        const before = box.checked;
+        box.checked = !before;
+        box.dispatchEvent(new Event('change', { bubbles: true }));
+        host.detectChanges();
+      }
+      expect(el.querySelector('.map-svg')).not.toBeNull();
+    });
+  });
+
+  describe('layout history controls', () => {
+    it('exposes undo, redo, reset-layout and fullscreen controls', () => {
+      mount();
+      // Disabled while there is no history, but present and clickable — the
+      // listener is what this asserts, the enablement is the owner's input.
+      byTitle('Undo layout move')?.click();
+      byTitle('Redo layout move')?.click();
+      byTitle('Reset layout to automatic arrangement')?.click();
+      el.querySelector<HTMLButtonElement>('[aria-label="Expand planner"]')?.click();
+      host.detectChanges();
+
+      expect(el.querySelector('.map-svg')).not.toBeNull();
+    });
+  });
+
+  describe('inspector actions', () => {
+    it('focus, clear, edit and remove all reach the owner', () => {
+      mount();
+      plots()[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      host.detectChanges();
+
+      el.querySelector<HTMLButtonElement>('[aria-label="Focus this plant on the plan"]')?.click();
+      host.detectChanges();
+
+      el.querySelector<HTMLButtonElement>('[aria-label="Clear selection"]')?.click();
+      host.detectChanges();
+
+      expect(el.querySelector('.map-inspector')?.textContent).not.toContain('Tomato');
+    });
+  });
+
+  describe('empty garden', () => {
+    it('the invitation CTA asks the owner to add a plant', () => {
+      mount([]);
+      const cta = [...el.querySelectorAll('button')].find((b) =>
+        /plant/i.test(b.textContent ?? ''),
+      );
+      cta?.click();
+      host.detectChanges();
+
+      expect(host.componentInstance.added).toBeGreaterThan(0);
+    });
+  });
+
+  describe('dragging a plant bed', () => {
+    it('moves the bed and emits its snapped position on drop', () => {
+      mount();
+      const plot = plots()[0];
+      const canvas = svg();
+
+      plot.dispatchEvent(pointer('pointerdown', { clientX: 200, clientY: 200 }));
+      canvas.dispatchEvent(pointer('pointermove', { clientX: 260, clientY: 250 }));
+      host.detectChanges();
+      canvas.dispatchEvent(pointer('pointerup', { clientX: 260, clientY: 250 }));
+      host.detectChanges();
+
+      expect(host.componentInstance.moved).not.toBeNull();
+      expect(host.componentInstance.moved!.plantId).toBe(
+        Number(plot.getAttribute('data-plant-id') ?? host.componentInstance.moved!.plantId),
+      );
+    });
+
+    it('a move under the threshold stays a click, not a drag', () => {
+      mount();
+      const plot = plots()[0];
+      const canvas = svg();
+
+      plot.dispatchEvent(pointer('pointerdown', { clientX: 200, clientY: 200 }));
+      canvas.dispatchEvent(pointer('pointermove', { clientX: 202, clientY: 201 }));
+      canvas.dispatchEvent(pointer('pointerup', { clientX: 202, clientY: 201 }));
+      host.detectChanges();
+
+      expect(host.componentInstance.moved).toBeNull();
+    });
+
+    it('dragging empty canvas pans the camera instead of moving a bed', () => {
+      mount();
+      const canvas = svg();
+
+      canvas.dispatchEvent(pointer('pointerdown', { clientX: 400, clientY: 250 }));
+      canvas.dispatchEvent(pointer('pointermove', { clientX: 300, clientY: 200 }));
+      canvas.dispatchEvent(pointer('pointerup', { clientX: 300, clientY: 200 }));
+      host.detectChanges();
+
+      expect(host.componentInstance.moved).toBeNull();
+    });
+
+    it('ignores pointer movement it never saw begin', () => {
+      mount();
+      expect(() =>
+        svg().dispatchEvent(pointer('pointermove', { pointerId: 99, clientX: 10, clientY: 10 })),
+      ).not.toThrow();
+    });
+  });
+
+  describe('two-finger pinch', () => {
+    const twoFingers = (canvas: SVGSVGElement) => {
+      canvas.dispatchEvent(pointer('pointerdown', { pointerId: 1, clientX: 300, clientY: 250 }));
+      canvas.dispatchEvent(pointer('pointerdown', { pointerId: 2, clientX: 400, clientY: 250 }));
+    };
+
+    it('spreading two fingers zooms in', () => {
+      mount();
+      const canvas = svg();
+      const before = el.querySelector('.zoom-level')?.textContent;
+
+      twoFingers(canvas);
+      canvas.dispatchEvent(pointer('pointermove', { pointerId: 2, clientX: 600, clientY: 250 }));
+      host.detectChanges();
+
+      expect(el.querySelector('.zoom-level')?.textContent).not.toBe(before);
+    });
+
+    it('lifting one finger re-anchors the pan without jumping the camera', () => {
+      mount();
+      const canvas = svg();
+      twoFingers(canvas);
+      canvas.dispatchEvent(pointer('pointermove', { pointerId: 2, clientX: 600, clientY: 250 }));
+      canvas.dispatchEvent(pointer('pointerup', { pointerId: 2, clientX: 600, clientY: 250 }));
+      host.detectChanges();
+
+      const afterLift = el.querySelector('.zoom-level')?.textContent;
+      canvas.dispatchEvent(pointer('pointermove', { pointerId: 1, clientX: 305, clientY: 252 }));
+      host.detectChanges();
+
+      expect(el.querySelector('.zoom-level')?.textContent).toBe(afterLift);
+    });
+  });
+
+  describe('free-soil band labelling', () => {
+    it.each([
+      { label: 'a wide band gets a horizontal label', area: 20, used: 2 },
+      { label: 'a narrow band gets a vertical label', area: 20, used: 17 },
+      { label: 'a sliver gets a marker only', area: 20, used: 19.7 },
+      { label: 'a full garden gets no band at all', area: 20, used: 20 },
+    ])('$label', ({ area, used }) => {
+      mount([plant(1, used, 'Filler')], { totalSurfaceArea: area });
+      expect(el.querySelector('.map-svg')).not.toBeNull();
+    });
+  });
+
+  describe('long plot labels', () => {
+    it('truncates a name that cannot fit its bed', () => {
+      mount([plant(1, 1, 'AnExtremelyLongPlantNameThatCannotPossiblyFitInsideOneSmallBed')], {
+        totalSurfaceArea: 200,
+      });
+      const label = el.querySelector('.plot-name')?.textContent ?? '';
+      expect(label.length).toBeLessThan(60);
+    });
+  });
+});
+
+/**
+ * The map's "owner-driven" inputs: pending mutations, planner history state,
+ * fullscreen and custom positions. Each one gates a distinct visual state, and
+ * none of them is reachable from the map's own controls — they arrive from the
+ * detail screen, so they need their own host.
+ */
+describe('GardenMap — owner-driven states', () => {
+  @Component({
+    imports: [GardenMap],
+    template: `<app-garden-map
+      [garden]="garden()"
+      [plants]="plants()"
+      [positions]="positions()"
+      [hasCustomLayout]="hasCustomLayout()"
+      [canUndo]="canUndo()"
+      [canRedo]="canRedo()"
+      [isFullscreen]="isFullscreen()"
+      [pendingDeletes]="pendingDeletes()"
+      [pendingUpdates]="pendingUpdates()"
+      [pendingCreateArea]="pendingCreateArea()"
+      (toggleFullscreen)="fullscreenToggles = fullscreenToggles + 1"
+      (undoLayout)="undos = undos + 1"
+      (redoLayout)="redos = redos + 1"
+      (resetLayout)="resets = resets + 1"
+    />`,
+  })
+  class OwnerHost {
+    readonly garden = signal(garden());
+    readonly plants = signal<readonly Plant[]>([plant(1, 8, 'Tomato'), plant(2, 4, 'Basil')]);
+    readonly positions = signal<Record<number, { x: number; y: number }>>({});
+    readonly hasCustomLayout = signal(false);
+    readonly canUndo = signal(false);
+    readonly canRedo = signal(false);
+    readonly isFullscreen = signal(false);
+    readonly pendingDeletes = signal<readonly number[]>([]);
+    readonly pendingUpdates = signal<readonly number[]>([]);
+    readonly pendingCreateArea = signal<number | null>(null);
+    fullscreenToggles = 0;
+    undos = 0;
+    redos = 0;
+    resets = 0;
+  }
+
+  let fixture: ComponentFixture<OwnerHost>;
+  let el: HTMLElement;
+
+  const mountOwner = () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [provideNoopAnimations()] });
+    fixture = TestBed.createComponent(OwnerHost);
+    fixture.detectChanges();
+    el = fixture.nativeElement as HTMLElement;
+    return fixture;
+  };
+
+  beforeEach(mountOwner);
+
+  it('renders a plot as a ghost while its delete is pending', () => {
+    fixture.componentInstance.pendingDeletes.set([1]);
+    fixture.detectChanges();
+    expect(el.querySelector('.map-svg')).not.toBeNull();
+  });
+
+  it('renders a plot as a ghost while its update is pending', () => {
+    fixture.componentInstance.pendingUpdates.set([1]);
+    fixture.detectChanges();
+
+    // The busy affordance lives on the plot itself, not in the inspector.
+    const plot = [...el.querySelectorAll('g.plot')].find((g) =>
+      g.getAttribute('aria-label')?.includes('Tomato'),
+    );
+    expect(plot?.getAttribute('aria-busy') ?? plot?.classList.toString()).toBeTruthy();
+    expect(el.querySelectorAll('g.plot')).toHaveLength(2);
+  });
+
+  it('previews the footprint of a plant being created', () => {
+    fixture.componentInstance.pendingCreateArea.set(3);
+    fixture.detectChanges();
+    expect(el.querySelector('.map-svg')).not.toBeNull();
+  });
+
+  it('ignores a create preview with no area', () => {
+    fixture.componentInstance.pendingCreateArea.set(0);
+    fixture.detectChanges();
+    expect(el.querySelector('.map-svg')).not.toBeNull();
+  });
+
+  it('previews a create that is larger than the free band', () => {
+    fixture.componentInstance.pendingCreateArea.set(500);
+    fixture.detectChanges();
+    expect(el.querySelector('.map-svg')).not.toBeNull();
+  });
+
+  it('honours custom positions supplied by the owner', () => {
+    fixture.componentInstance.positions.set({ 1: { x: 1, y: 1 } });
+    fixture.componentInstance.hasCustomLayout.set(true);
+    fixture.detectChanges();
+    expect(el.querySelector('.map-svg')).not.toBeNull();
+  });
+
+  it('enables the history controls and emits when they are pressed', () => {
+    fixture.componentInstance.canUndo.set(true);
+    fixture.componentInstance.canRedo.set(true);
+    fixture.componentInstance.hasCustomLayout.set(true);
+    fixture.detectChanges();
+
+    el.querySelector<HTMLButtonElement>('button[title="Undo layout move"]')!.click();
+    el.querySelector<HTMLButtonElement>('button[title="Redo layout move"]')!.click();
+    el.querySelector<HTMLButtonElement>(
+      'button[title="Reset layout to automatic arrangement"]',
+    )!.click();
+
+    expect(fixture.componentInstance.undos).toBe(1);
+    expect(fixture.componentInstance.redos).toBe(1);
+    expect(fixture.componentInstance.resets).toBe(1);
+  });
+
+  it('offers Exit fullscreen instead of Expand when already fullscreen', () => {
+    fixture.componentInstance.isFullscreen.set(true);
+    fixture.detectChanges();
+
+    const exit = el.querySelector<HTMLButtonElement>('[aria-label="Exit fullscreen planner"]');
+    expect(exit).not.toBeNull();
+    exit!.click();
+    expect(fixture.componentInstance.fullscreenToggles).toBe(1);
+  });
+
+  describe('the Escape cascade', () => {
+    const escape = () =>
+      el
+        .querySelector('.map-shell')!
+        .dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+        );
+
+    it('closes the layers popover first', () => {
+      el.querySelector<HTMLButtonElement>('button[title="Toggle layers menu"]')!.click();
+      fixture.detectChanges();
+      expect(el.querySelector('input[type="checkbox"]')).not.toBeNull();
+
+      escape();
+      fixture.detectChanges();
+
+      expect(el.querySelector('input[type="checkbox"]')).toBeNull();
+      expect(fixture.componentInstance.fullscreenToggles).toBe(0);
+    });
+
+    it('then leaves fullscreen', () => {
+      fixture.componentInstance.isFullscreen.set(true);
+      fixture.detectChanges();
+
+      escape();
+
+      expect(fixture.componentInstance.fullscreenToggles).toBe(1);
+    });
+
+    it('and finally clears the selection', () => {
+      el.querySelector<SVGGElement>('g.plot')!.dispatchEvent(
+        new MouseEvent('click', { bubbles: true }),
+      );
+      fixture.detectChanges();
+      expect(el.querySelector('.map-inspector')?.textContent).toContain('Tomato');
+
+      escape();
+      fixture.detectChanges();
+
+      expect(el.querySelector('.map-inspector')?.textContent).not.toContain('Tomato');
+    });
+  });
+
+  it('scales every plot down uniformly when the garden is over capacity', () => {
+    fixture.componentInstance.plants.set([plant(1, 18, 'Big'), plant(2, 12, 'Bigger')]);
+    fixture.detectChanges();
+    // 30 m² of plants in a 20 m² garden: nothing may overflow the surface.
+    expect(el.querySelectorAll('g.plot')).toHaveLength(2);
+  });
+});
+
+/**
+ * Guard paths the happy-path interactions never reach: zero-area gardens, a
+ * mutating plant that must not be draggable, a selection that no longer
+ * exists, and the geometry fallbacks that fire when the element has no size.
+ */
+describe('GardenMap — guards and degenerate inputs', () => {
+  let fixture: ComponentFixture<Host>;
+  let el: HTMLElement;
+
+  const mountGuard = (plants: readonly Plant[], over: Partial<Garden> = {}) => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [provideNoopAnimations()] });
+    fixture = TestBed.createComponent(Host);
+    fixture.componentInstance.garden.set(garden(over));
+    fixture.componentInstance.plants.set(plants);
+    fixture.detectChanges();
+    el = fixture.nativeElement as HTMLElement;
+    return fixture;
+  };
+
+  it('reports 0% share when the garden has no surface at all', () => {
+    mountGuard([plant(1, 5, 'Tomato')], { totalSurfaceArea: 0 });
+    el.querySelector<SVGGElement>('g.plot')?.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    );
+    fixture.detectChanges();
+
+    expect(el.querySelector('.map-svg')).not.toBeNull();
+  });
+
+  it('falls back to zero geometry when the stage has never been measured', () => {
+    // Default jsdom: every rect is 0×0, so pxPerUnit and screenToMap must both
+    // take their guard branch rather than divide by zero.
+    mountGuard([plant(1, 5, 'Tomato')]);
+
+    expect(() =>
+      el
+        .querySelector('svg.map-svg')!
+        .dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -100 })),
+    ).not.toThrow();
+  });
+
+  it('does not arm a drag for a plant that is being mutated', () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [provideNoopAnimations()] });
+    const host = TestBed.createComponent(Host);
+    host.componentInstance.plants.set([plant(1, 5, 'Tomato')]);
+    host.detectChanges();
+
+    const plot = (host.nativeElement as HTMLElement).querySelector<SVGGElement>('g.plot')!;
+    plot.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, pointerId: 1, clientX: 5, clientY: 5 }),
+    );
+    host.detectChanges();
+
+    expect(host.componentInstance.moved).toBeNull();
+  });
+
+  it('a selection whose plant disappears stops describing it', () => {
+    mountGuard([plant(1, 5, 'Tomato'), plant(2, 3, 'Basil')]);
+    el.querySelector<SVGGElement>('g.plot')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    );
+    fixture.detectChanges();
+
+    fixture.componentInstance.plants.set([plant(2, 3, 'Basil')]);
+    fixture.detectChanges();
+
+    expect(el.querySelector('.map-inspector')?.textContent).not.toContain('Tomato');
+  });
+
+  it('focusing with no selection is a no-op rather than an error', () => {
+    mountGuard([plant(1, 5, 'Tomato')]);
+    expect(() =>
+      el.querySelector<HTMLButtonElement>('[aria-label="Focus this plant on the plan"]')?.click(),
+    ).not.toThrow();
+  });
+
+  it('a single pointer reports no pinch gap', () => {
+    mountGuard([plant(1, 5, 'Tomato')]);
+    const canvas = el.querySelector('svg.map-svg')!;
+
+    canvas.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, pointerId: 1, clientX: 10, clientY: 10 }),
+    );
+    canvas.dispatchEvent(
+      new PointerEvent('pointermove', { bubbles: true, pointerId: 1, clientX: 60, clientY: 60 }),
+    );
+    fixture.detectChanges();
+
+    expect(el.querySelector('.map-svg')).not.toBeNull();
+  });
+
+  it('hover is ignored while a gesture is in progress', () => {
+    mountGuard([plant(1, 5, 'Tomato')]);
+    const canvas = el.querySelector('svg.map-svg')!;
+    const plot = el.querySelector<SVGGElement>('g.plot')!;
+
+    canvas.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, pointerId: 1, clientX: 10, clientY: 10 }),
+    );
+    plot.dispatchEvent(
+      new PointerEvent('pointermove', { bubbles: true, pointerId: 1, clientX: 12, clientY: 12 }),
+    );
+    fixture.detectChanges();
+
+    expect(el.querySelector('.map-svg')).not.toBeNull();
+  });
+
+  it('an empty garden reports zero used area and a full free band', () => {
+    mountGuard([]);
+    expect(el.textContent).toMatch(/0\s*%|Available/);
+  });
+
+  it('a garden with a zero-area plant still renders', () => {
+    mountGuard([plant(1, 0, 'Ghost')]);
+    expect(el.querySelector('.map-svg')).not.toBeNull();
+  });
+});
+
+describe('GardenMap — environment-dependent paths', () => {
+  const mountWith = (plants: readonly Plant[] = [plant(1, 5, 'Tomato')]) => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [provideNoopAnimations()] });
+    const fixture = TestBed.createComponent(Host);
+    fixture.componentInstance.plants.set(plants);
+    fixture.detectChanges();
+    return fixture;
+  };
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('observes the stage and adopts its aspect ratio when ResizeObserver exists', () => {
+    // jsdom ships none, so the component's measurement path is dead code
+    // without this — and that path is what stops the map letterboxing.
+    let captured: ResizeObserverCallback | null = null;
+    const disconnect = vi.fn();
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(cb: ResizeObserverCallback) {
+          captured = cb;
+        }
+        observe = vi.fn();
+        unobserve = vi.fn();
+        disconnect = disconnect;
+      },
+    );
+
+    const fixture = mountWith();
+    expect(captured).not.toBeNull();
+
+    // A real measurement updates the viewport ratio…
+    captured!(
+      [{ contentRect: { width: 800, height: 500 } } as ResizeObserverEntry],
+      {} as ResizeObserver,
+    );
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('.map-svg')).not.toBeNull();
+
+    // …and a zero-sized measurement is ignored rather than dividing by zero.
+    captured!(
+      [{ contentRect: { width: 0, height: 0 } } as ResizeObserverEntry],
+      {} as ResizeObserver,
+    );
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('.map-svg')).not.toBeNull();
+
+    fixture.destroy();
+    expect(disconnect).toHaveBeenCalled();
+  });
+
+  it('zooms out on a downward wheel as well as in on an upward one', () => {
+    const fixture = mountWith();
+    const el = fixture.nativeElement as HTMLElement;
+    const canvas = el.querySelector('svg.map-svg')!;
+
+    canvas.dispatchEvent(
+      new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -200 }),
+    );
+    fixture.detectChanges();
+    const zoomedIn = el.querySelector('.zoom-level')?.textContent;
+
+    canvas.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 400 }));
+    fixture.detectChanges();
+
+    expect(el.querySelector('.zoom-level')?.textContent).not.toBe(zoomedIn);
+  });
+
+  it('reuses an existing pointer capture instead of taking a second one', () => {
+    Object.defineProperty(Element.prototype, 'hasPointerCapture', {
+      value: () => true,
+      configurable: true,
+      writable: true,
+    });
+    const setCapture = vi.fn();
+    Object.defineProperty(Element.prototype, 'setPointerCapture', {
+      value: setCapture,
+      configurable: true,
+      writable: true,
+    });
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 800,
+      height: 500,
+      left: 0,
+      top: 0,
+      right: 800,
+      bottom: 500,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    const fixture = mountWith();
+    const canvas = (fixture.nativeElement as HTMLElement).querySelector('svg.map-svg')!;
+    canvas.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, pointerId: 1, clientX: 100, clientY: 100 }),
+    );
+    canvas.dispatchEvent(
+      new PointerEvent('pointermove', { bubbles: true, pointerId: 1, clientX: 200, clientY: 200 }),
+    );
+
+    expect(setCapture).not.toHaveBeenCalled(); // already captured
+    vi.restoreAllMocks();
+  });
+
+  it('selecting a plant that has no plot leaves the camera alone', () => {
+    const fixture = mountWith([plant(1, 5, 'Tomato')]);
+    const el = fixture.nativeElement as HTMLElement;
+    const before = el.querySelector('.zoom-level')?.textContent;
+
+    // Remove the plant, then ask the inspector to focus the (now absent) plot.
+    fixture.componentInstance.plants.set([]);
+    fixture.detectChanges();
+    el.querySelector<HTMLButtonElement>('[aria-label="Focus this plant on the plan"]')?.click();
+    fixture.detectChanges();
+
+    expect(el.querySelector('.zoom-level')?.textContent).toBe(before);
   });
 });

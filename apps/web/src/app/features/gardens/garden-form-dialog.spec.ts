@@ -1,3 +1,5 @@
+import { GardensStore } from './gardens-store';
+import { ApiError } from '../../core/errors/api-error';
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
@@ -125,5 +127,316 @@ describe('GardenFormDialog (shrink-below-used warning, REM-002)', () => {
     const fixture = await mount({ garden: null });
     const badges = (fixture.nativeElement as HTMLElement).querySelectorAll('.recommended-badge');
     expect(badges).toHaveLength(2); // one for size, one for humidity
+  });
+});
+
+describe('GardenFormDialog — submit paths', () => {
+  const GARDEN: Garden = {
+    gardenId: 1,
+    gardenName: 'Backyard',
+    totalSurfaceArea: 20,
+    targetHumidityLevel: 50,
+    locationDescription: 'shed',
+    latitude: null,
+    longitude: null,
+    createdAt: '',
+    updatedAt: '',
+  };
+
+  type DialogApi = {
+    form: { patchValue: (v: Record<string, unknown>) => void };
+    serverError: () => string | null;
+    submit: () => Promise<void>;
+    usedArea: () => number | null;
+    shrinksBelowUsed: () => boolean;
+  };
+
+  let api: Record<string, ReturnType<typeof vi.fn>>;
+  let ref: { close: ReturnType<typeof vi.fn> };
+
+  const mountFor = async (garden: Garden | null, seedPlants = true) => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [GardenFormDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { garden } },
+        { provide: MatDialogRef, useValue: ref },
+        { provide: GardensApi, useValue: api },
+        { provide: PlantsApi, useValue: { getByGarden: vi.fn().mockResolvedValue([]) } },
+      ],
+    });
+    if (garden && seedPlants) {
+      TestBed.inject(PlantsIndexStore).setPlants(garden.gardenId, []);
+    }
+    const fixture = TestBed.createComponent(GardenFormDialog);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    return { fixture, vm: fixture.componentInstance as unknown as DialogApi };
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    api = {
+      getAll: vi.fn().mockResolvedValue([]),
+      create: vi.fn().mockResolvedValue(GARDEN),
+      update: vi.fn().mockResolvedValue(GARDEN),
+      delete: vi.fn(),
+    };
+    ref = { close: vi.fn() };
+  });
+
+  it('refuses to submit an invalid form', async () => {
+    const { vm } = await mountFor(null);
+    vm.form.patchValue({ gardenName: '' });
+    await vm.submit();
+    expect(api['create']).not.toHaveBeenCalled();
+  });
+
+  it('rejects a whitespace-only name', async () => {
+    const { vm } = await mountFor(null);
+    vm.form.patchValue({ gardenName: '   ', totalSurfaceArea: 20, targetHumidityLevel: 50 });
+    await vm.submit();
+    expect(api['create']).not.toHaveBeenCalled();
+  });
+
+  it('creates a garden with trimmed values and closes', async () => {
+    const { vm } = await mountFor(null);
+    vm.form.patchValue({
+      gardenName: '  New bed  ',
+      totalSurfaceArea: 12,
+      targetHumidityLevel: 55,
+      locationDescription: '  by the wall  ',
+    });
+
+    await vm.submit();
+
+    expect(api['create']).toHaveBeenCalledWith(
+      expect.objectContaining({ gardenName: 'New bed', locationDescription: 'by the wall' }),
+    );
+    expect(ref.close).toHaveBeenCalledWith(true);
+  });
+
+  it('nulls an empty location rather than sending an empty string', async () => {
+    const { vm } = await mountFor(null);
+    vm.form.patchValue({
+      gardenName: 'Bed',
+      totalSurfaceArea: 12,
+      targetHumidityLevel: 55,
+      locationDescription: '   ',
+    });
+
+    await vm.submit();
+
+    expect(api['create']).toHaveBeenCalledWith(
+      expect.objectContaining({ locationDescription: null }),
+    );
+  });
+
+  it('updates an existing garden rather than creating a second one', async () => {
+    const { vm } = await mountFor(GARDEN);
+    vm.form.patchValue({ gardenName: 'Renamed' });
+
+    await vm.submit();
+
+    expect(api['update']).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ gardenName: 'Renamed' }),
+    );
+    expect(api['create']).not.toHaveBeenCalled();
+  });
+
+  it('renders a functional verdict inline and keeps the dialog open', async () => {
+    api['create'].mockRejectedValue(new ApiError('functional', 'Name already used', 400));
+    const { vm } = await mountFor(null);
+    vm.form.patchValue({ gardenName: 'Bed', totalSurfaceArea: 12, targetHumidityLevel: 55 });
+
+    await vm.submit();
+
+    expect(vm.serverError()).toBe('Name already used');
+    expect(ref.close).not.toHaveBeenCalled();
+  });
+
+  it('leaves a technical failure to the toast, not the form', async () => {
+    api['create'].mockRejectedValue(new ApiError('technical', 'Server exploded', 500));
+    const { vm } = await mountFor(null);
+    vm.form.patchValue({ gardenName: 'Bed', totalSurfaceArea: 12, targetHumidityLevel: 55 });
+
+    await vm.submit();
+
+    expect(vm.serverError()).toBeNull();
+    expect(ref.close).not.toHaveBeenCalled();
+  });
+
+  it('reports used area as UNKNOWN while the plants are still loading', async () => {
+    // The dialog asks the plants index to load on construction, so "unknown"
+    // is the window before that settles — and during it the shrink warning
+    // must stay silent rather than claim 0 m² are in use.
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [GardenFormDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { garden: GARDEN } },
+        { provide: MatDialogRef, useValue: ref },
+        { provide: GardensApi, useValue: api },
+        {
+          provide: PlantsApi,
+          useValue: { getByGarden: vi.fn().mockReturnValue(new Promise(() => undefined)) },
+        },
+      ],
+    });
+    const fixture = TestBed.createComponent(GardenFormDialog);
+    fixture.detectChanges();
+    const vm = fixture.componentInstance as unknown as DialogApi;
+
+    expect(vm.usedArea()).toBeNull();
+    expect(vm.shrinksBelowUsed()).toBe(false);
+  });
+});
+
+describe('GardenFormDialog — coordinate cross-validation', () => {
+  const mountBlank = async () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [GardenFormDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { garden: null } },
+        { provide: MatDialogRef, useValue: { close: vi.fn() } },
+        { provide: GardensApi, useValue: { create: vi.fn(), update: vi.fn() } },
+        { provide: PlantsApi, useValue: { getByGarden: vi.fn().mockResolvedValue([]) } },
+      ],
+    });
+    const fixture = TestBed.createComponent(GardenFormDialog);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    return fixture.componentInstance as unknown as {
+      form: {
+        patchValue: (v: Record<string, unknown>) => void;
+        hasError: (e: string) => boolean;
+        valid: boolean;
+      };
+    };
+  };
+
+  /** Mirrors the backend's refine: both coordinates, or neither. */
+  it.each([
+    { label: 'neither coordinate', latitude: null, longitude: null, valid: true },
+    { label: 'both coordinates', latitude: 51.05, longitude: 3.72, valid: true },
+    { label: 'latitude alone', latitude: 51.05, longitude: null, valid: false },
+    { label: 'longitude alone', latitude: null, longitude: 3.72, valid: false },
+  ])('$label → group error: $valid', async ({ latitude, longitude, valid }) => {
+    const vm = await mountBlank();
+    vm.form.patchValue({
+      gardenName: 'Bed',
+      totalSurfaceArea: 10,
+      targetHumidityLevel: 50,
+      latitude,
+      longitude,
+    });
+
+    expect(vm.form.hasError('coordinatesTogether')).toBe(!valid);
+  });
+});
+
+describe('GardenFormDialog — every validation message renders', () => {
+  type Vm = {
+    form: { patchValue: (v: Record<string, unknown>) => void; markAllAsTouched: () => void };
+    serverError: { set: (v: string) => void };
+  };
+
+  const mountBlank = async () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [GardenFormDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { garden: null } },
+        { provide: MatDialogRef, useValue: { close: vi.fn() } },
+        { provide: GardensApi, useValue: { create: vi.fn(), update: vi.fn() } },
+        { provide: PlantsApi, useValue: { getByGarden: vi.fn().mockResolvedValue([]) } },
+      ],
+    });
+    const fixture = TestBed.createComponent(GardenFormDialog);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    return {
+      fixture,
+      vm: fixture.componentInstance as unknown as Vm,
+      el: fixture.nativeElement as HTMLElement,
+    };
+  };
+
+  const show = async (values: Record<string, unknown>) => {
+    const { fixture, vm, el } = await mountBlank();
+    vm.form.patchValue(values);
+    vm.form.markAllAsTouched();
+    fixture.detectChanges();
+    return el.textContent ?? '';
+  };
+
+  it('name required', async () => {
+    expect(await show({ gardenName: '' })).toContain('Garden name is required');
+  });
+
+  it('name cannot be whitespace only', async () => {
+    expect(await show({ gardenName: '    ' })).toContain('Garden name is required');
+  });
+
+  it('surface area required', async () => {
+    expect(await show({ gardenName: 'Bed', totalSurfaceArea: null })).toContain(
+      'Surface area is required',
+    );
+  });
+
+  it('surface area cannot be negative', async () => {
+    expect(await show({ gardenName: 'Bed', totalSurfaceArea: -1 })).toContain(
+      "Surface area can't be negative",
+    );
+  });
+
+  it.each([
+    { latitude: -91, label: 'below −90' },
+    { latitude: 91, label: 'above 90' },
+  ])('latitude $label is rejected', async ({ latitude }) => {
+    expect(
+      await show({ gardenName: 'Bed', totalSurfaceArea: 10, latitude, longitude: 0 }),
+    ).toContain('Between −90 and 90');
+  });
+
+  it.each([
+    { longitude: -181, label: 'below −180' },
+    { longitude: 181, label: 'above 180' },
+  ])('longitude $label is rejected', async ({ longitude }) => {
+    expect(
+      await show({ gardenName: 'Bed', totalSurfaceArea: 10, latitude: 0, longitude }),
+    ).toContain('Between −180 and 180');
+  });
+
+  it('one coordinate without the other is rejected', async () => {
+    const text = await show({
+      gardenName: 'Bed',
+      totalSurfaceArea: 10,
+      latitude: 51.05,
+      longitude: null,
+    });
+    expect(text.toLowerCase()).toMatch(/both|coordinate/);
+  });
+
+  it('a server error renders inline', async () => {
+    const { fixture, vm, el } = await mountBlank();
+    vm.serverError.set('The greenhouse rejected that.');
+    fixture.detectChanges();
+    expect(el.textContent).toContain('The greenhouse rejected that.');
+  });
+
+  it('the submit button ghosts while the store is saving — never a spinner', async () => {
+    const { fixture, el } = await mountBlank();
+    const store = TestBed.inject(GardensStore);
+    vi.spyOn(store, 'saving').mockReturnValue(true);
+    fixture.detectChanges();
+
+    expect(el.querySelector('mat-spinner, .mat-mdc-progress-spinner')).toBeNull();
   });
 });

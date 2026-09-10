@@ -3,7 +3,7 @@ import { GardensApi } from '../../core/api/gardens-api';
 import { Garden } from '../../core/api/models';
 import { ApiError } from '../../core/errors/api-error';
 import { ToastStore } from '../../core/errors/toast-store';
-import { QueryCache } from '../../core/resilience/query-cache';
+import { QueryCache, cacheKeys } from '../../core/resilience/query-cache';
 import { GardensStore } from './gardens-store';
 
 const garden = (id: number, name = `Garden ${id}`): Garden => ({
@@ -210,3 +210,107 @@ describe('GardensStore — remediation behaviours', () => {
     vi.useRealTimers();
   });
 });
+
+describe('GardensStore — update, view state and toast policy', () => {
+  let api: Record<string, ReturnType<typeof vi.fn>>;
+  let store: InstanceType<typeof GardensStore>;
+  let toasts: ToastStore;
+  let cache: QueryCache;
+
+  beforeEach(() => {
+    localStorage.clear();
+    api = {
+      getAll: vi.fn().mockResolvedValue([garden(1), garden(2)]),
+      getById: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    };
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [{ provide: GardensApi, useValue: api }] });
+    store = TestBed.inject(GardensStore);
+    toasts = TestBed.inject(ToastStore);
+    cache = TestBed.inject(QueryCache);
+  });
+
+  describe('update', () => {
+    const input = {
+      gardenName: 'Renamed',
+      totalSurfaceArea: 20,
+      targetHumidityLevel: 50,
+      locationDescription: null,
+      latitude: null,
+      longitude: null,
+    };
+
+    it('replaces the garden in place, writes through the cache and confirms', async () => {
+      await store.load();
+      const updated = { ...garden(1), gardenName: 'Renamed' };
+      api['update'].mockResolvedValue(updated);
+      const set = vi.spyOn(cache, 'set');
+
+      const result = await store.update(1, input);
+
+      expect(result.ok).toBe(true);
+      expect(store.gardens().find((g) => g.gardenId === 1)?.gardenName).toBe('Renamed');
+      // Write-through, not invalidate: the detail screen must see it with no refetch.
+      expect(set).toHaveBeenCalledWith(cacheKeys.garden(1), updated);
+      expect(toasts.toasts().some((t) => t.message.includes('updated'))).toBe(true);
+    });
+
+    it('marks the garden pending while the PUT is in flight, and clears it after', async () => {
+      await store.load();
+      let release = (): void => undefined;
+      api['update'].mockImplementation(() => new Promise((r) => (release = () => r(garden(1)))));
+
+      const pending = store.update(1, input);
+      await vi.waitFor(() => expect(store.pendingUpdates()).toContain(1));
+      expect(store.saving()).toBe(true);
+
+      release();
+      await pending;
+      expect(store.pendingUpdates()).not.toContain(1);
+      expect(store.saving()).toBe(false);
+    });
+
+    it('returns a functional verdict to the form WITHOUT toasting it', async () => {
+      await store.load();
+      api['update'].mockRejectedValue(new ApiError('functional', 'Name already used', 400));
+
+      const result = await store.update(1, input);
+
+      expect(result).toMatchObject({ ok: false });
+      expect(toasts.toasts().every((t) => t.tone !== 'error')).toBe(true);
+    });
+
+    it('toasts a technical failure, because no form can render that', async () => {
+      await store.load();
+      api['update'].mockRejectedValue(new ApiError('technical', 'Server exploded', 500));
+
+      const result = await store.update(1, input);
+
+      expect(result.ok).toBe(false);
+      expect(toasts.toasts().some((t) => t.tone === 'error')).toBe(true);
+    });
+  });
+
+  describe('view state', () => {
+    it('keeps a search query and a sort order', () => {
+      store.setQuery('herb');
+      store.setSort('utilization');
+      expect(store.query()).toBe('herb');
+      expect(store.sort()).toBe('utilization');
+    });
+  });
+});
+
+/**
+ * NOT TESTED HERE, deliberately: `readPersistedView()` runs while this module
+ * is being evaluated, so the only way to exercise its parsing branches is
+ * `vi.resetModules()` plus a dynamic re-import. This suite runs with Vitest
+ * isolation off (a deliberate speed choice), which means a module-registry
+ * reset leaks into every other spec — it was tried, and it broke three
+ * unrelated suites. The parsing is defensive-by-construction (every branch
+ * falls back to the same defaults) and its user-visible effect — search and
+ * sort surviving a reload — is covered end-to-end in the Playwright suite.
+ */

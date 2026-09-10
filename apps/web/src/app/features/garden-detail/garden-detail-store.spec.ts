@@ -254,3 +254,222 @@ describe('GardenDetailStore — remediation behaviours', () => {
     expect(store.pendingDeletes()).toEqual([target.plantId]);
   });
 });
+
+describe('GardenDetailStore — plant create/update paths', () => {
+  const GARDEN = {
+    gardenId: 1,
+    gardenName: 'G',
+    totalSurfaceArea: 20,
+    targetHumidityLevel: 50,
+    locationDescription: null,
+    latitude: null,
+    longitude: null,
+    createdAt: '',
+    updatedAt: '',
+  };
+  const mkPlant = (plantId: number, plantName = `P${plantId}`) => ({
+    plantId,
+    plantName,
+    species: 's',
+    plantType: 'vegetable' as const,
+    plantationDate: '2026-04-01T00:00:00.000Z',
+    surfaceAreaRequired: 3,
+    idealHumidityLevel: 55,
+    gardenId: 1,
+    createdAt: '',
+    updatedAt: '',
+  });
+  const INPUT = {
+    gardenId: 1,
+    plantName: 'Tomato',
+    species: 's',
+    plantType: 'vegetable' as const,
+    plantationDate: '2026-04-01T00:00:00.000Z',
+    surfaceAreaRequired: 3,
+    idealHumidityLevel: 55,
+  };
+
+  let gardensApi: Record<string, ReturnType<typeof vi.fn>>;
+  let plantsApi: Record<string, ReturnType<typeof vi.fn>>;
+  let store: InstanceType<typeof GardenDetailStore>;
+  let toasts: ToastStore;
+
+  const loaded = async () => {
+    store.load(1);
+    await vi.waitFor(() => expect(store.garden()).not.toBeNull());
+    await vi.waitFor(() => expect(store.plantsStatus()).toBe('ready'));
+  };
+
+  beforeEach(() => {
+    gardensApi = { getById: vi.fn().mockResolvedValue(GARDEN) };
+    plantsApi = {
+      getByGarden: vi.fn().mockResolvedValue([mkPlant(1)]),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    };
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        GardenDetailStore,
+        { provide: GardensApi, useValue: gardensApi },
+        { provide: PlantsApi, useValue: plantsApi },
+      ],
+    });
+    store = TestBed.inject(GardenDetailStore);
+    toasts = TestBed.inject(ToastStore);
+  });
+
+  describe('createPlant', () => {
+    it('appends the created plant, records it and confirms', async () => {
+      await loaded();
+      plantsApi['create'].mockResolvedValue(mkPlant(2, 'Tomato'));
+
+      const result = await store.createPlant(INPUT);
+
+      expect(result.ok).toBe(true);
+      expect(store.plants().map((p) => p.plantId)).toContain(2);
+      expect(store.lastCreatedPlantId()).toBe(2);
+      expect(toasts.toasts().some((t) => t.message.includes('planted'))).toBe(true);
+    });
+
+    it('is idempotent when a slow revalidation already delivered the plant', async () => {
+      await loaded();
+      const created = mkPlant(2, 'Tomato');
+      plantsApi['create'].mockImplementation(async () => {
+        // The background refresh lands first, exactly as the slow API allows.
+        store.load(1);
+        return created;
+      });
+
+      await store.createPlant(INPUT);
+
+      expect(store.plants().filter((p) => p.plantId === 2)).toHaveLength(1);
+    });
+
+    it('exposes the pending footprint while the create is in flight, then clears it', async () => {
+      await loaded();
+      let release = (): void => undefined;
+      plantsApi['create'].mockImplementation(
+        () => new Promise((r) => (release = () => r(mkPlant(2)))),
+      );
+
+      const pending = store.createPlant(INPUT);
+      await vi.waitFor(() => expect(store.pendingCreateArea()).toBe(3));
+
+      release();
+      await pending;
+      expect(store.pendingCreateArea()).toBeNull();
+      expect(store.saving()).toBe(false);
+    });
+
+    it('returns a technical failure AND toasts it', async () => {
+      await loaded();
+      plantsApi['create'].mockRejectedValue(new ApiError('technical', 'Server exploded', 500));
+
+      const result = await store.createPlant(INPUT);
+
+      expect(result.ok).toBe(false);
+      expect(toasts.toasts().some((t) => t.tone === 'error')).toBe(true);
+    });
+  });
+
+  describe('updatePlant', () => {
+    it('replaces the plant in place and confirms', async () => {
+      await loaded();
+      plantsApi['update'].mockResolvedValue(mkPlant(1, 'Renamed'));
+
+      const result = await store.updatePlant(1, INPUT);
+
+      expect(result.ok).toBe(true);
+      expect(store.plants().find((p) => p.plantId === 1)?.plantName).toBe('Renamed');
+      expect(toasts.toasts().some((t) => t.message.includes('updated'))).toBe(true);
+    });
+
+    it('marks the plant pending while the PUT is in flight, then clears it', async () => {
+      await loaded();
+      let release = (): void => undefined;
+      plantsApi['update'].mockImplementation(
+        () => new Promise((r) => (release = () => r(mkPlant(1)))),
+      );
+
+      const pending = store.updatePlant(1, INPUT);
+      await vi.waitFor(() => expect(store.pendingUpdates()).toContain(1));
+
+      release();
+      await pending;
+      expect(store.pendingUpdates()).not.toContain(1);
+    });
+
+    it('returns a functional verdict to the form without toasting it', async () => {
+      await loaded();
+      plantsApi['update'].mockRejectedValue(new ApiError('functional', 'Too big', 400));
+
+      const result = await store.updatePlant(1, INPUT);
+
+      expect(result).toMatchObject({ ok: false });
+      expect(toasts.toasts().every((t) => t.tone !== 'error')).toBe(true);
+    });
+  });
+
+  describe('plants read failures', () => {
+    it('shows the plants error state when nothing is cached', async () => {
+      plantsApi['getByGarden'].mockRejectedValue(new ApiError('technical', 'boom', 500));
+      store.load(1);
+      await vi.waitFor(() => expect(store.plantsStatus()).toBe('error'));
+    });
+
+    it('keeps cached plants when only the refresh fails', async () => {
+      await loaded();
+      expect(store.plants()).toHaveLength(1);
+
+      plantsApi['getByGarden'].mockRejectedValue(new ApiError('technical', 'boom', 500));
+      store.load(1);
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(store.plants()).toHaveLength(1); // stale data beats an error screen
+    });
+  });
+});
+
+describe('GardenDetailStore — derived state before a garden exists', () => {
+  let store: InstanceType<typeof GardenDetailStore>;
+
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        GardenDetailStore,
+        { provide: GardensApi, useValue: { getById: vi.fn().mockResolvedValue(null) } },
+        { provide: PlantsApi, useValue: { getByGarden: vi.fn().mockResolvedValue([]) } },
+      ],
+    });
+    store = TestBed.inject(GardenDetailStore);
+  });
+
+  /**
+   * Every capacity derivation must answer safely before the garden arrives.
+   * These are the values a skeleton screen reads on its very first render, so
+   * `undefined` or `NaN` here would reach the DOM.
+   */
+  it('answers with safe zeros while no garden is loaded', () => {
+    expect(store.plants()).toEqual([]);
+    expect(store.usedArea()).toBe(0);
+    expect(store.freeArea()).toBe(0);
+    expect(store.occupancy()).toBe(0);
+    expect(store.avgHumidity()).toBeNull();
+    expect(store.humidityDrift()).toBeNull();
+  });
+
+  it('markMissing renders the not-found state without a request', () => {
+    store.markMissing();
+    expect(store.gardenMissing()).toBe(true);
+    expect(store.gardenFailed()).toBe(false);
+  });
+
+  it('reports plants as empty only once they have actually loaded', async () => {
+    expect(store.plantsEmpty()).toBe(false); // not loaded ≠ empty
+    store.load(1);
+    await vi.waitFor(() => expect(store.plantsEmpty()).toBe(true));
+  });
+});

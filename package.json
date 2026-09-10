@@ -14,7 +14,8 @@
     "test:e2e": "nx e2e web-e2e",
     "format": "nx format:write",
     "format:check": "nx format:check",
-    "check:no-spinners": "node tools/check-no-spinners.mjs"
+    "check:no-spinners": "node tools/check-no-spinners.mjs",
+    "test:coverage": "nx test web --coverage"
   },
   "private": true,
   "engines": {
