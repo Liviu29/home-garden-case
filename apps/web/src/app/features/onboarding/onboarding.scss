@@ -212,6 +212,10 @@
   border-radius: var(--radius-m);
   cursor: pointer;
   font: inherit;
+  // <button> defaults to the UA's `buttontext` (pure black / pure white),
+  // which is a shade off every other heading in the panel. Opt back in to
+  // the token ramp.
+  color: var(--text-1);
   text-align: left;
   transition:
     border-color var(--dur-fast) var(--ease-out),
@@ -297,12 +301,14 @@
   border-color: var(--border-strong);
   background: var(--surface-2);
 
+  // Same footprint as .avatar so the name/subtitle column lines up with the
+  // profile cards above; the dashed ring itself stays visually lighter.
   .plus {
     flex: none;
     display: grid;
     place-items: center;
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 2.75rem;
+    height: 2.75rem;
     border-radius: 50%;
     border: 1.5px dashed var(--border-strong);
     color: var(--text-2);

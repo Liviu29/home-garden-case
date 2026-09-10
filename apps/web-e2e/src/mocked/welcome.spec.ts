@@ -105,6 +105,28 @@ test.describe('welcome / profile selection', () => {
     await expect(page).toHaveURL(/\/dashboard/);
   });
 
+  test('the create-profile card lines up with the profile cards above it', async ({ page }) => {
+    // Regression: the dashed "+" ring was 2.25rem while the avatars are
+    // 2.75rem, so the whole name/subtitle column of the last card sat 8px
+    // left of the three above — a visible ragged edge in the one panel that
+    // is the product's first impression.
+    await page.route('**/api/users', (r) => r.fulfill({ json: three }));
+    await page.goto('/welcome');
+    await expect(page.locator('.profile:not(.ghost-card)')).toHaveCount(3);
+
+    const columnX = async (locator: ReturnType<typeof page.locator>): Promise<number> => {
+      const box = await locator.locator('.name').boundingBox();
+      return Math.round(box!.x);
+    };
+
+    const first = await columnX(page.locator('.profile').first());
+    const last = await columnX(page.locator('.profile').last());
+    const create = await columnX(page.locator('.create-card'));
+
+    expect(last).toBe(first);
+    expect(create, 'create-card text column must match the profile cards').toBe(first);
+  });
+
   test('creating a profile shows a ghost bar on the submit button — no spinner — then signs in', async ({
     page,
   }) => {
