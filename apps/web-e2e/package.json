@@ -1,0 +1,9 @@
+{
+  "name": "web-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "e2e": "playwright test",
+    "e2e:headed": "playwright test --headed"
+  }
+}
