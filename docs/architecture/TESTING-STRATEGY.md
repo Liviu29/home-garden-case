@@ -1,0 +1,28 @@
+# Testing Strategy
+
+Coverage follows risk, not percentages. The case asks for _useful_ coverage of critical business logic — that is where the specs are.
+
+## Pyramid, as applied here
+
+| Layer          | Runner                                    | What is asserted                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| -------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pure domain    | Vitest                                    | capacity math: used/free area, utilization, `wouldOvercrowd` (incl. exact-fit boundary and edit-excludes-self semantics), `remainingCapacity`, humidity aggregates, attention thresholds; Garden Map layout (determinism, order-independence, area-proportionality, shrink-to-fit, containment) and camera math (clamped zoom/pan, anchor-fixed zoom) — ADR-007                                                                                                                                            |
+| Infrastructure | Vitest                                    | QueryCache SWR semantics (fresh/stale/miss, de-dup, invalidation, write-through, failure doesn't poison) with fake timers; retry interceptor (retries transient 500s, exhausts budget, never retries 4xx); ApiError mapping for every backend payload shape                                                                                                                                                                                                                                                |
+| Stores         | Vitest + TestBed                          | behaviour, not implementation: skeleton→data, cached instant render (no second request), error state, optimistic delete rollback + retry affordance, functional verdicts returned to forms, cache coherence after mutations                                                                                                                                                                                                                                                                                |
+| Components     | Vitest + TestBed                          | what a user notices: a screen renders skeleton/data/empty/error correctly; the plant form blocks over-capacity input and renders the server verdict                                                                                                                                                                                                                                                                                                                                                        |
+| E2E            | Playwright (`apps/web-e2e`), two projects | **integration** (real API, hostility on): flows 1–6 — happy path (now incl. the new plant appearing on the Garden Map), oversized block, edit-without-double-count, delete lifecycles, validation, malformed deep link. **mocked** (`page.route`): deterministic empty/error/slow/pending states, skeleton-after-error, Garden Map flows (populated + inspector, empty CTA, ghost→map swap, zoom/fit/reset), axe scans in both themes with the map hydrated, keyboard (dialogs + map plots) + 375 px smoke |
+
+## Conventions
+
+- `.spec.ts` co-located with the unit it tests; specs read as behaviour docs (`it('rejects a plant that exceeds capacity')`).
+- Fake timers for anything time-based (backoff, TTL, skeleton delays) — no real waits, no flakiness.
+- Store tests stub the API layer (`GardensApi`) — never `HttpClient` — so they break on behaviour changes, not refactors.
+- E2E runs against the _real_ backend (slow + flaky included): the retry layer is part of what's under test; assertions use generous timeouts and unique entity names per run.
+- **Dialog-fill sync policy**: every spec that types into a Material dialog first awaits `awaitDialogSettled` (dialog visible + first field focused). The CDK moves initial focus _after_ the open animation; filling earlier lets that focus steal land text in the wrong field — this, not the 10% API, was the root cause of the suite's historical "random" flakes. Integration `retries: 1` stays as a safety net for true pathological 500-streaks, not as a crutch: clean runs are the expectation.
+- Boy-scout rule: touching under-tested code means leaving it better tested.
+
+## What is deliberately not tested
+
+Presentational components with no branching (StatCard, PageHeader), Material internals, and pixel styling — snapshot tests of markup would pin refactors without catching behaviour bugs.
+
+Run: `npx nx test web` · `npx nx e2e web-e2e` (the config boots api+web; `--project=mocked` runs the deterministic suite alone). The split rationale: integration keeps real-contract confidence, mocked guarantees the states randomness can't (a persistent 500, an exact 2.5 s delay, an empty list).

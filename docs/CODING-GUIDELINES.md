@@ -34,7 +34,7 @@ The working agreement for this codebase. Derived from battle-tested guidelines u
 - **Immutability by default**: `patchState` with new references (`[...list, item]`), never in-place mutation — zoneless rendering depends on it.
 - One state pattern app-wide. No second mechanism (no BehaviorSubject state services) sneaking in beside SignalStore.
 - Async flows in store methods use `rxMethod` or plain async methods pairing `status: 'loading'` with a `finally` reset — never rely on the happy path to clear a loading flag.
-- Keep *state* in signals and *event orchestration* in RxJS where RxJS earns it (debounce, polling); don't rebuild stream machinery with `effect()`.
+- Keep _state_ in signals and _event orchestration_ in RxJS where RxJS earns it (debounce, polling); don't rebuild stream machinery with `effect()`.
 
 ## 5. HTTP & resilience
 
@@ -49,7 +49,7 @@ The working agreement for this codebase. Derived from battle-tested guidelines u
 - **Validation limits mirror the backend zod contract exactly** (same numbers, same cross-field rules — lat/lng together, humidity 0–100). When a rule changes on one side it changes on both; each validator carries a comment pointing at the schema it mirrors.
 - Client-side overcrowding check gives instant feedback (remaining m² shown live); the server verdict remains authoritative and its message renders inline when returned.
 - Validate on input, not only on submit; show remaining-capacity/character hints proactively.
-- Submit buttons: disabled only for *invalid*, never for *pending* — pending shows inline progress on the button itself.
+- Submit buttons: disabled only for _invalid_, never for _pending_ — pending shows inline progress on the button itself.
 
 ## 7. Errors, logging & UX standard
 
@@ -61,7 +61,7 @@ The working agreement for this codebase. Derived from battle-tested guidelines u
 
 ## 8. Styling & accessibility
 
-- Design tokens (CSS custom properties) in `shared/styles` — components consume tokens, never hard-code colors/spacing. See [DESIGN-SYSTEM.md](./DESIGN-SYSTEM.md).
+- Design tokens (CSS custom properties) in `shared/styles` — components consume tokens, never hard-code colors/spacing. See [DESIGN-SYSTEM.md](./design/DESIGN-SYSTEM.md).
 - Font sizes and type-scale spacing in `rem`, not `px`.
 - Component styles scoped; no `::ng-deep`. Shared components expose CSS custom properties for theming.
 - Every interactive element keeps a visible focus state; dialogs/menus come from Material = a11y for free, don't break it.
