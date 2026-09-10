@@ -2,6 +2,9 @@
 // Layered dark botanical atmosphere + split composition; panel and cards use
 // the shared tokens/motion/skeleton systems (no local duplicates).
 
+// Room for the focus ring (--focus-ring draws 4px outside the element).
+$ring-room: 5px;
+
 .page {
   position: relative;
   min-height: 100dvh;
@@ -189,14 +192,18 @@
 // ── Profile cards (§7–8): premium, whole-card interactive ───────────────────
 .profiles {
   list-style: none;
-  margin: 0;
-  padding: 0;
   display: grid;
   gap: var(--sp-3);
   // Many profiles (§10): the list scrolls locally, the page does not
   max-height: min(21rem, 48dvh);
   overflow-y: auto;
   scrollbar-width: thin;
+  // `overflow-y: auto` also makes overflow-x a clip box, and the focus ring is
+  // a box-shadow drawn 4px OUTSIDE the card — with the cards flush to the
+  // container it was sliced off on both sides. Pad by the ring, pull the same
+  // amount back as margin so nothing moves.
+  padding: $ring-room;
+  margin: -$ring-room;
 }
 
 .profile,

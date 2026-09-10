@@ -127,6 +127,34 @@ test.describe('welcome / profile selection', () => {
     expect(create, 'create-card text column must match the profile cards').toBe(first);
   });
 
+  test('the scrolling profile list leaves room for the focus ring', async ({ page }) => {
+    // Regression: the list is a scroll container (max-height + overflow-y),
+    // which also clips horizontally, and --focus-ring is a box-shadow drawn
+    // 4px OUTSIDE the card. With the cards flush to the container the ring's
+    // left and right sides were sliced off — keyboard users saw a broken box.
+    await page.route('**/api/users', (r) => r.fulfill({ json: three }));
+    await page.goto('/welcome');
+    await expect(page.locator('.profile:not(.ghost-card)')).toHaveCount(3);
+
+    const room = await page.evaluate(() => {
+      const list = document.querySelector('.profiles') as HTMLElement;
+      const card = document.querySelector('.profile') as HTMLElement;
+      const l = list.getBoundingClientRect();
+      const c = card.getBoundingClientRect();
+      const ring = getComputedStyle(document.documentElement).getPropertyValue('--focus-ring');
+      return {
+        left: c.left - l.left,
+        right: l.right - c.right,
+        // widest offset the ring token draws outside the element
+        ringPx: Math.max(...[...ring.matchAll(/(\d+)px(?=\s+(?:#|var|rgb))/g)].map((m) => +m[1])),
+      };
+    });
+
+    expect(room.ringPx).toBeGreaterThan(0);
+    expect(room.left, 'left room for the focus ring').toBeGreaterThanOrEqual(room.ringPx);
+    expect(room.right, 'right room for the focus ring').toBeGreaterThanOrEqual(room.ringPx);
+  });
+
   test('creating a profile shows a ghost bar on the submit button — no spinner — then signs in', async ({
     page,
   }) => {
