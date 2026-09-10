@@ -60,11 +60,49 @@ export function humidityDelta(garden: Garden, plants: readonly Plant[]): number 
   return avg === null ? null : avg - garden.targetHumidityLevel;
 }
 
-/** Attention thresholds used by the dashboard (DESIGN-SYSTEM §6). */
-export const ATTENTION_OCCUPANCY_RATIO = 0.9;
-export const ATTENTION_HUMIDITY_DRIFT = 15;
+/**
+ * Garden-edit guard (REM-002): would setting a new total surface area leave
+ * the garden below what its plants already use? The server permits this
+ * (no capacity check on garden update — see API-INTEGRATION.md proposal #7),
+ * so the client warns rather than blocks.
+ */
+export function wouldShrinkBelowUsed(plants: readonly Plant[], newTotalArea: number): boolean {
+  return newTotalArea < usedSurfaceArea(plants);
+}
 
-export interface GardenAttention {
+/**
+ * Semantic capacity status — UI-ONLY visualization thresholds, not business
+ * rules (the only business rule is the server's strict `>` overcrowding check).
+ * Documented in docs/IMPLEMENTATION-PLAN.md Phase 10.
+ */
+export type CapacityStatus = 'healthy' | 'approaching' | 'almost-full' | 'full';
+
+export const CAPACITY_STATUS_LABEL: Readonly<Record<CapacityStatus, string>> = {
+  healthy: 'Healthy capacity',
+  approaching: 'Approaching capacity',
+  'almost-full': 'Almost full',
+  full: 'Full',
+};
+
+export function capacityStatus(garden: Garden, plants: readonly Plant[]): CapacityStatus {
+  const ratio = occupancyRatio(garden, plants);
+  if (ratio >= 1) {
+    return 'full';
+  }
+  if (ratio >= 0.9) {
+    return 'almost-full';
+  }
+  if (ratio >= 0.7) {
+    return 'approaching';
+  }
+  return 'healthy';
+}
+
+/** Attention thresholds used by the dashboard (DESIGN-SYSTEM §6). */
+const ATTENTION_OCCUPANCY_RATIO = 0.9;
+const ATTENTION_HUMIDITY_DRIFT = 15;
+
+interface GardenAttention {
   readonly nearCapacity: boolean;
   readonly humidityDrift: boolean;
 }

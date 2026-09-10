@@ -46,8 +46,16 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
           stroke-width="3"
           stroke-linecap="round"
         />
-        <text x="100" y="86" text-anchor="middle" class="value tabular">{{ rounded() }}%</text>
-        <text x="100" y="106" text-anchor="middle" class="caption">avg humidity</text>
+        <text x="100" y="86" text-anchor="middle" class="value tabular">
+          @if (hasValue()) {
+            {{ rounded() }}%
+          } @else {
+            —
+          }
+        </text>
+        <text x="100" y="106" text-anchor="middle" class="caption">
+          {{ hasValue() ? 'avg humidity' : 'no plants yet' }}
+        </text>
       </svg>
       <figcaption class="target-line">
         <span class="dot" aria-hidden="true"></span>
@@ -105,15 +113,24 @@ export class HumidityGauge {
   protected readonly ARC = 'M 16 100 A 84 84 0 0 1 184 100';
   protected readonly ARC_LENGTH = Math.PI * 84;
 
-  /** Current value 0–100 (e.g. average plant humidity). */
-  readonly value = input.required<number>();
+  /** Current value 0–100 (average plant humidity); null = no measurable data yet. */
+  readonly value = input.required<number | null>();
   /** Garden's configured target 0–100. */
   readonly target = input.required<number>();
 
-  protected readonly rounded = computed(() => Math.round(this.value()));
+  protected readonly hasValue = computed(() => this.value() !== null);
+
+  protected readonly rounded = computed(() => {
+    const value = this.value();
+    return value === null ? null : Math.round(value);
+  });
 
   protected readonly dashOffset = computed(() => {
-    const clamped = Math.min(100, Math.max(0, this.value()));
+    const value = this.value();
+    if (value === null) {
+      return this.ARC_LENGTH; // empty arc — no data is not 0% (REM-008)
+    }
+    const clamped = Math.min(100, Math.max(0, value));
     return this.ARC_LENGTH * (1 - clamped / 100);
   });
 
@@ -132,7 +149,9 @@ export class HumidityGauge {
     };
   });
 
-  protected readonly ariaLabel = computed(
-    () => `Average humidity ${this.rounded()} percent, target ${this.target()} percent`,
+  protected readonly ariaLabel = computed(() =>
+    this.hasValue()
+      ? `Average humidity ${this.rounded()} percent, target ${this.target()} percent`
+      : `No measured humidity yet, target ${this.target()} percent`,
   );
 }

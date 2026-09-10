@@ -6,14 +6,17 @@ import { mapToPlant } from './mappers';
 import { Plant, PlantInput } from './models';
 import { requestAsPromise } from './request';
 
-/** Typed access to /plants — see GardensApi for the layering rules. */
+/**
+ * Typed access to /plants — see GardensApi for the layering rules.
+ *
+ * `GET /plants/{plantId}` exists on the API but is deliberately not wrapped:
+ * every field it returns is already in `GET /plants/garden/{gardenId}`, which
+ * the detail screen loads anyway, so a per-plant round-trip on a 200–2000 ms
+ * API would cost latency for no new information (BACKEND-API-AUDIT).
+ */
 @Injectable({ providedIn: 'root' })
 export class PlantsApi {
   private readonly http = inject(HttpClient);
-
-  getById(plantId: number): Promise<Plant> {
-    return requestAsPromise(this.http.get<PlantDto>(`/plants/${plantId}`).pipe(map(mapToPlant)));
-  }
 
   getByGarden(gardenId: number): Promise<Plant[]> {
     return requestAsPromise(

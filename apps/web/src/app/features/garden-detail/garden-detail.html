@@ -1,3 +1,5 @@
+<app-plant-artwork-defs />
+
 <nav class="breadcrumb anim-fade-in">
   <a routerLink="/gardens">Gardens</a>
   <span aria-hidden="true">/</span>
@@ -5,28 +7,56 @@
 </nav>
 
 @if (store.gardenMissing()) {
+  <!-- 404 / invalid id: the garden really is gone (backend audit fix #3) -->
   <app-empty-state
     title="Garden not found"
     message="It may have been deleted, or the link is out of date."
   >
     <a matButton="filled" routerLink="/gardens" class="press-feedback">Back to gardens</a>
   </app-empty-state>
+} @else if (store.gardenFailed()) {
+  <!-- 5xx / network: the garden probably exists — offer a retry, not a lie -->
+  <app-empty-state
+    title="Couldn't load this garden"
+    message="The greenhouse network is acting up. Your garden is still there."
+  >
+    <button matButton="filled" class="press-feedback" (click)="retryGarden()">Try again</button>
+  </app-empty-state>
 } @else {
   <app-skeleton-group [loading]="store.isGardenLoading()">
-    <div ghost class="header-ghost">
-      <div class="header-ghost-text">
-        <app-skeleton variant="title" w="40%" h="2rem" />
-        <app-skeleton variant="line" w="60%" />
-        <app-skeleton variant="rect" h="3rem" />
+    <div ghost>
+      <!-- Content-shaped cold-load skeleton: header + garden plan + rows
+           (ASYNC-UX: a GET always renders the full silhouette, never less) -->
+      <div class="header-ghost">
+        <div class="header-ghost-text">
+          <app-skeleton variant="title" w="40%" h="2rem" />
+          <app-skeleton variant="line" w="60%" />
+          <app-skeleton variant="rect" h="3rem" />
+        </div>
+        <app-skeleton variant="circle" w="10rem" h="6rem" />
       </div>
-      <app-skeleton variant="circle" w="10rem" h="6rem" />
+      <div class="panel">
+        <app-skeleton variant="line" w="8rem" />
+        <div style="height: 0.75rem"></div>
+        <app-garden-map-skeleton />
+      </div>
+      <div class="panel table-ghost">
+        @for (i of [1, 2, 3, 4, 5]; track i) {
+          <app-skeleton variant="rect" h="3.25rem" />
+        }
+      </div>
     </div>
 
     @if (store.garden(); as garden) {
-      <header class="detail-header anim-fade-up">
+      <header
+        class="detail-header anim-fade-up"
+        [class.mutation-ghost]="gardenUpdating(garden.gardenId)"
+        [attr.aria-busy]="gardenUpdating(garden.gardenId) ? true : null"
+      >
         <div class="header-info">
           <div class="title-row">
             <h1>{{ garden.gardenName }}</h1>
+            <app-capacity-status [garden]="garden" [plants]="store.plants()" />
             <button
               matIconButton
               [matMenuTriggerFor]="gardenMenu"
@@ -40,7 +70,16 @@
             </mat-menu>
           </div>
           @if (garden.locationDescription) {
-            <p class="location">{{ garden.locationDescription }}</p>
+            <p class="location">
+              <svg class="location-pin" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 21 C12 21 5 14.6 5 9.8 A7 7 0 0 1 19 9.8 C19 14.6 12 21 12 21 Z M12 12.2 A2.6 2.6 0 1 0 12 7 A2.6 2.6 0 0 0 12 12.2 Z"
+                  fill="currentColor"
+                />
+              </svg>
+              <span class="visually-hidden">Location:</span>
+              {{ garden.locationDescription }}
+            </p>
           }
           <div class="header-stats">
             <div class="header-stat">
@@ -64,10 +103,7 @@
         </div>
 
         <div class="gauge-panel">
-          <app-humidity-gauge
-            [value]="store.avgHumidity() ?? garden.targetHumidityLevel"
-            [target]="garden.targetHumidityLevel"
-          />
+          <app-humidity-gauge [value]="store.avgHumidity()" [target]="garden.targetHumidityLevel" />
           @if (store.humidityDrift(); as drift) {
             <p class="drift" [class.above]="drift > 0" [class.below]="drift < 0">
               {{ drift > 0 ? '▲' : '▼' }} {{ drift > 0 ? '+' : '' }}{{ drift | number: '1.0-0' }}
@@ -77,12 +113,60 @@
         </div>
       </header>
 
-      <section class="panel anim-fade-up" aria-labelledby="occupancy-heading">
-        <h2 id="occupancy-heading" class="panel-title">Bed layout</h2>
-        @if (store.plants().length > 0 || store.plantsStatus() === 'ready') {
-          <app-occupancy-visualizer [garden]="garden" [plants]="store.plants()" />
+      <section
+        class="panel anim-fade-up map-panel"
+        [class.planner-fullscreen]="plannerFullscreen()"
+        aria-labelledby="map-heading"
+      >
+        <div class="panel-head">
+          <div>
+            <h2 id="map-heading" class="panel-title">Garden plan</h2>
+            <p class="panel-sub">Explore plants, capacity and open space — drag beds to arrange.</p>
+          </div>
+          @if (plannerFullscreen()) {
+            <input
+              class="planner-search"
+              type="search"
+              placeholder="Find a plant…"
+              aria-label="Find a plant on the plan"
+              [value]="plannerQuery()"
+              (input)="onPlannerQueryInput($event)"
+              (keydown.enter)="focusSearchMatch()"
+            />
+          } @else {
+            <p class="panel-hint">Drag to pan · scroll to zoom</p>
+          }
+        </div>
+        @if (store.plantsStatus() === 'ready') {
+          <!-- The map ships in its own deferred chunk: detail's critical
+               content renders first, the twin hydrates when it scrolls in. -->
+          @defer (on viewport; prefetch on idle) {
+            <app-garden-map
+              [garden]="garden"
+              [plants]="store.plants()"
+              [pendingDeletes]="store.pendingDeletes()"
+              [pendingUpdates]="store.pendingUpdates()"
+              [pendingCreateArea]="store.pendingCreateArea()"
+              [positions]="positions()"
+              [hasCustomLayout]="hasCustomLayout()"
+              [canUndo]="canUndo()"
+              [canRedo]="canRedo()"
+              [isFullscreen]="plannerFullscreen()"
+              [(selectedPlantId)]="selectedPlantId"
+              (addPlant)="openPlantForm(null)"
+              (editPlant)="openPlantForm($event)"
+              (removePlant)="removePlant($event)"
+              (positionChange)="onPositionChange($event)"
+              (undoLayout)="undoLayout()"
+              (redoLayout)="redoLayout()"
+              (resetLayout)="resetLayout()"
+              (toggleFullscreen)="toggleFullscreen()"
+            />
+          } @placeholder {
+            <app-garden-map-skeleton />
+          }
         } @else {
-          <app-skeleton variant="rect" h="5.5rem" />
+          <app-garden-map-skeleton />
         }
       </section>
 
@@ -116,7 +200,6 @@
                 <thead>
                   <tr>
                     <th scope="col">Plant</th>
-                    <th scope="col">Species</th>
                     <th scope="col">Planted</th>
                     <th scope="col" class="num">Area</th>
                     <th scope="col" class="num">Humidity</th>
@@ -127,40 +210,72 @@
                 </thead>
                 <tbody class="stagger-children">
                   @for (plant of store.plants(); track plant.plantId) {
-                    <tr>
-                      <td>
-                        <span class="plant-name">
-                          <span class="type-glyph" [attr.aria-label]="plant.plantType">{{
-                            typeGlyph(plant.plantType)
-                          }}</span>
-                          {{ plant.plantName }}
-                        </span>
-                      </td>
-                      <td class="species">{{ plant.species }}</td>
-                      <td>{{ plant.plantationDate | date: 'MMM d, y' }}</td>
-                      <td class="num tabular">{{ plant.surfaceAreaRequired }} m²</td>
-                      <td class="num">
-                        <span
-                          class="humidity-cell tabular"
-                          [class.above]="humidityDeltaOf(plant, garden) > 5"
-                          [class.below]="humidityDeltaOf(plant, garden) < -5"
-                        >
-                          {{ plant.idealHumidityLevel }}%
-                        </span>
-                      </td>
-                      <td class="actions-col">
-                        <button
-                          matIconButton
-                          [matMenuTriggerFor]="rowMenu"
-                          aria-label="Plant actions"
-                          type="button"
-                        >
-                          ⋮
-                        </button>
-                        <mat-menu #rowMenu="matMenu" xPosition="before">
-                          <button mat-menu-item (click)="openPlantForm(plant)">Edit</button>
-                          <button mat-menu-item (click)="removePlant(plant)">Remove</button>
-                        </mat-menu>
+                    @if (isMutating(plant.plantId)) {
+                      <!-- Mutation ghost row: same engine, in place (ASYNC-UX) -->
+                      <tr class="ghost-row" aria-busy="true">
+                        <td colspan="5">
+                          <span class="visually-hidden">
+                            {{
+                              store.pendingDeletes().includes(plant.plantId)
+                                ? 'Removing'
+                                : 'Updating'
+                            }}
+                            {{ plant.plantName }}
+                          </span>
+                          <app-skeleton variant="rect" h="2.4rem" />
+                        </td>
+                      </tr>
+                    } @else {
+                      <tr [class.selected]="selectedPlantId() === plant.plantId">
+                        <td>
+                          <button
+                            class="plant-name-btn"
+                            type="button"
+                            [attr.aria-label]="'Show ' + plant.plantName + ' on the garden plan'"
+                            [attr.aria-pressed]="selectedPlantId() === plant.plantId"
+                            (click)="selectOnMap(plant)"
+                          >
+                            <app-plant-thumb [plant]="plant" />
+                            <span class="plant-id">
+                              <span class="plant-name">{{ plant.plantName }}</span>
+                              <span class="plant-species">{{ plant.species }}</span>
+                            </span>
+                          </button>
+                        </td>
+                        <td>{{ plant.plantationDate | date: 'MMM d, y' : 'UTC' }}</td>
+                        <td class="num tabular">{{ plant.surfaceAreaRequired }} m²</td>
+                        <td class="num">
+                          <span
+                            class="humidity-cell tabular"
+                            [class.above]="humidityDeltaOf(plant, garden) > 5"
+                            [class.below]="humidityDeltaOf(plant, garden) < -5"
+                          >
+                            {{ plant.idealHumidityLevel }}%
+                          </span>
+                        </td>
+                        <td class="actions-col">
+                          <button
+                            matIconButton
+                            [matMenuTriggerFor]="rowMenu"
+                            aria-label="Plant actions"
+                            type="button"
+                          >
+                            ⋮
+                          </button>
+                          <mat-menu #rowMenu="matMenu" xPosition="before">
+                            <button mat-menu-item (click)="openPlantForm(plant)">Edit</button>
+                            <button mat-menu-item (click)="removePlant(plant)">Remove</button>
+                          </mat-menu>
+                        </td>
+                      </tr>
+                    }
+                  }
+                  @if (store.pendingCreateArea() !== null) {
+                    <!-- Creation ghost row: the plant being planted (ASYNC-UX) -->
+                    <tr class="ghost-row" aria-busy="true">
+                      <td colspan="5">
+                        <span class="visually-hidden">Planting…</span>
+                        <app-skeleton variant="rect" h="2.4rem" />
                       </td>
                     </tr>
                   }

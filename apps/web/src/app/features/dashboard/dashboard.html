@@ -1,31 +1,124 @@
+<!-- Shared botanical symbol defs — the mini previews reference them -->
+<app-plant-artwork-defs />
+
 <!-- Hero panel on the signature dark gradient -->
-<section class="hero anim-fade-up">
+<section class="hero">
+  <!-- decorative foliage, aria-hidden, opacity-tuned for both themes -->
+  <svg
+    class="hero-art"
+    viewBox="0 0 320 200"
+    aria-hidden="true"
+    preserveAspectRatio="xMaxYMid slice"
+  >
+    <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <path d="M250 210 C250 150 240 110 205 80 M250 210 C250 160 275 130 305 115" />
+      <path d="M205 80 C185 95 180 120 195 140 C220 130 225 100 205 80 Z" />
+      <path d="M305 115 C285 110 265 122 260 145 C285 152 302 138 305 115 Z" />
+      <path d="M228 122 C210 130 202 148 210 168 C232 162 240 140 228 122 Z" />
+      <path d="M282 155 C265 152 250 162 246 180 C266 186 280 174 282 155 Z" />
+    </g>
+  </svg>
   <div class="hero-text">
-    <h1 class="hero-title">{{ greeting() }}</h1>
-    <p class="hero-sub">
-      @if (gardens.count() > 0) {
-        {{ gardens.count() }} {{ gardens.count() === 1 ? 'garden' : 'gardens' }} under your care —
-        here's how they're doing.
+    <h1 class="hero-title hero-step-1">{{ greeting() }}</h1>
+    <p class="hero-sub hero-step-2">
+      @if (gardens.isLoading()) {
+        <app-skeleton class="hero-ghost" variant="line" w="18rem" />
+      } @else if (gardens.count() > 0) {
+        {{ gardens.count() }} {{ gardens.count() === 1 ? 'garden' : 'gardens' }} ·
+        {{ totalPlants() }} {{ totalPlants() === 1 ? 'plant' : 'plants' }} · {{ totalArea() }} m²
+        under management
       } @else {
         Your green empire starts with a single bed.
       }
     </p>
+    @if (!gardens.isLoading() && gardens.count() > 0 && plantsSettled()) {
+      <p class="hero-status hero-step-3">
+        <span class="status-chip ok">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M5 13 L10 18 L19 7"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.4"
+              stroke-linecap="round"
+            />
+          </svg>
+          {{ healthyCount() }} healthy
+        </span>
+        @if (attention().length > 0) {
+          <span class="status-chip warn">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M12 5 V14 M12 18 V18.5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.4"
+                stroke-linecap="round"
+              />
+            </svg>
+            {{ attention().length }} {{ attention().length === 1 ? 'needs' : 'need' }} attention
+          </span>
+        }
+      </p>
+    }
   </div>
-  <a matButton="filled" routerLink="/gardens" class="hero-cta press-feedback">Manage gardens</a>
+  <div class="hero-actions hero-step-3">
+    <a matButton="filled" routerLink="/gardens" class="hero-cta press-feedback">Manage gardens</a>
+    @if (mostUrgent(); as urgent) {
+      <a
+        matButton
+        [routerLink]="['/gardens', urgent.garden.gardenId]"
+        class="hero-cta-secondary press-feedback"
+      >
+        View {{ urgent.garden.gardenName }} →
+      </a>
+    }
+  </div>
 </section>
 
 <app-skeleton-group [loading]="gardens.isLoading()">
-  <div ghost>
+  <!-- Content-shaped dashboard skeleton (§19–26): mirrors the real layout -->
+  <div ghost class="dash-skeleton">
     <div class="stats-grid">
-      @for (i of [1, 2, 3]; track i) {
-        <app-skeleton variant="card" h="9rem" />
+      @for (w of ['55%', '40%', '62%', '48%']; track w) {
+        <div class="kpi-ghost">
+          <app-skeleton variant="circle" w="2.25rem" h="2.25rem" />
+          <app-skeleton variant="title" w="3.5rem" h="2rem" />
+          <app-skeleton variant="line" [w]="w" />
+          <app-skeleton variant="line" w="70%" h="0.6rem" />
+        </div>
       }
     </div>
-    <app-skeleton variant="title" w="30%" />
-    <div class="insight-ghosts">
-      @for (i of [1, 2]; track i) {
-        <app-skeleton variant="rect" h="4.5rem" />
-      }
+    <div class="overview-grid">
+      <div>
+        <app-skeleton variant="title" w="9rem" />
+        <div class="ghost-stack">
+          @for (i of [1, 2]; track i) {
+            <div class="attention-ghost">
+              <app-skeleton variant="circle" w="2rem" h="2rem" />
+              <div class="ghost-lines">
+                <app-skeleton variant="line" w="45%" />
+                <app-skeleton variant="line" w="65%" h="0.6rem" />
+                <app-skeleton variant="rect" h="0.4rem" />
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+      <div>
+        <app-skeleton variant="title" w="9rem" />
+        <div class="ghost-cards">
+          @for (i of [1, 2, 3]; track i) {
+            <div class="health-ghost">
+              <app-skeleton variant="rect" h="4.5rem" />
+              <app-skeleton variant="line" w="55%" />
+              <app-skeleton variant="rect" h="0.5rem" />
+              <app-skeleton variant="line" w="75%" h="0.6rem" />
+              <app-skeleton variant="line" w="60%" h="0.6rem" />
+            </div>
+          }
+        </div>
+      </div>
     </div>
   </div>
 
@@ -44,83 +137,229 @@
       <a matButton="filled" routerLink="/gardens" class="press-feedback">Create a garden</a>
     </app-empty-state>
   } @else {
-    <!-- Count-up stat tiles -->
+    <!-- KPI tiles: value + secondary context + quiet visual accent (§5–6) -->
     <div class="stats-grid stagger-children">
-      <app-stat-card [value]="gardens.count()" label="Gardens">
-        <svg icon viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+      <app-stat-card
+        [value]="gardens.count()"
+        label="Gardens"
+        [context]="
+          plantsSettled()
+            ? healthyCount() +
+              ' healthy · ' +
+              attention().length +
+              (attention().length === 1 ? ' needs attention' : ' need attention')
+            : ''
+        "
+      >
+        <svg
+          icon
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+        >
           <path d="M4 20 H20 M6 20 V10 L12 5 L18 10 V20" />
         </svg>
       </app-stat-card>
-      <app-stat-card [value]="totalPlants()" label="Plants growing">
-        <svg icon viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-          <path d="M12 21 V11 M12 13 C12 8 8 6.5 4.5 7 C5 11.5 8.5 13.6 12 13 Z M12 11 C12 6.5 15.5 4.5 19.5 5 C19 10 15.5 12 12 11 Z" />
+      <app-stat-card
+        [value]="totalPlants()"
+        label="Plants growing"
+        [context]="'across ' + gardens.count() + (gardens.count() === 1 ? ' garden' : ' gardens')"
+      >
+        <svg
+          icon
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+        >
+          <path
+            d="M12 21 V11 M12 13 C12 8 8 6.5 4.5 7 C5 11.5 8.5 13.6 12 13 Z M12 11 C12 6.5 15.5 4.5 19.5 5 C19 10 15.5 12 12 11 Z"
+          />
         </svg>
       </app-stat-card>
-      <app-stat-card [value]="totalArea()" label="m² of growing space" suffix=" m²">
-        <svg icon viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+      <app-stat-card
+        [value]="totalArea()"
+        label="m² of growing space"
+        [context]="plantsSettled() ? (usedArea() | number: '1.0-1') + ' m² currently used' : ''"
+      >
+        <svg
+          icon
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+        >
           <rect x="4" y="4" width="16" height="16" rx="2" />
           <path d="M4 12 H20 M12 4 V20" />
         </svg>
       </app-stat-card>
+      <app-stat-card
+        [value]="utilizationPct()"
+        suffix="%"
+        label="Utilization"
+        [context]="plantsSettled() ? (freeArea() | number: '1.0-1') + ' m² still available' : ''"
+        [progress]="plantsSettled() ? utilizationPct() / 100 : null"
+        [progressWarn]="utilizationPct() >= 90"
+      >
+        <svg
+          icon
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+        >
+          <path d="M4 19 V13 M9.5 19 V9 M15 19 V5 M20 19 V11" />
+        </svg>
+      </app-stat-card>
     </div>
 
-    <!-- Attention list -->
-    @if (attention().length > 0) {
+    <div class="overview-grid">
+      <!-- ── Attention Center (§8–10) ── -->
       <section class="section anim-fade-up" aria-labelledby="attention-heading">
         <h2 id="attention-heading" class="section-title">Needs attention</h2>
-        <div class="attention-list stagger-children">
-          @for (insight of attention(); track insight.garden.gardenId) {
-            <a class="attention-row lift-hover" [routerLink]="['/gardens', insight.garden.gardenId]">
-              <span class="warn-dot" aria-hidden="true">!</span>
-              <span class="attention-info">
-                <span class="attention-name">{{ insight.garden.gardenName }}</span>
-                <span class="attention-reason">{{ insight.attentionReason }}</span>
-              </span>
-              <span class="attention-metric tabular">
-                @if (insight.plants; as plants) {
-                  {{ usedOf(plants) | number: '1.0-1' }} / {{ insight.garden.totalSurfaceArea }} m²
-                }
-              </span>
-            </a>
-          }
-        </div>
-      </section>
-    }
-
-    <!-- Humidity vs target, per garden (deferred below the fold) -->
-    @defer (on viewport) {
-      <section class="section anim-fade-up" aria-labelledby="humidity-heading">
-        <h2 id="humidity-heading" class="section-title">Humidity vs target</h2>
-        <div class="insight-grid stagger-children">
-          @for (insight of insights(); track insight.garden.gardenId) {
-            <a class="insight-card lift-hover" [routerLink]="['/gardens', insight.garden.gardenId]">
-              <div class="insight-top">
-                <span class="insight-name">{{ insight.garden.gardenName }}</span>
-                @if (insight.delta !== null) {
-                  <span
-                    class="delta tabular"
-                    [class.above]="insight.delta > 5"
-                    [class.below]="insight.delta < -5"
-                  >
-                    {{ insight.delta > 0 ? '▲ +' : insight.delta < 0 ? '▼ ' : '● ' }}{{ insight.delta | number: '1.0-0' }}
+        @if (attention().length > 0) {
+          <div class="attention-list stagger-children">
+            @for (insight of attention(); track insight.garden.gardenId) {
+              <a
+                class="attention-card lift-hover"
+                [class.is-full]="insight.status === 'full'"
+                [class.is-humidity]="insight.attentionKind === 'humidity'"
+                [routerLink]="['/gardens', insight.garden.gardenId]"
+              >
+                <span class="attention-icon" aria-hidden="true">
+                  @if (insight.attentionKind === 'capacity') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 4 V13 M12 17 V17.5" stroke-linecap="round" />
+                      <path d="M12 2 L22 20 H2 Z" stroke-linejoin="round" />
+                    </svg>
+                  } @else {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path
+                        d="M12 3 C16 8.5 18.5 12 18.5 15 A6.5 6.5 0 0 1 5.5 15 C5.5 12 8 8.5 12 3 Z"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  }
+                </span>
+                <span class="attention-body">
+                  <span class="attention-top">
+                    <span class="attention-name">{{ insight.garden.gardenName }}</span>
+                    <span class="attention-badge tabular">
+                      @if (insight.attentionKind === 'capacity') {
+                        {{ insight.occupancy * 100 | number: '1.0-0' }}% capacity
+                      } @else {
+                        {{ insight.delta! > 0 ? '+' : '' }}{{ insight.delta | number: '1.0-0' }}%
+                      }
+                    </span>
                   </span>
-                } @else if (insight.plants !== undefined) {
-                  <span class="delta">no plants</span>
-                } @else {
-                  <app-skeleton variant="line" w="2.5rem" />
-                }
-              </div>
-              <p class="insight-target">target {{ insight.garden.targetHumidityLevel }}%</p>
+                  <span class="attention-reason">{{ insight.attentionReason }}</span>
+                  @if (insight.attentionKind === 'capacity') {
+                    <span class="attention-metric tabular">
+                      {{ insight.used | number: '1.0-1' }} / {{ insight.garden.totalSurfaceArea }}
+                      m² used
+                    </span>
+                    <app-capacity-bar
+                      [used]="insight.used"
+                      [total]="insight.garden.totalSurfaceArea"
+                      [showLabel]="false"
+                    />
+                  } @else {
+                    <span class="attention-metric tabular">
+                      Average {{ insight.avgHumidity | number: '1.0-0' }}% · Target
+                      {{ insight.garden.targetHumidityLevel }}%
+                    </span>
+                    <span class="humidity-scale" aria-hidden="true">
+                      <span class="scale-track"></span>
+                      <span
+                        class="scale-mark target"
+                        [style.left.%]="insight.garden.targetHumidityLevel"
+                      ></span>
+                      <span class="scale-mark actual" [style.left.%]="insight.avgHumidity"></span>
+                    </span>
+                  }
+                  <span class="attention-cta">View garden →</span>
+                </span>
+              </a>
+            }
+          </div>
+        } @else if (plantsSettled()) {
+          <!-- Positive empty state (§10): the section never just vanishes -->
+          <div class="all-healthy">
+            <span class="healthy-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 13 L10 18 L19 7" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <div>
+              <p class="healthy-title">Everything looks healthy</p>
+              <p class="healthy-sub">No garden is near capacity or drifting from its target.</p>
+            </div>
+          </div>
+        } @else {
+          <div class="ghost-stack">
+            <app-skeleton variant="rect" h="5rem" />
+          </div>
+        }
+      </section>
+
+      <!-- ── Garden Health (§11–14, §16): the compact portfolio ── -->
+      <section class="section anim-fade-up" aria-labelledby="health-heading">
+        <h2 id="health-heading" class="section-title">Garden health</h2>
+        <div class="health-grid stagger-children">
+          @for (insight of insights(); track insight.garden.gardenId) {
+            <a class="health-card lift-hover" [routerLink]="['/gardens', insight.garden.gardenId]">
+              <app-garden-mini-preview
+                class="mini-preview"
+                [garden]="insight.garden"
+                [plants]="insight.plants ?? []"
+              />
+              <span class="health-top">
+                <span class="health-name">{{ insight.garden.gardenName }}</span>
+                <app-status-badge class="health-status" [tone]="insight.statusTone">
+                  {{ insight.statusLabel }}
+                </app-status-badge>
+              </span>
               @if (insight.plants; as plants) {
+                <span class="health-meta tabular">
+                  {{ plants.length }} {{ plants.length === 1 ? 'plant' : 'plants' }} ·
+                  {{ insight.used | number: '1.0-1' }} / {{ insight.garden.totalSurfaceArea }} m² ·
+                  {{ insight.occupancy * 100 | number: '1.0-0' }}%
+                </span>
                 <app-capacity-bar
-                  [used]="usedOf(plants)"
+                  [used]="insight.used"
                   [total]="insight.garden.totalSurfaceArea"
                   [showLabel]="false"
                 />
-                <p class="insight-meta">
-                  {{ plants.length }} {{ plants.length === 1 ? 'plant' : 'plants' }} ·
-                  {{ insight.occupancy * 100 | number: '1.0-0' }}% occupied
-                </p>
+                <span class="health-humidity">
+                  <span>Target {{ insight.garden.targetHumidityLevel }}%</span>
+                  @if (insight.delta !== null) {
+                    <span
+                      class="delta tabular"
+                      [class.above]="insight.delta > 5"
+                      [class.below]="insight.delta < -5"
+                    >
+                      avg {{ insight.avgHumidity | number: '1.0-0' }}% ·
+                      {{ insight.delta > 0 ? '+' : '' }}{{ insight.delta | number: '1.0-0' }} vs
+                      target
+                    </span>
+                  } @else {
+                    <span class="delta">no plants</span>
+                  }
+                </span>
+                <span class="health-cta">View garden →</span>
               } @else {
                 <app-skeleton variant="rect" h="0.5rem" />
                 <app-skeleton variant="line" w="50%" />
@@ -129,10 +368,6 @@
           }
         </div>
       </section>
-    } @placeholder {
-      <div class="insight-ghosts">
-        <app-skeleton variant="rect" h="4.5rem" />
-      </div>
-    }
+    </div>
   }
 </app-skeleton-group>

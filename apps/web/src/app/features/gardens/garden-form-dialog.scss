@@ -35,6 +35,15 @@
   font-size: var(--fs-emphasis);
 }
 
+.form-warning {
+  color: var(--accent-amber);
+  background: var(--amber-soft);
+  border: 1px solid color-mix(in srgb, var(--accent-amber) 30%, transparent);
+  border-radius: var(--radius-s);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-caption);
+}
+
 .form-error {
   color: var(--danger);
   background: var(--danger-soft);

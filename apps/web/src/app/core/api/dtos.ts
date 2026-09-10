@@ -43,11 +43,3 @@ export interface UserDto {
   createdAt: string;
   updatedAt: string;
 }
-
-/** Mirrors the error shape produced by the API error handler (error.schema.ts) */
-export interface ApiErrorDto {
-  message?: string;
-  error?: string;
-  statusCode?: number;
-  details?: unknown;
-}

@@ -1,75 +1,212 @@
+// Welcome / profile selection — the entrance to the product (upgrade brief).
+// Layered dark botanical atmosphere + split composition; panel and cards use
+// the shared tokens/motion/skeleton systems (no local duplicates).
+
 .page {
+  position: relative;
   min-height: 100dvh;
   display: grid;
   place-items: center;
   padding: var(--sp-6);
+  overflow: hidden;
   background: var(--gradient-hero);
+
+  // Depth layer 2: soft emerald radial glow
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      55rem 34rem at 24% 68%,
+      color-mix(in srgb, var(--brand-500) 16%, transparent),
+      transparent 70%
+    );
+    pointer-events: none;
+  }
+
+  // Depth layer 3: barely-there garden-plan grid + vignette
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(120% 120% at 50% 50%, transparent 55%, rgb(0 0 0 / 0.35) 100%),
+      linear-gradient(rgb(255 255 255 / 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+    background-size:
+      100% 100%,
+      2.75rem 2.75rem,
+      2.75rem 2.75rem;
+    pointer-events: none;
+  }
 }
 
-.card {
-  width: min(26rem, 100%);
-  background: var(--surface-1);
-  border-radius: var(--radius-l);
-  box-shadow: var(--shadow-3);
-  padding: var(--sp-8);
+.theme-toggle {
+  position: absolute;
+  top: var(--sp-4);
+  right: var(--sp-4);
+  z-index: 2;
   display: grid;
-  gap: var(--sp-4);
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: var(--radius-pill);
+  background: rgb(255 255 255 / 0.06);
+  color: var(--text-on-dark-dim);
+  cursor: pointer;
+
+  svg {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  &:hover {
+    color: var(--text-on-dark);
+    border-color: rgb(255 255 255 / 0.3);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
 }
 
-.brand-header {
+// ── Split composition (§2): brand left, profile experience right ────────────
+.split {
+  position: relative;
+  z-index: 1;
   display: grid;
-  justify-items: center;
-  gap: var(--sp-1);
-  text-align: center;
-  margin-bottom: var(--sp-2);
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 30rem);
+  align-items: center;
+  gap: clamp(var(--sp-8), 6vw, 7rem);
+  width: min(72rem, 100%);
 
-  h1 {
-    font-size: var(--fs-h3);
+  @media (max-width: 880px) {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: var(--sp-6);
+  }
+}
+
+.brand {
+  display: grid;
+  gap: var(--sp-8);
+  color: var(--text-on-dark);
+
+  @media (max-width: 880px) {
+    justify-items: center;
+    text-align: center;
+    gap: var(--sp-3);
+  }
+}
+
+.brand-block {
+  display: grid;
+  gap: var(--sp-2);
+  justify-items: start;
+
+  @media (max-width: 880px) {
+    justify-items: center;
   }
 }
 
 .mark {
   display: grid;
   place-items: center;
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 3rem;
+  height: 3rem;
   border-radius: var(--radius-m);
   background: var(--gradient-brand);
   color: white;
+  box-shadow: var(--shadow-2);
   margin-bottom: var(--sp-2);
 }
 
-.tagline {
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-h3);
+  letter-spacing: -0.01em;
+}
+
+.brand-line {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 2.6vw, 2.4rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--text-on-dark);
+  opacity: 0.92;
+}
+
+// Decorative planner bed: same artwork symbols as the Garden Map, quiet
+.brand-bed {
+  width: min(22rem, 80%);
+  color: var(--brand-400);
+  opacity: 0.5;
+
+  .bed-plants {
+    // The artwork tints through the resolver's palette vars — here we set a
+    // muted moonlit trio once, decoratively.
+    --pv-a: #4e7d57;
+    --pv-b: #6b9a72;
+    --pv-c: #c8a24e;
+  }
+
+  @media (max-width: 880px) {
+    display: none; // mobile keeps the entrance compact (§46)
+  }
+}
+
+// ── Profile panel (§29–30) ──────────────────────────────────────────────────
+.panel {
+  width: 100%;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-l);
+  box-shadow: var(--shadow-3);
+  padding: clamp(var(--sp-6), 4vw, var(--sp-8));
+  display: grid;
+  gap: var(--sp-5);
+}
+
+.panel-head {
+  display: grid;
+  gap: var(--sp-1);
+
+  h1 {
+    font-size: var(--fs-h3);
+  }
+}
+
+.sub {
   color: var(--text-2);
   font-size: var(--fs-caption);
 }
 
-.profile-ghosts {
-  display: grid;
-  gap: var(--sp-2);
-}
-
-.profile-ghost {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-2);
-}
-
+// ── Profile cards (§7–8): premium, whole-card interactive ───────────────────
 .profiles {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  gap: var(--sp-2);
+  gap: var(--sp-3);
+  // Many profiles (§10): the list scrolls locally, the page does not
+  max-height: min(21rem, 48dvh);
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
-.profile {
+.profile,
+.create-card {
   width: 100%;
   display: flex;
   align-items: center;
   gap: var(--sp-3);
-  padding: var(--sp-3);
+  min-height: 4.25rem;
+  padding: var(--sp-3) var(--sp-4);
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: var(--radius-m);
@@ -78,35 +215,58 @@
   text-align: left;
   transition:
     border-color var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out);
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 
-  &:hover {
-    border-color: var(--brand-500);
-    background: var(--brand-soft);
-
-    .go {
-      transform: translateX(2px);
-      color: var(--brand-600);
-    }
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
   }
+}
+
+.profile:hover {
+  border-color: var(--brand-500);
+  box-shadow: var(--shadow-2);
+  transform: translateY(-1px);
+
+  .go {
+    transform: translateX(3px);
+    color: var(--brand-600);
+  }
+
+  .avatar {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-500) 55%, transparent);
+  }
+}
+
+.profile:active {
+  transform: translateY(0);
+}
+
+.ghost-card {
+  cursor: default;
+  pointer-events: none;
 }
 
 .avatar {
   flex: none;
   display: grid;
   place-items: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.75rem;
+  height: 2.75rem;
   border-radius: 50%;
-  background: var(--gradient-hero);
-  color: var(--text-on-dark);
+  background: var(--gradient-brand);
+  color: white;
   font-weight: 700;
   font-size: var(--fs-caption);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-500) 25%, transparent);
+  transition: box-shadow var(--dur-fast) var(--ease-out);
 }
 
 .who {
   flex: 1;
   display: grid;
+  gap: 0.1rem;
   min-width: 0;
 }
 
@@ -124,30 +284,95 @@
 
 .go {
   color: var(--text-3);
+  display: grid;
+  place-items: center;
   transition:
     transform var(--dur-fast) var(--ease-out),
     color var(--dur-fast) var(--ease-out);
 }
 
-.none {
-  color: var(--text-2);
+// Secondary action card (§12)
+.create-card {
+  border-style: dashed;
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+
+  .plus {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    border: 1.5px dashed var(--border-strong);
+    color: var(--text-2);
+    font-weight: 600;
+    transition:
+      border-color var(--dur-fast) var(--ease-out),
+      color var(--dur-fast) var(--ease-out),
+      transform var(--dur-fast) var(--ease-out);
+  }
+
+  &:hover {
+    border-color: var(--brand-500);
+
+    .plus {
+      border-color: var(--brand-500);
+      color: var(--brand-600);
+      transform: scale(1.06);
+    }
+  }
+}
+
+// ── Zero-profile onboarding (§13) ───────────────────────────────────────────
+.zero-state {
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4) 0 var(--sp-2);
   text-align: center;
-  padding: var(--sp-4);
 }
 
-.create-toggle {
-  justify-self: center;
+.zero-bed {
+  width: min(15rem, 80%);
+  color: var(--brand-500);
+  opacity: 0.75;
 }
 
+.zero-copy {
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+  max-width: 24rem;
+}
+
+// ── Error state (§42): branding stays, panel content swaps ──────────────────
+.error-state {
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4) 0;
+}
+
+.error-line {
+  color: var(--danger);
+  font-size: var(--fs-caption);
+  text-align: center;
+}
+
+// ── Create form ─────────────────────────────────────────────────────────────
 .create-form {
   display: grid;
-  gap: var(--sp-1);
+  gap: var(--sp-3);
 }
 
 .name-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--sp-3);
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
 }
 
 .form-actions {
@@ -156,8 +381,6 @@
   margin-top: var(--sp-2);
 }
 
-.error-line {
-  color: var(--danger);
-  font-size: var(--fs-caption);
-  text-align: center;
+.duplicate-recovery {
+  justify-self: stretch;
 }

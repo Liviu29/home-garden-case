@@ -9,6 +9,7 @@ import { Shell } from './core/layout/shell';
 export const routes: Routes = [
   {
     path: 'welcome',
+    title: 'Welcome · HomeGarden',
     loadComponent: () => import('./features/onboarding/onboarding').then((m) => m.Onboarding),
   },
   {
@@ -19,14 +20,18 @@ export const routes: Routes = [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
       {
         path: 'dashboard',
+        title: 'Dashboard · HomeGarden',
         loadComponent: () => import('./features/dashboard/dashboard').then((m) => m.Dashboard),
       },
       {
         path: 'gardens',
+        title: 'Gardens · HomeGarden',
         loadComponent: () => import('./features/gardens/garden-list').then((m) => m.GardenList),
       },
       {
         path: 'gardens/:gardenId',
+        // Refined to the garden's name once it loads (see GardenDetail).
+        title: 'Garden · HomeGarden',
         loadComponent: () =>
           import('./features/garden-detail/garden-detail').then((m) => m.GardenDetail),
       },
@@ -34,6 +39,7 @@ export const routes: Routes = [
   },
   {
     path: '**',
+    title: 'Not found · HomeGarden',
     loadComponent: () => import('./pages/not-found').then((m) => m.NotFound),
   },
 ];

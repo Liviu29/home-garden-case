@@ -113,7 +113,9 @@
     transition-duration: 1ms !important;
   }
 
-  .skeleton-shimmer::after {
+  .skeleton-shimmer::after,
+  .mutation-ghost::before,
+  .btn-ghost::after {
     animation: skeleton-pulse 2.5s ease-in-out infinite !important;
   }
 }

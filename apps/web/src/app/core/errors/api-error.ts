@@ -10,7 +10,7 @@ import { HttpErrorResponse } from '@angular/common/http';
  *                  Never retried; rendered in context (inline on the form).
  * - `not-found`  → 404. Friendly empty-state page, not a toast.
  */
-export type ApiErrorKind = 'technical' | 'functional' | 'not-found';
+type ApiErrorKind = 'technical' | 'functional' | 'not-found';
 
 export class ApiError extends Error {
   constructor(

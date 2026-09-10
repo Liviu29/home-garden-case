@@ -1,0 +1,664 @@
+<div class="map-shell" (keydown.escape)="onEscape()">
+  <div
+    class="map-stage"
+    [class.has-selection]="selectedPlantId() !== null"
+    [class.layer-no-labels]="!layers().labels"
+    [class.layer-no-footprints]="!layers().footprints"
+    [class.layer-no-grid]="!layers().grid"
+    [class.layer-no-free]="!layers().freeSpace"
+  >
+    <svg
+      #mapSvg
+      class="map-svg"
+      [attr.viewBox]="viewBox()"
+      preserveAspectRatio="xMidYMid meet"
+      role="group"
+      [attr.aria-label]="mapAria()"
+      tabindex="0"
+      (keydown)="onKeydown($event)"
+      (pointerdown)="onPointerDown($event)"
+      (pointermove)="onPointerMove($event)"
+      (pointerup)="onPointerUp($event)"
+      (pointercancel)="onPointerUp($event)"
+      (wheel)="onWheel($event)"
+      (pointerleave)="clearHover()"
+    >
+      <defs>
+        <!-- 1 grid cell == 1 m² at true scale: the eye can audit areas -->
+        <pattern id="soil-grid" width="1" height="1" patternUnits="userSpaceOnUse">
+          <path
+            d="M 1 0 L 0 0 0 1"
+            fill="none"
+            class="grid-line"
+            vector-effect="non-scaling-stroke"
+          />
+        </pattern>
+        <!-- Lawn speckle: procedural texture, no image assets -->
+        <pattern id="lawn-speckle" width="1.6" height="1.6" patternUnits="userSpaceOnUse">
+          <circle cx="0.28" cy="0.42" r="0.045" class="speckle" />
+          <circle cx="0.95" cy="0.2" r="0.035" class="speckle" />
+          <circle cx="1.32" cy="0.95" r="0.05" class="speckle" />
+          <circle cx="0.55" cy="1.25" r="0.04" class="speckle" />
+          <circle cx="1.05" cy="0.68" r="0.03" class="speckle" />
+        </pattern>
+        <!-- Tilled-soil furrows for the free planting band -->
+        <pattern id="soil-furrows" width="4" height="0.55" patternUnits="userSpaceOnUse">
+          <path d="M 0 0.28 H 4" class="furrow" vector-effect="non-scaling-stroke" />
+        </pattern>
+        <linearGradient id="lawn-light" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" class="lawn-stop-a" />
+          <stop offset="100%" class="lawn-stop-b" />
+        </linearGradient>
+        <radialGradient id="humidity-halo" cx="15%" cy="10%" r="90%">
+          <stop offset="0%" class="halo-stop-a" />
+          <stop offset="55%" class="halo-stop-b" />
+        </radialGradient>
+      </defs>
+
+      <!-- ── Surface: lawn, texture, grid, humidity hint ── -->
+      <rect
+        class="lawn"
+        x="0"
+        y="0"
+        [attr.width]="layout().width"
+        [attr.height]="layout().height"
+        [attr.rx]="cornerR()"
+        fill="url(#lawn-light)"
+        (click)="clearSelection()"
+      />
+      <rect
+        class="lawn-texture"
+        x="0"
+        y="0"
+        [attr.width]="layout().width"
+        [attr.height]="layout().height"
+        [attr.rx]="cornerR()"
+        fill="url(#lawn-speckle)"
+      />
+      <rect
+        class="soil-grid-fill"
+        x="0"
+        y="0"
+        [attr.width]="layout().width"
+        [attr.height]="layout().height"
+        [attr.rx]="cornerR()"
+        fill="url(#soil-grid)"
+      />
+      <rect
+        class="garden-fence"
+        [attr.x]="layout().width * 0.012"
+        [attr.y]="layout().width * 0.012"
+        [attr.width]="layout().width * 0.976"
+        [attr.height]="layout().height - layout().width * 0.024"
+        [attr.rx]="cornerR() * 0.8"
+        vector-effect="non-scaling-stroke"
+      />
+      <rect
+        class="humidity-overlay"
+        x="0"
+        y="0"
+        [attr.width]="layout().width"
+        [attr.height]="layout().height"
+        [attr.rx]="cornerR()"
+        fill="url(#humidity-halo)"
+        [attr.opacity]="humidityHaloOpacity()"
+      />
+
+      <!-- ── Free soil: tilled band, room to grow ── -->
+      @if (layout().freeBand; as band) {
+        <g class="free-soil">
+          <rect
+            class="free-band"
+            [attr.x]="band.x"
+            [attr.y]="band.y"
+            [attr.width]="band.w"
+            [attr.height]="band.h"
+            [attr.rx]="cornerR() * 0.6"
+            vector-effect="non-scaling-stroke"
+          />
+          <rect
+            class="free-furrows"
+            [attr.x]="band.x"
+            [attr.y]="band.y"
+            [attr.width]="band.w"
+            [attr.height]="band.h"
+            [attr.rx]="cornerR() * 0.6"
+            fill="url(#soil-furrows)"
+          />
+          <!-- Explicit free-capacity annotation (§6): honest, never inflated -->
+          @if (freeHint(); as hint) {
+            @if (hint.kind === 'marker') {
+              <g class="free-marker">
+                <circle [attr.cx]="hint.cx" [attr.cy]="hint.cy" [attr.r]="hint.fs" />
+                <path
+                  [attr.d]="
+                    'M' +
+                    (hint.cx - hint.fs * 0.45) +
+                    ' ' +
+                    hint.cy +
+                    'H' +
+                    (hint.cx + hint.fs * 0.45) +
+                    'M' +
+                    hint.cx +
+                    ' ' +
+                    (hint.cy - hint.fs * 0.45) +
+                    'V' +
+                    (hint.cy + hint.fs * 0.45)
+                  "
+                />
+              </g>
+            } @else {
+              <text
+                class="free-label"
+                [attr.x]="hint.cx"
+                [attr.y]="hint.cy"
+                [attr.font-size]="hint.fs"
+                text-anchor="middle"
+                dominant-baseline="central"
+                [attr.transform]="
+                  hint.kind === 'label-vertical'
+                    ? 'rotate(-90 ' + hint.cx + ' ' + hint.cy + ')'
+                    : null
+                "
+              >
+                Available · {{ freeArea() | number: '1.0-1' }} m²
+              </text>
+            }
+          }
+        </g>
+      }
+      @for (zone of emptyZones(); track zone.cx) {
+        <circle
+          class="empty-zone"
+          [attr.cx]="zone.cx"
+          [attr.cy]="zone.cy"
+          [attr.r]="zone.r"
+          vector-effect="non-scaling-stroke"
+        />
+      }
+
+      <!-- ── Creation ghost: an in-flight POST prepares a bed (ASYNC-UX) ── -->
+      @if (ghostBed(); as ghost) {
+        <g class="ghost-bed" aria-hidden="true">
+          <rect
+            [attr.x]="ghost.x"
+            [attr.y]="ghost.y"
+            [attr.width]="ghost.w"
+            [attr.height]="ghost.h"
+            [attr.rx]="ghost.rx"
+            vector-effect="non-scaling-stroke"
+          />
+        </g>
+      }
+
+      <!-- ── Plant beds: honest footprint + botanical artwork above it ── -->
+      @for (plot of plotViews(); track plot.plantId) {
+        <g
+          class="plot"
+          [class]="plot.visual.category"
+          [class.selected]="plot.plantId === selectedPlantId()"
+          [class.mutating]="mutatingIds().has(plot.plantId)"
+          [class.overlapping]="overlappingIds().has(plot.plantId)"
+          role="button"
+          tabindex="0"
+          [attr.aria-label]="plot.aria"
+          [attr.aria-pressed]="plot.plantId === selectedPlantId()"
+          [attr.aria-disabled]="mutatingIds().has(plot.plantId) ? true : null"
+          (click)="onPlotClick(plot.plantId)"
+          (pointerdown)="onPlotPointerDown(plot.plantId)"
+          (keydown.enter)="selectPlant(plot.plantId)"
+          (keydown.space)="selectPlant(plot.plantId); $event.preventDefault()"
+          (pointerenter)="onPlotHover(plot, $event)"
+          (pointermove)="onPlotHoverMove(plot, $event)"
+          (pointerleave)="clearHover()"
+        >
+          @if (layers().humidity) {
+            <!-- Humidity PREFERENCE vs the garden's target — never a sensor -->
+            <ellipse
+              class="humidity-pref"
+              [class.wants-more]="plot.humidityDelta > 5"
+              [class.wants-less]="plot.humidityDelta < -5"
+              [attr.cx]="plot.cx"
+              [attr.cy]="plot.cy"
+              [attr.rx]="plot.w * 0.62"
+              [attr.ry]="plot.h * 0.62"
+            />
+          }
+          <!-- The mathematically honest occupied footprint (raised bed) -->
+          <rect
+            class="plot-bed"
+            [attr.x]="plot.x"
+            [attr.y]="plot.y"
+            [attr.width]="plot.w"
+            [attr.height]="plot.h"
+            [attr.rx]="plot.rx"
+            vector-effect="non-scaling-stroke"
+          />
+          @if (plot.plantId === selectedPlantId()) {
+            <rect
+              class="selection-ring"
+              [attr.x]="plot.x - layout().width * 0.012"
+              [attr.y]="plot.y - layout().width * 0.012"
+              [attr.width]="plot.w + layout().width * 0.024"
+              [attr.height]="plot.h + layout().width * 0.024"
+              [attr.rx]="plot.rx + layout().width * 0.008"
+              vector-effect="non-scaling-stroke"
+            />
+          }
+          <!-- Vegetation cluster: presentation only, density ∝ honest area -->
+          <g class="veg" [style]="plot.paletteStyle">
+            @for (v of plot.veg; track $index) {
+              <use
+                [attr.href]="'#' + plot.visual.symbolId"
+                [attr.x]="v.ax"
+                [attr.y]="v.ay"
+                [attr.width]="v.size"
+                [attr.height]="v.size"
+                [attr.transform]="'rotate(' + v.rotation + ' ' + v.cx + ' ' + v.cy + ')'"
+              />
+            }
+          </g>
+          @if (plot.showLabel || plot.plantId === selectedPlantId()) {
+            <g class="plot-label">
+              <rect
+                [attr.x]="plot.cx - plot.labelW / 2"
+                [attr.y]="plot.labelY - plot.labelH / 2"
+                [attr.width]="plot.labelW"
+                [attr.height]="plot.labelH"
+                [attr.rx]="plot.labelH / 2"
+              />
+              <text
+                class="plot-name"
+                [attr.x]="plot.cx"
+                [attr.y]="plot.labelY"
+                [attr.font-size]="plot.fontSize"
+                text-anchor="middle"
+                dominant-baseline="central"
+              >
+                {{ plot.label }}
+              </text>
+              @if (detailZoom()) {
+                <text
+                  class="plot-area-detail"
+                  [attr.x]="plot.cx"
+                  [attr.y]="plot.labelY + plot.labelH * 1.05"
+                  [attr.font-size]="plot.fontSize * 0.82"
+                  text-anchor="middle"
+                  dominant-baseline="central"
+                >
+                  {{ plot.requiredArea }} m²
+                </text>
+              }
+            </g>
+          }
+        </g>
+      }
+    </svg>
+
+    <!-- Toolbar: real icon buttons, keyboard/screen-reader friendly -->
+    <div class="map-toolbar" role="toolbar" aria-label="Map view controls">
+      <button
+        class="tool-btn press-feedback"
+        type="button"
+        aria-label="Zoom out"
+        title="Zoom out"
+        [disabled]="zoom() <= minZoom"
+        (click)="zoomOut()"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 11h14v2H5z" fill="currentColor" />
+        </svg>
+      </button>
+      <span class="zoom-level tabular" aria-live="polite">{{ zoomPercent() }}%</span>
+      <button
+        class="tool-btn press-feedback"
+        type="button"
+        aria-label="Zoom in"
+        title="Zoom in"
+        [disabled]="zoom() >= maxZoom"
+        (click)="zoomIn()"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z" fill="currentColor" />
+        </svg>
+      </button>
+      <span class="toolbar-divider" aria-hidden="true"></span>
+      <button
+        class="tool-btn press-feedback"
+        type="button"
+        aria-label="Fit garden"
+        title="Fit garden"
+        (click)="fit()"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M4 9V5a1 1 0 0 1 1-1h4v2H6v3H4Zm16 0V6h-3V4h4a1 1 0 0 1 1 1v4h-2ZM4 15h2v3h3v2H5a1 1 0 0 1-1-1v-4Zm16 0h2v4a1 1 0 0 1-1 1h-4v-2h3v-3Z"
+            fill="currentColor"
+          />
+        </svg>
+      </button>
+      <button
+        class="tool-btn press-feedback"
+        type="button"
+        aria-label="Reset view and selection"
+        title="Reset view and selection"
+        (click)="resetView()"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7Z" fill="currentColor" />
+        </svg>
+      </button>
+      <span class="toolbar-divider" aria-hidden="true"></span>
+      <button
+        class="tool-btn press-feedback"
+        type="button"
+        aria-label="Undo layout move"
+        title="Undo layout move"
+        [disabled]="!canUndo()"
+        (click)="undoLayout.emit()"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M12.5 8H7.83l2.58-2.59L9 4 4 9l5 5 1.41-1.41L7.83 10h4.67a4.5 4.5 0 0 1 0 9H7v2h5.5a6.5 6.5 0 0 0 0-13Z"
+            fill="currentColor"
+          />
+        </svg>
+      </button>
+      <button
+        class="tool-btn press-feedback"
+        type="button"
+        aria-label="Redo layout move"
+        title="Redo layout move"
+        [disabled]="!canRedo()"
+        (click)="redoLayout.emit()"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M11.5 8h4.67l-2.58-2.59L15 4l5 5-5 5-1.41-1.41L16.17 10H11.5a4.5 4.5 0 0 0 0 9H17v2h-5.5a6.5 6.5 0 0 1 0-13Z"
+            fill="currentColor"
+          />
+        </svg>
+      </button>
+      <button
+        class="tool-btn press-feedback"
+        type="button"
+        aria-label="Reset layout to automatic arrangement"
+        title="Reset layout to automatic arrangement"
+        [disabled]="!hasCustomLayout()"
+        (click)="resetLayout.emit()"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm11.5 0L13 15.5l2.5 2.5-1.4 1.4L11.6 16.9l-1.4 1.4L8.8 16.9l2.5-2.5L8.8 12l1.4-1.4 2.4 2.4 2.5-2.4 1.4 1.4Z"
+            fill="currentColor"
+            opacity="0"
+          />
+          <path
+            d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM17.5 13.6l1.4 1.4-2 2 2 2-1.4 1.4-2-2-2 2-1.4-1.4 2-2-2-2 1.4-1.4 2 2z"
+            fill="currentColor"
+          />
+        </svg>
+      </button>
+      <span class="toolbar-divider" aria-hidden="true"></span>
+      <button
+        class="tool-btn press-feedback"
+        type="button"
+        aria-label="Toggle layers menu"
+        title="Toggle layers menu"
+        [attr.aria-expanded]="layersOpen()"
+        (click)="layersOpen.set(!layersOpen())"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="m12 3 9 5-9 5-9-5 9-5Zm-6.7 8.1L12 14.8l6.7-3.7L21 12.4l-9 5-9-5 2.3-1.3Zm0 4L12 18.8l6.7-3.7L21 16.4l-9 5-9-5 2.3-1.3Z"
+            fill="currentColor"
+          />
+        </svg>
+      </button>
+      <button
+        class="tool-btn press-feedback"
+        type="button"
+        [attr.aria-label]="isFullscreen() ? 'Exit fullscreen planner' : 'Expand planner'"
+        [attr.title]="isFullscreen() ? 'Exit fullscreen planner' : 'Expand planner'"
+        (click)="toggleFullscreen.emit()"
+      >
+        @if (isFullscreen()) {
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M9 4v3H6v2h5V4H9Zm9 5V7h-3V4h-2v5h5ZM4 15v2h3v3h2v-5H4Zm11 5h2v-3h3v-2h-5v5Z"
+              fill="currentColor"
+            />
+          </svg>
+        } @else {
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M4 4h6v2H6v4H4V4Zm10 0h6v6h-2V6h-4V4ZM4 14h2v4h4v2H4v-6Zm14 0h2v6h-6v-2h4v-4Z"
+              fill="currentColor"
+            />
+          </svg>
+        }
+      </button>
+    </div>
+
+    <!-- Layers menu (§40): five honest toggles, nothing more -->
+    @if (layersOpen()) {
+      <div class="layers-panel" role="group" aria-label="Map layers">
+        <label class="layer-toggle">
+          <input type="checkbox" [checked]="layers().labels" (change)="toggleLayer('labels')" />
+          Plant labels
+        </label>
+        <label class="layer-toggle">
+          <input
+            type="checkbox"
+            [checked]="layers().footprints"
+            (change)="toggleLayer('footprints')"
+          />
+          Footprints
+        </label>
+        <label class="layer-toggle">
+          <input type="checkbox" [checked]="layers().grid" (change)="toggleLayer('grid')" />
+          Grid
+        </label>
+        <label class="layer-toggle">
+          <input type="checkbox" [checked]="layers().humidity" (change)="toggleLayer('humidity')" />
+          Humidity preference
+        </label>
+        <label class="layer-toggle">
+          <input
+            type="checkbox"
+            [checked]="layers().freeSpace"
+            (change)="toggleLayer('freeSpace')"
+          />
+          Available space
+        </label>
+        @if (layers().humidity) {
+          <p class="layers-note">Preference vs target — not a measurement</p>
+        }
+      </div>
+    }
+
+    <!-- Capacity HUD: one glass panel, numbers from shared domain math.
+         Fades while a bed is dragged so it never hides the drop zone. -->
+    <div class="map-hud" [class.hud-muted]="draggingPlant()">
+      <div class="hud-stat">
+        <span class="hud-value tabular">{{ utilizationPct() | number: '1.0-0' }}%</span>
+        <span class="hud-label">used</span>
+        <span class="hud-bar" aria-hidden="true">
+          <span
+            class="hud-bar-fill"
+            [class.warn]="status() === 'almost-full'"
+            [class.full]="status() === 'full'"
+            [style.width.%]="utilizationPct()"
+          ></span>
+        </span>
+      </div>
+      <span class="hud-divider" aria-hidden="true"></span>
+      <div class="hud-stat">
+        <span class="hud-value tabular">{{ freeArea() | number: '1.0-1' }} m²</span>
+        <span class="hud-label">free</span>
+      </div>
+      <span class="hud-divider" aria-hidden="true"></span>
+      <div class="hud-stat humidity">
+        <svg class="drop-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M12 2.7c3.4 4.2 6.5 7.9 6.5 11.5a6.5 6.5 0 1 1-13 0C5.5 10.6 8.6 6.9 12 2.7Z"
+            fill="currentColor"
+          />
+        </svg>
+        <span class="hud-value tabular">{{ garden().targetHumidityLevel }}%</span>
+        <span class="hud-label">target</span>
+      </div>
+      @if (status() === 'full') {
+        <span class="hud-divider" aria-hidden="true"></span>
+        <div class="hud-stat full-badge">{{ statusLabel() }}</div>
+      }
+    </div>
+
+    <!-- Designed empty state: the surface is an invitation, not a blank -->
+    @if (plants().length === 0 && pendingCreateArea() === null) {
+      <div class="map-empty-overlay">
+        <p class="empty-title">Your garden has space to grow.</p>
+        <p class="empty-sub">
+          {{ garden().totalSurfaceArea }} m² of open soil, ready when you are.
+        </p>
+        <button matButton="filled" class="press-feedback" type="button" (click)="addPlant.emit()">
+          Plant your garden
+        </button>
+      </div>
+    }
+
+    <!-- Hover tooltip (visual duplicate of DOM info — hidden from AT) -->
+    @if (tooltip(); as tip) {
+      <div class="map-tooltip" aria-hidden="true" [style.left.px]="tip.x" [style.top.px]="tip.y">
+        <span class="tip-name">{{ tip.label }}</span>
+        <span class="tip-meta">{{ tip.area }} m² · {{ tip.sharePct }}% of garden</span>
+        <span class="tip-hint">Click for details</span>
+      </div>
+    }
+  </div>
+
+  <!-- Inspector: plain DOM, the accessible home of every plot's details -->
+  <aside
+    class="map-inspector"
+    aria-label="Plant inspector"
+    [attr.aria-busy]="selectedPlantMutating() ? true : null"
+  >
+    @if (selectedPlant(); as plant) {
+      @if (selectedPlantMutating()) {
+        <div class="inspector-ghost" aria-hidden="true">
+          <div class="ghost-head">
+            <app-skeleton variant="circle" w="3rem" h="3rem" />
+            <div class="ghost-head-text">
+              <app-skeleton variant="title" w="70%" h="1.1rem" />
+              <app-skeleton variant="line" w="50%" />
+            </div>
+          </div>
+          <app-skeleton variant="line" w="100%" />
+          <app-skeleton variant="line" w="88%" />
+          <app-skeleton variant="line" w="92%" />
+        </div>
+        <span class="visually-hidden">Saving changes to {{ plant.plantName }}</span>
+      } @else {
+        <header class="inspector-head">
+          <app-plant-thumb class="inspector-thumb" [plant]="plant" />
+          <div class="inspector-title">
+            <h3>{{ plant.plantName }}</h3>
+            <p class="species">{{ plant.species }}</p>
+          </div>
+          <button
+            class="tool-btn press-feedback"
+            type="button"
+            aria-label="Clear selection"
+            (click)="clearSelection()"
+          >
+            ✕
+          </button>
+        </header>
+        <dl class="inspector-facts">
+          <div class="fact">
+            <dt>Required surface</dt>
+            <dd class="tabular">
+              {{ plant.surfaceAreaRequired }} m²
+              <span class="fact-sub">{{ selectedShare() | number: '1.0-0' }}% of garden</span>
+            </dd>
+          </div>
+          <div class="fact">
+            <dt>Ideal humidity</dt>
+            <dd class="tabular">
+              {{ plant.idealHumidityLevel }}%
+              <span
+                class="fact-sub"
+                [class.above]="selectedHumidityDelta() > 5"
+                [class.below]="selectedHumidityDelta() < -5"
+              >
+                {{ selectedHumidityDelta() > 0 ? '+' : '' }}{{ selectedHumidityDelta() }} vs
+                {{ garden().targetHumidityLevel }}% target
+              </span>
+            </dd>
+          </div>
+          <div class="fact">
+            <dt>Planted</dt>
+            <dd>{{ plant.plantationDate | date: 'MMM d, y' : 'UTC' }}</dd>
+          </div>
+          <div class="fact">
+            <dt>Type</dt>
+            <dd class="type-name">{{ plant.plantType }}</dd>
+          </div>
+        </dl>
+        <div class="contribution">
+          <span class="contribution-label">Capacity contribution</span>
+          <span class="contribution-bar" aria-hidden="true">
+            <span class="contribution-fill" [style.width.%]="selectedShare()"></span>
+          </span>
+          <span class="contribution-value tabular">{{ selectedShare() | number: '1.0-0' }}%</span>
+        </div>
+        <p class="drag-hint">Drag its bed on the plan to reposition it.</p>
+        <div class="inspector-actions">
+          <button
+            matButton="outlined"
+            class="press-feedback"
+            type="button"
+            aria-label="Focus this plant on the plan"
+            (click)="focusSelected()"
+          >
+            Focus
+          </button>
+          <button
+            matButton="outlined"
+            class="press-feedback"
+            type="button"
+            (click)="editPlant.emit(plant)"
+          >
+            Edit
+          </button>
+          <button
+            matButton="outlined"
+            class="press-feedback danger"
+            type="button"
+            (click)="removePlant.emit(plant)"
+          >
+            Remove
+          </button>
+        </div>
+      }
+    } @else {
+      <div class="inspector-idle">
+        <p class="inspector-hint">Select a plant on the map to inspect it.</p>
+        <dl class="inspector-facts">
+          <div class="fact">
+            <dt>Plants</dt>
+            <dd class="tabular">{{ plants().length }}</dd>
+          </div>
+          <div class="fact">
+            <dt>Space used</dt>
+            <dd class="tabular">{{ utilizationPct() | number: '1.0-0' }}%</dd>
+          </div>
+          <div class="fact">
+            <dt>Room to grow</dt>
+            <dd class="tabular">{{ freeArea() | number: '1.0-1' }} m²</dd>
+          </div>
+        </dl>
+      </div>
+    }
+  </aside>
+</div>

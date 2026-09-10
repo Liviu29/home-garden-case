@@ -2,16 +2,37 @@
   <button matButton="filled" class="press-feedback" (click)="openCreate()">＋ New garden</button>
 </app-page-header>
 
+@if (!store.isEmpty() && !store.hasFailed()) {
+  <div class="toolbar anim-fade-in">
+    <mat-form-field appearance="outline" class="search" subscriptSizing="dynamic">
+      <input
+        matInput
+        type="search"
+        placeholder="Search gardens…"
+        aria-label="Search gardens by name or location"
+        [ngModel]="store.query()"
+        (ngModelChange)="store.setQuery($event)"
+      />
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="sort" subscriptSizing="dynamic">
+      <mat-select
+        aria-label="Sort gardens"
+        [ngModel]="store.sort()"
+        (ngModelChange)="store.setSort($event)"
+      >
+        @for (option of sortOptions; track option[0]) {
+          <mat-option [value]="option[0]">{{ option[1] }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+}
+
 <app-skeleton-group [loading]="store.isLoading()">
   <!-- Ghosts mirror the final card grid — zero layout shift -->
   <div ghost class="grid">
     @for (i of [1, 2, 3]; track i) {
-      <div class="card ghost-card">
-        <app-skeleton variant="title" w="55%" />
-        <app-skeleton variant="line" w="40%" />
-        <app-skeleton variant="rect" h="2.5rem" />
-        <app-skeleton variant="line" w="70%" />
-      </div>
+      <app-skeleton-garden-card />
     }
   </div>
 
@@ -22,7 +43,7 @@
     >
       <button matButton="filled" class="press-feedback" (click)="retry()">Try again</button>
     </app-empty-state>
-  } @else if (store.isEmpty()) {
+  } @else if (store.isEmpty() && !store.creating()) {
     <app-empty-state
       title="No gardens yet"
       message="Create your first garden to start planning beds, plants and humidity targets."
@@ -31,10 +52,22 @@
         Create your first garden
       </button>
     </app-empty-state>
+  } @else if (noMatches()) {
+    <app-empty-state
+      title="No gardens match"
+      message="Nothing matches your search — try a different name or clear the filter."
+    >
+      <button matButton class="press-feedback" (click)="store.setQuery('')">Clear search</button>
+    </app-empty-state>
   } @else {
     <div class="grid stagger-children">
-      @for (garden of store.gardens(); track garden.gardenId) {
-        <article class="card lift-hover">
+      @for (garden of visibleGardens(); track garden.gardenId) {
+        <article
+          class="card lift-hover"
+          [class.mutation-ghost]="isCardMutating(garden.gardenId)"
+          [attr.aria-busy]="isCardMutating(garden.gardenId) ? true : null"
+          [appPrefetchGarden]="garden.gardenId"
+        >
           <a class="card-link" [routerLink]="['/gardens', garden.gardenId]">
             <div class="card-top">
               <h3 class="name">{{ garden.gardenName }}</h3>
@@ -49,8 +82,11 @@
             @if (plantsOf(garden); as plants) {
               <app-capacity-bar [used]="usedArea(plants)" [total]="garden.totalSurfaceArea" />
               <p class="meta">
-                {{ plants.length }} {{ plants.length === 1 ? 'plant' : 'plants' }} ·
-                {{ garden.totalSurfaceArea }} m² total
+                <app-capacity-status [garden]="garden" [plants]="plants" />
+                <span>
+                  {{ plants.length }} {{ plants.length === 1 ? 'plant' : 'plants' }} ·
+                  {{ garden.totalSurfaceArea }} m² total
+                </span>
               </p>
             } @else {
               <app-skeleton variant="rect" h="2.5rem" />
@@ -72,6 +108,12 @@
             <button mat-menu-item (click)="remove(garden)">Delete</button>
           </mat-menu>
         </article>
+      }
+      @if (store.creating()) {
+        <!-- Creation ghost card: the garden being created (ASYNC-UX) -->
+        <div aria-busy="true" role="status" aria-label="Creating garden">
+          <app-skeleton-garden-card />
+        </div>
       }
     </div>
   }

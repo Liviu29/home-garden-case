@@ -1,9 +1,9 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { APP_CONFIG } from '../config/app-config';
 
-export type ToastTone = 'success' | 'error' | 'info';
+type ToastTone = 'success' | 'error' | 'info';
 
-export interface Toast {
+interface Toast {
   readonly id: number;
   readonly tone: ToastTone;
   readonly message: string;

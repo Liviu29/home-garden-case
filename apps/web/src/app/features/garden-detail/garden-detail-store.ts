@@ -5,6 +5,7 @@ import { PlantsApi } from '../../core/api/plants-api';
 import { Garden, Plant, PlantInput } from '../../core/api/models';
 import { toApiError } from '../../core/errors/api-error';
 import { ToastStore } from '../../core/errors/toast-store';
+import { Logger } from '../../core/logging/logger';
 import { QueryCache, cacheKeys } from '../../core/resilience/query-cache';
 import {
   averageHumidity,
@@ -18,85 +19,146 @@ import { PlantsIndexStore } from '../gardens/plants-index-store';
 
 interface GardenDetailState {
   garden: Garden | null;
-  plants: readonly Plant[];
+  /** The route's garden id — the key into the single plants owner (PlantsIndexStore). */
+  gardenId: number | null;
   gardenStatus: RequestStatus;
   plantsStatus: RequestStatus;
+  /**
+   * 404 (or an invalid route id) — semantically different from a transient 5xx.
+   * Backend audit: this API answers 10% of ALL requests with a random 500, so
+   * conflating the two told users their garden did not exist (audit fix #3).
+   */
+  gardenNotFound: boolean;
   saving: boolean;
+  /** m² of a plant POST in flight — drives creation ghosts (ASYNC-UX.md). */
+  pendingCreateArea: number | null;
+  /** Plant ids with a PUT in flight — their row/plot render as gray ghosts. */
+  pendingUpdates: readonly number[];
+  /** Plant ids with a DELETE in flight — ghost-confirmed removal (REM-009 guard). */
+  pendingDeletes: readonly number[];
+  /** Set on successful create — lets the screen select the new plant (§30). */
+  lastCreatedPlantId: number | null;
 }
 
 /**
- * Route-scoped store for one garden and its plants (provided by the
- * GardenDetail component, destroyed with it). Loads garden + plants in
- * parallel through the SWR cache; derives all occupancy/humidity insights.
+ * Route-scoped store for one garden (provided by the GardenDetail component,
+ * destroyed with it).
+ *
+ * Ownership (REM-005): plant entities have exactly ONE writable owner —
+ * `PlantsIndexStore.byGarden`. This store holds only the route key and
+ * statuses; `plants` is a computed view into the index, so the gardens grid,
+ * the dashboard and this screen can never disagree about a garden's plants.
  */
 export const GardenDetailStore = signalStore(
   withState<GardenDetailState>({
     garden: null,
-    plants: [],
+    gardenId: null,
     gardenStatus: 'idle',
     plantsStatus: 'idle',
+    gardenNotFound: false,
     saving: false,
+    pendingCreateArea: null,
+    pendingUpdates: [],
+    pendingDeletes: [],
+    lastCreatedPlantId: null,
   }),
-  withComputed((store) => ({
-    isGardenLoading: computed(() => store.gardenStatus() === 'loading'),
-    arePlantsLoading: computed(() => store.plantsStatus() === 'loading'),
-    gardenMissing: computed(() => store.gardenStatus() === 'error'),
-    plantsEmpty: computed(() => store.plantsStatus() === 'ready' && store.plants().length === 0),
-    usedArea: computed(() => usedSurfaceArea(store.plants())),
-    freeArea: computed(() => {
-      const garden = store.garden();
-      return garden ? freeSurfaceArea(garden, store.plants()) : 0;
-    }),
-    occupancy: computed(() => {
-      const garden = store.garden();
-      return garden ? occupancyRatio(garden, store.plants()) : 0;
-    }),
-    avgHumidity: computed(() => averageHumidity(store.plants())),
-    humidityDrift: computed(() => {
-      const garden = store.garden();
-      return garden ? humidityDelta(garden, store.plants()) : null;
-    }),
-  })),
+  withComputed((store) => {
+    const plantsIndex = inject(PlantsIndexStore);
+
+    const plants = computed<readonly Plant[]>(() => {
+      const id = store.gardenId();
+      return id === null ? [] : (plantsIndex.byGarden()[id] ?? []);
+    });
+
+    return {
+      plants,
+      isGardenLoading: computed(() => store.gardenStatus() === 'loading'),
+      arePlantsLoading: computed(() => store.plantsStatus() === 'loading'),
+      /** 404 / invalid id → designed not-found page. */
+      gardenMissing: computed(() => store.gardenNotFound()),
+      /** 5xx / network → retryable error state, garden may well still exist. */
+      gardenFailed: computed(() => store.gardenStatus() === 'error' && !store.gardenNotFound()),
+      plantsEmpty: computed(() => store.plantsStatus() === 'ready' && plants().length === 0),
+      usedArea: computed(() => usedSurfaceArea(plants())),
+      freeArea: computed(() => {
+        const garden = store.garden();
+        return garden ? freeSurfaceArea(garden, plants()) : 0;
+      }),
+      occupancy: computed(() => {
+        const garden = store.garden();
+        return garden ? occupancyRatio(garden, plants()) : 0;
+      }),
+      avgHumidity: computed(() => averageHumidity(plants())),
+      humidityDrift: computed(() => {
+        const garden = store.garden();
+        return garden ? humidityDelta(garden, plants()) : null;
+      }),
+    };
+  }),
   withMethods((store) => {
     const gardensApi = inject(GardensApi);
     const plantsApi = inject(PlantsApi);
     const cache = inject(QueryCache);
     const toasts = inject(ToastStore);
+    const logger = inject(Logger);
     const plantsIndex = inject(PlantsIndexStore);
 
-    const applyPlants = (gardenId: number, plants: readonly Plant[]): void => {
-      patchState(store, { plants, plantsStatus: 'ready' });
+    /** All plant writes go through the single owner. */
+    const writePlants = (gardenId: number, plants: readonly Plant[]): void => {
       plantsIndex.setPlants(gardenId, plants);
+      patchState(store, { plantsStatus: 'ready' });
     };
 
-    const loadGarden = async (gardenId: number): Promise<void> => {
+    const currentPlants = (): readonly Plant[] => store.plants();
+
+    /**
+     * Monotonic request token — the store equivalent of `switchMap`.
+     * Navigating /gardens/1 → /gardens/2 while garden 1 is still in flight must
+     * never let garden 1's slow response land as garden 2 (audit fix #2).
+     */
+    let loadToken = 0;
+    const isStale = (token: number): boolean => token !== loadToken;
+
+    const loadGarden = async (gardenId: number, token: number): Promise<void> => {
       const { cached, revalidate } = cache.swr(cacheKeys.garden(gardenId), () =>
         gardensApi.getById(gardenId),
       );
       if (cached) {
-        patchState(store, { garden: cached, gardenStatus: 'ready' });
+        patchState(store, { garden: cached, gardenStatus: 'ready', gardenNotFound: false });
       } else {
-        patchState(store, { gardenStatus: 'loading' });
+        patchState(store, { gardenStatus: 'loading', gardenNotFound: false });
       }
       if (!revalidate) {
         return;
       }
       try {
-        patchState(store, { garden: await revalidate, gardenStatus: 'ready' });
-      } catch (err) {
-        if (!cached) {
-          patchState(store, { gardenStatus: 'error' });
+        const garden = await revalidate;
+        if (isStale(token)) {
+          return; // a newer garden is on screen — discard this response
         }
-        console.warn('[garden-detail:load]', toApiError(err).message);
+        patchState(store, { garden, gardenStatus: 'ready', gardenNotFound: false });
+      } catch (err) {
+        const error = toApiError(err);
+        if (isStale(token)) {
+          return;
+        }
+        if (!cached) {
+          // 404 → the garden is gone; anything else → transient, offer retry.
+          patchState(store, {
+            gardenStatus: 'error',
+            gardenNotFound: error.kind === 'not-found',
+          });
+        }
+        logger.warn('garden-detail:load', error.message);
       }
     };
 
-    const loadPlants = async (gardenId: number): Promise<void> => {
+    const loadPlants = async (gardenId: number, token: number): Promise<void> => {
       const { cached, revalidate } = cache.swr(cacheKeys.plantsOfGarden(gardenId), () =>
         plantsApi.getByGarden(gardenId),
       );
       if (cached) {
-        patchState(store, { plants: cached, plantsStatus: 'ready' });
+        writePlants(gardenId, cached);
       } else {
         patchState(store, { plantsStatus: 'loading' });
       }
@@ -104,69 +166,120 @@ export const GardenDetailStore = signalStore(
         return;
       }
       try {
-        applyPlants(gardenId, await revalidate);
+        const plants = await revalidate;
+        if (isStale(token)) {
+          return;
+        }
+        writePlants(gardenId, plants);
       } catch (err) {
+        if (isStale(token)) {
+          return;
+        }
         if (!cached) {
           patchState(store, { plantsStatus: 'error' });
         }
-        console.warn('[garden-detail:plants]', toApiError(err).message);
+        // A missing garden answers 400 here but 404 on /gardens/:id (audit
+        // limitation #1) — the garden request owns the not-found verdict.
+        logger.warn('garden-detail:plants', toApiError(err).message);
       }
     };
 
     return {
       /** Garden + plants load in parallel — neither blocks the other's skeleton. */
       load(gardenId: number): void {
-        void loadGarden(gardenId);
-        void loadPlants(gardenId);
+        const token = ++loadToken;
+        patchState(store, { gardenId, gardenNotFound: false });
+        void loadGarden(gardenId, token);
+        void loadPlants(gardenId, token);
+      },
+
+      /**
+       * Invalid route id (NaN, zero, negative — REM-001): render the designed
+       * not-found state without issuing any request.
+       */
+      markMissing(): void {
+        loadToken++; // cancel anything in flight
+        patchState(store, {
+          gardenId: null,
+          garden: null,
+          gardenStatus: 'error',
+          gardenNotFound: true,
+        });
       },
 
       async createPlant(input: PlantInput): Promise<MutationResult> {
-        patchState(store, { saving: true });
+        patchState(store, { saving: true, pendingCreateArea: input.surfaceAreaRequired });
         try {
           const created = await plantsApi.create(input);
-          applyPlants(input.gardenId, [...store.plants(), created]);
+          // Idempotent append — same slow-API revalidation race as
+          // GardensStore.create: the plant may already be in the index.
+          writePlants(input.gardenId, [
+            ...currentPlants().filter((p) => p.plantId !== created.plantId),
+            created,
+          ]);
+          patchState(store, { lastCreatedPlantId: created.plantId });
           toasts.success(`“${created.plantName}” planted.`);
           return { ok: true };
         } catch (err) {
           return failPlantMutation(err, toasts);
         } finally {
-          patchState(store, { saving: false });
+          patchState(store, { saving: false, pendingCreateArea: null });
         }
       },
 
       async updatePlant(plantId: number, input: PlantInput): Promise<MutationResult> {
-        patchState(store, { saving: true });
+        patchState(store, {
+          saving: true,
+          pendingUpdates: [...store.pendingUpdates(), plantId],
+        });
         try {
           const updated = await plantsApi.update(plantId, input);
-          applyPlants(
+          writePlants(
             input.gardenId,
-            store.plants().map((p) => (p.plantId === plantId ? updated : p)),
+            currentPlants().map((p) => (p.plantId === plantId ? updated : p)),
           );
           toasts.success(`“${updated.plantName}” updated.`);
           return { ok: true };
         } catch (err) {
           return failPlantMutation(err, toasts);
         } finally {
-          patchState(store, { saving: false });
+          patchState(store, {
+            saving: false,
+            pendingUpdates: store.pendingUpdates().filter((id) => id !== plantId),
+          });
         }
       },
 
-      /** Optimistic delete with rollback (ADR-004). */
+      /**
+       * Ghost-confirmed delete (ASYNC-UX.md): the plant stays in state but its
+       * row/plot render as a gray mutation ghost while the DELETE is in
+       * flight; it leaves the UI only when the server confirms. Re-entrant
+       * calls per plant are ignored (REM-009).
+       */
       async removePlant(plant: Plant): Promise<void> {
-        const snapshot = store.plants();
-        patchState(store, { plants: snapshot.filter((p) => p.plantId !== plant.plantId) });
+        if (store.pendingDeletes().includes(plant.plantId)) {
+          return;
+        }
+        patchState(store, { pendingDeletes: [...store.pendingDeletes(), plant.plantId] });
         try {
           await plantsApi.delete(plant.plantId);
-          applyPlants(plant.gardenId, store.plants());
+          writePlants(
+            plant.gardenId,
+            currentPlants().filter((p) => p.plantId !== plant.plantId),
+          );
           toasts.success(`“${plant.plantName}” removed.`);
         } catch (err) {
-          patchState(store, { plants: snapshot });
+          // The ghost simply resolves back into the real plant — nothing to roll back.
           const retry = (): void => void this.removePlant(plant);
           toasts.error(`Couldn't remove “${plant.plantName}”.`, {
             label: 'Try again',
             run: retry,
           });
-          console.warn('[garden-detail:removePlant]', toApiError(err).message);
+          logger.warn('garden-detail:removePlant', toApiError(err).message);
+        } finally {
+          patchState(store, {
+            pendingDeletes: store.pendingDeletes().filter((id) => id !== plant.plantId),
+          });
         }
       },
     };

@@ -21,7 +21,31 @@ export class UsersApi {
     return requestAsPromise(this.http.get<UserDto>(`/users/${userId}`).pipe(map(mapToUserProfile)));
   }
 
+  /** Backend answers 404 when no profile has this address (verified). */
+  getByEmail(emailAddress: string): Promise<UserProfile> {
+    return requestAsPromise(
+      this.http
+        .get<UserDto>(`/users/email/${encodeURIComponent(emailAddress)}`)
+        .pipe(map(mapToUserProfile)),
+    );
+  }
+
+  /** 409 when the address already belongs to another profile. */
   create(input: UserProfileInput): Promise<UserProfile> {
     return requestAsPromise(this.http.post<UserDto>('/users', input).pipe(map(mapToUserProfile)));
+  }
+
+  /**
+   * Full-payload PUT: `updateUserSchema === createUserSchema`, so the backend
+   * requires every field (verified — omitting emailAddress returns 400).
+   */
+  update(userId: number, input: UserProfileInput): Promise<UserProfile> {
+    return requestAsPromise(
+      this.http.put<UserDto>(`/users/${userId}`, input).pipe(map(mapToUserProfile)),
+    );
+  }
+
+  async delete(userId: number): Promise<void> {
+    await requestAsPromise(this.http.delete(`/users/${userId}`));
   }
 }

@@ -9,7 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-export interface ConfirmDialogData {
+interface ConfirmDialogData {
   readonly title: string;
   readonly message: string;
   readonly confirmLabel: string;
@@ -54,7 +54,7 @@ export interface ConfirmDialogData {
     }
   `,
 })
-export class ConfirmDialog {
+class ConfirmDialog {
   protected readonly data = inject<ConfirmDialogData>(MAT_DIALOG_DATA);
   protected readonly ref = inject(MatDialogRef<ConfirmDialog>);
 }

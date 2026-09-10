@@ -4,8 +4,16 @@
   <form class="form" [formGroup]="form" (ngSubmit)="submit()" id="garden-form">
     <mat-form-field appearance="outline">
       <mat-label>Garden name</mat-label>
-      <input matInput formControlName="gardenName" placeholder="e.g. Backyard beds" maxlength="80" />
-      @if (form.controls.gardenName.hasError('required') || form.controls.gardenName.hasError('whitespace')) {
+      <input
+        matInput
+        formControlName="gardenName"
+        placeholder="e.g. Backyard beds"
+        maxlength="80"
+      />
+      @if (
+        form.controls.gardenName.hasError('required') ||
+        form.controls.gardenName.hasError('whitespace')
+      ) {
         <mat-error>Garden name is required</mat-error>
       }
     </mat-form-field>
@@ -21,6 +29,20 @@
       }
     </mat-form-field>
 
+    <app-value-presets
+      label="Garden size presets"
+      [options]="sizePresets"
+      [value]="currentArea()"
+      (selectedChange)="applyAreaPreset($event)"
+    />
+
+    @if (shrinksBelowUsed()) {
+      <p class="form-warning" role="alert">
+        Plants currently use {{ usedArea() | number: '1.0-2' }} m² of this garden. Setting the total
+        below that leaves the garden over capacity.
+      </p>
+    }
+
     <div class="humidity-block">
       <div class="humidity-label">
         <span id="humidity-slider-label">Target humidity level</span>
@@ -29,6 +51,12 @@
       <mat-slider min="0" max="100" step="1" discrete aria-labelledby="humidity-slider-label">
         <input matSliderThumb formControlName="targetHumidityLevel" />
       </mat-slider>
+      <app-value-presets
+        label="Target humidity presets"
+        [options]="humidityPresets"
+        [value]="currentHumidity()"
+        (selectedChange)="applyHumidityPreset($event)"
+      />
     </div>
 
     <mat-form-field appearance="outline">
@@ -39,7 +67,14 @@
     <div class="coords">
       <mat-form-field appearance="outline">
         <mat-label>Latitude</mat-label>
-        <input matInput type="number" formControlName="latitude" min="-90" max="90" step="0.000001" />
+        <input
+          matInput
+          type="number"
+          formControlName="latitude"
+          min="-90"
+          max="90"
+          step="0.000001"
+        />
         @if (form.controls.latitude.hasError('min') || form.controls.latitude.hasError('max')) {
           <mat-error>Between −90 and 90</mat-error>
         }
@@ -47,15 +82,27 @@
 
       <mat-form-field appearance="outline">
         <mat-label>Longitude</mat-label>
-        <input matInput type="number" formControlName="longitude" min="-180" max="180" step="0.000001" />
+        <input
+          matInput
+          type="number"
+          formControlName="longitude"
+          min="-180"
+          max="180"
+          step="0.000001"
+        />
         @if (form.controls.longitude.hasError('min') || form.controls.longitude.hasError('max')) {
           <mat-error>Between −180 and 180</mat-error>
         }
       </mat-form-field>
     </div>
 
-    @if (form.hasError('coordinatesTogether') && (form.controls.latitude.touched || form.controls.longitude.touched)) {
-      <p class="form-error" role="alert">Provide both latitude and longitude, or leave both empty.</p>
+    @if (
+      form.hasError('coordinatesTogether') &&
+      (form.controls.latitude.touched || form.controls.longitude.touched)
+    ) {
+      <p class="form-error" role="alert">
+        Provide both latitude and longitude, or leave both empty.
+      </p>
     }
 
     @if (serverError()) {
@@ -71,8 +118,14 @@
     type="submit"
     form="garden-form"
     class="press-feedback"
-    [disabled]="form.invalid && form.touched"
+    [attr.aria-busy]="store.saving() ? true : null"
+    [disabled]="(form.invalid && form.touched) || store.saving()"
   >
-    {{ store.saving() ? 'Saving…' : isEdit ? 'Save changes' : 'Create garden' }}
+    @if (store.saving()) {
+      <span class="btn-ghost" aria-hidden="true"></span>
+      <span class="visually-hidden">{{ isEdit ? 'Updating garden' : 'Creating garden' }}</span>
+    } @else {
+      {{ isEdit ? 'Save changes' : 'Create garden' }}
+    }
   </button>
 </mat-dialog-actions>

@@ -1,9 +1,68 @@
 <h2 mat-dialog-title>{{ isEdit ? 'Edit plant' : 'Add a plant' }}</h2>
 
-<mat-dialog-content>
+<mat-dialog-content class="picker-content">
+  @if (!isEdit) {
+    <!-- Plant discovery: local catalog ranked for THIS garden (§3–8).
+         Picking prefills; typing a fully custom plant stays first-class. -->
+    <section class="catalog" aria-label="Plant catalog">
+      <mat-form-field appearance="outline" class="catalog-search" subscriptSizing="dynamic">
+        <input
+          matInput
+          type="search"
+          placeholder="Search plants — or just type your own below…"
+          aria-label="Search the plant catalog"
+          [value]="query()"
+          (input)="onQueryInput($event)"
+        />
+      </mat-form-field>
+      <p class="catalog-heading">Recommended for your garden</p>
+      <div class="preset-cards" role="list">
+        @for (rec of cards(); track rec.preset.id) {
+          <button
+            type="button"
+            role="listitem"
+            class="preset-card press-feedback"
+            [class.selected]="selectedPresetId() === rec.preset.id"
+            [class.no-fit]="!rec.fitsAvailableArea"
+            [attr.aria-pressed]="selectedPresetId() === rec.preset.id"
+            [attr.aria-label]="
+              rec.preset.commonName + ', ' + fitBadge(rec) + '. ' + rec.reasons.join('. ')
+            "
+            [title]="rec.reasons.join(' · ')"
+            (click)="applyPreset(rec)"
+          >
+            <app-plant-thumb
+              class="card-thumb"
+              [plant]="{
+                plantId: 0,
+                plantName: rec.preset.commonName,
+                species: rec.preset.scientificName,
+                plantType: rec.preset.plantType,
+              }"
+            />
+            <span class="card-name">{{ rec.preset.commonName }}</span>
+            <span class="card-sci">{{ rec.preset.scientificName }}</span>
+            <span class="card-meta tabular">
+              💧{{ rec.preset.suggestedHumidity }}% · {{ rec.preset.suggestedArea }} m²
+            </span>
+            <span
+              class="card-fit"
+              [class.excellent]="rec.fitsAvailableArea && rec.humidityMatch === 'excellent'"
+              [class.warn]="!rec.fitsAvailableArea"
+            >
+              {{ fitBadge(rec) }}
+            </span>
+          </button>
+        } @empty {
+          <p class="no-results">No catalog match — describe your plant below.</p>
+        }
+      </div>
+    </section>
+  }
+
   <form class="form" [formGroup]="form" (ngSubmit)="submit()" id="plant-form">
     <div class="row">
-      <mat-form-field appearance="outline">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Plant name</mat-label>
         <input matInput formControlName="plantName" placeholder="e.g. Cherry tomato" />
         @if (form.controls.plantName.hasError('required')) {
@@ -11,7 +70,7 @@
         }
       </mat-form-field>
 
-      <mat-form-field appearance="outline">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Species</mat-label>
         <input matInput formControlName="species" placeholder="e.g. Solanum lycopersicum" />
         @if (form.controls.species.hasError('required')) {
@@ -21,7 +80,7 @@
     </div>
 
     <div class="row">
-      <mat-form-field appearance="outline">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Type</mat-label>
         <mat-select formControlName="plantType">
           @for (type of plantTypes; track type) {
@@ -30,7 +89,7 @@
         </mat-select>
       </mat-form-field>
 
-      <mat-form-field appearance="outline">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Plantation date</mat-label>
         <input matInput [matDatepicker]="picker" formControlName="plantationDate" />
         <mat-datepicker-toggle matIconSuffix [for]="picker" />
@@ -41,37 +100,81 @@
       </mat-form-field>
     </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>Surface area required (m²)</mat-label>
-      <input matInput type="number" formControlName="surfaceAreaRequired" min="0" step="0.5" />
-      <mat-hint>{{ capacityLeft() }} m² available in this garden</mat-hint>
-      @if (form.controls.surfaceAreaRequired.hasError('min')) {
-        <mat-error>Surface area can't be negative</mat-error>
-      }
-      @if (form.controls.surfaceAreaRequired.hasError('required')) {
-        <mat-error>Surface area is required</mat-error>
-      }
-    </mat-form-field>
+    <div class="row align-start">
+      <div class="area-block">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Surface area required (m²)</mat-label>
+          <input matInput type="number" formControlName="surfaceAreaRequired" min="0" step="0.5" />
+          <mat-hint>{{ capacityLeft() }} m² available in this garden</mat-hint>
+          @if (form.controls.surfaceAreaRequired.hasError('min')) {
+            <mat-error>Surface area can't be negative</mat-error>
+          }
+          @if (form.controls.surfaceAreaRequired.hasError('required')) {
+            <mat-error>Surface area is required</mat-error>
+          }
+        </mat-form-field>
+        <app-value-presets
+          label="Surface area presets"
+          [options]="areaPresets"
+          [value]="currentArea()"
+          (selectedChange)="applyAreaPreset($event)"
+        />
+      </div>
 
-    <!-- Live occupancy preview: updates as the user types -->
-    <div class="capacity-preview" [class.overcrowded]="overcrowds()">
-      <app-capacity-bar [used]="previewUsed()" [total]="data.garden.totalSurfaceArea" />
-      @if (overcrowds()) {
-        <p class="form-error" role="alert">
-          This would overcrowd the garden — only {{ capacityLeft() }} m² is available.
-        </p>
-      }
+      <div class="humidity-block">
+        <div class="humidity-label">
+          <span id="plant-humidity-label">Ideal humidity level</span>
+          <span class="humidity-value tabular">{{ form.controls.idealHumidityLevel.value }}%</span>
+        </div>
+        <mat-slider min="0" max="100" step="1" discrete aria-labelledby="plant-humidity-label">
+          <input matSliderThumb formControlName="idealHumidityLevel" />
+        </mat-slider>
+        <p class="target-hint">Garden target: {{ data.garden.targetHumidityLevel }}%</p>
+      </div>
     </div>
 
-    <div class="humidity-block">
-      <div class="humidity-label">
-        <span id="plant-humidity-label">Ideal humidity level</span>
-        <span class="humidity-value tabular">{{ form.controls.idealHumidityLevel.value }}%</span>
+    <div class="row align-start">
+      <!-- Live capacity breakdown: updates as the user types -->
+      <div class="capacity-preview" [class.overcrowded]="overcrowds()">
+        <p class="capacity-title">Garden fit</p>
+        <dl class="capacity-math">
+          <div class="capacity-line">
+            <dt>Available</dt>
+            <dd class="tabular">{{ capacityLeft() | number: '1.0-2' }} m²</dd>
+          </div>
+          <div class="capacity-line">
+            <dt>This plant</dt>
+            <dd class="tabular">{{ requires() | number: '1.0-2' }} m²</dd>
+          </div>
+          <div class="capacity-line total" [class.negative]="remainingAfterSave() < 0">
+            <dt>Remaining</dt>
+            <dd class="tabular">{{ remainingAfterSave() | number: '1.0-2' }} m²</dd>
+          </div>
+        </dl>
+        <app-capacity-bar
+          [used]="previewUsed()"
+          [total]="data.garden.totalSurfaceArea"
+          [showLabel]="false"
+        />
+        @if (overcrowds()) {
+          <p class="form-error" role="alert">
+            This plant requires {{ requires() | number: '1.0-2' }} m², but only
+            {{ capacityLeft() | number: '1.0-2' }} m² is available in this garden.
+          </p>
+        }
       </div>
-      <mat-slider min="0" max="100" step="1" discrete aria-labelledby="plant-humidity-label">
-        <input matSliderThumb formControlName="idealHumidityLevel" />
-      </mat-slider>
-      <p class="target-hint">Garden target: {{ data.garden.targetHumidityLevel }}%</p>
+
+      <!-- Preview: the artwork this plant will wear on the garden plan -->
+      <div class="plant-preview" aria-hidden="true">
+        <app-plant-thumb class="preview-thumb" [plant]="previewPlant()" />
+        <div class="preview-text">
+          <span class="preview-name">{{ previewPlant().plantName }}</span>
+          @if (previewPlant().species) {
+            <span class="preview-sci">{{ previewPlant().species }}</span>
+          }
+          <span class="preview-note">How it will appear on your garden plan</span>
+        </div>
+      </div>
     </div>
 
     @if (serverError()) {
@@ -87,8 +190,14 @@
     type="submit"
     form="plant-form"
     class="press-feedback"
-    [disabled]="(form.invalid && form.touched) || overcrowds()"
+    [attr.aria-busy]="data.store.saving() ? true : null"
+    [disabled]="(form.invalid && form.touched) || overcrowds() || data.store.saving()"
   >
-    {{ data.store.saving() ? 'Saving…' : isEdit ? 'Save changes' : 'Add plant' }}
+    @if (data.store.saving()) {
+      <span class="btn-ghost" aria-hidden="true"></span>
+      <span class="visually-hidden">{{ isEdit ? 'Saving plant' : 'Planting' }}</span>
+    } @else {
+      {{ isEdit ? 'Save changes' : 'Add plant' }}
+    }
   </button>
 </mat-dialog-actions>

@@ -26,7 +26,11 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
         <path d="M60 54 C60 42 70 36 80 38 C78 50 70 56 60 54 Z" fill="var(--brand-600)" />
         <ellipse cx="60" cy="92" rx="22" ry="5" fill="var(--surface-3)" />
       </svg>
-      <h3 class="title">{{ title() }}</h3>
+      @if (headingLevel() === 1) {
+        <h1 class="title">{{ title() }}</h1>
+      } @else {
+        <h3 class="title">{{ title() }}</h3>
+      }
       <p class="message">{{ message() }}</p>
       <div class="action">
         <ng-content />
@@ -66,4 +70,6 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 export class EmptyState {
   readonly title = input.required<string>();
   readonly message = input<string>('');
+  /** 1 on standalone pages (the 404 page must own an h1 — REM-013), 3 inside sections. */
+  readonly headingLevel = input<1 | 3>(3);
 }

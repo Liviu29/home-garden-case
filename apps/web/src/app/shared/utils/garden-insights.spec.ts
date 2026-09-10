@@ -1,6 +1,7 @@
 import { Garden, Plant } from '../../core/api/models';
 import {
   averageHumidity,
+  wouldShrinkBelowUsed,
   freeSurfaceArea,
   gardenAttention,
   humidityDelta,
@@ -73,6 +74,19 @@ describe('garden insights (mirrors plant.service.ts server rules)', () => {
       expect(wouldOvercrowd(garden(), plants, 20.5, 1)).toBe(true);
       expect(remainingCapacity(garden(), plants, 1)).toBe(20);
       expect(remainingCapacity(garden(), plants)).toBe(8);
+    });
+  });
+
+  describe('garden shrink guard (REM-002)', () => {
+    it('warns when the new total drops below used area, boundary-exact', () => {
+      const plants = [
+        plant({ surfaceAreaRequired: 7.5 }),
+        plant({ plantId: 2, surfaceAreaRequired: 2.5 }),
+      ];
+      expect(wouldShrinkBelowUsed(plants, 9.99)).toBe(true);
+      expect(wouldShrinkBelowUsed(plants, 10)).toBe(false); // exact fit is fine
+      expect(wouldShrinkBelowUsed(plants, 10.01)).toBe(false);
+      expect(wouldShrinkBelowUsed([], 0)).toBe(false); // empty garden shrinks freely
     });
   });
 

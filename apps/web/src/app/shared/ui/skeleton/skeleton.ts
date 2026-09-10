@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
-export type SkeletonVariant = 'line' | 'title' | 'circle' | 'rect' | 'card';
+type SkeletonVariant = 'line' | 'title' | 'circle' | 'rect' | 'card';
 
 /**
  * Ghost placeholder primitive (DESIGN-SYSTEM §4): gray block with a shared

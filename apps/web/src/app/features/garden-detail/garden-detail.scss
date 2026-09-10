@@ -51,6 +51,7 @@
 .title-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap; // long names + status chip + actions wrap on narrow screens
   gap: var(--sp-2);
 
   h1 {
@@ -59,8 +60,19 @@
 }
 
 .location {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
   color: var(--text-2);
+  font-size: var(--fs-caption);
   margin-top: calc(-1 * var(--sp-2));
+}
+
+.location-pin {
+  width: 0.85rem;
+  height: 0.85rem;
+  color: var(--text-3);
+  flex: none;
 }
 
 .header-stats {
@@ -145,6 +157,59 @@
   margin-bottom: 0;
 }
 
+.panel-hint {
+  margin: 0;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+
+.panel-sub {
+  margin: 0.125rem 0 0;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.plant-name-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  --thumb-size: 2.4rem;
+  padding: 0.2rem 0.45rem 0.2rem 0.2rem;
+  margin-left: -0.2rem;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  font: inherit;
+  color: var(--text-1);
+  cursor: pointer;
+  text-align: left;
+
+  &:hover {
+    background: var(--surface-2);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+}
+
+.plants-table tr.selected > td {
+  background: color-mix(in srgb, var(--brand-soft) 55%, transparent);
+}
+
+.plants-table .ghost-row td {
+  padding: 0.35rem 0;
+}
+
+@media (max-width: 640px) {
+  .map-panel .panel-hint {
+    display: none; // touch devices: pinch/tap, the hint text would mislead
+  }
+}
+
 .table-ghost {
   display: grid;
   gap: var(--sp-2);
@@ -152,12 +217,22 @@
 
 .table-wrap {
   overflow-x: auto;
+  // Transformed descendants (Material ripple internals) leak the table's
+  // layout bounds into the document scroll area on Chrome; paint containment
+  // makes this wrap a true, self-contained scroll region (360px audit).
+  contain: paint;
 }
 
 .plants-table {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--fs-body);
+
+  // Transformed <tr>s escape the .table-wrap scroll bounds (Chrome table
+  // quirk found in the 360px audit) — rows enter with opacity only.
+  tbody.stagger-children > * {
+    animation-name: fade-in;
+  }
 
   th {
     text-align: left;
@@ -202,13 +277,15 @@
   font-weight: 600;
 }
 
-.type-glyph {
-  font-size: 1rem;
+.plant-id {
+  display: grid;
+  gap: 0.05rem;
 }
 
-.species {
-  color: var(--text-2);
+.plant-species {
+  color: var(--text-3);
   font-style: italic;
+  font-size: var(--fs-caption);
 }
 
 .humidity-cell {
@@ -223,5 +300,39 @@
   &.below {
     background: var(--amber-soft);
     color: var(--accent-amber);
+  }
+}
+
+// ── Fullscreen planner (feature brief §20/§59) ───────────────────────────────
+.map-panel.planner-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 300; // above the sticky topbar
+  margin: 0;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+
+  // The map stretches itself via its own :host(.fullscreen) styles — the
+  // parent only sizes the child element (no ::ng-deep).
+  app-garden-map {
+    flex: 1;
+    min-height: 0;
+  }
+}
+
+.planner-search {
+  width: min(18rem, 50vw);
+  padding: 0.45rem var(--sp-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-1);
+  font: var(--fs-body) var(--font-ui);
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
   }
 }

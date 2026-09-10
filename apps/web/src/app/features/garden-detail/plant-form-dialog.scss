@@ -1,8 +1,138 @@
-.form {
+// Add/Edit Plant — one-screen picker + form (feature brief §9–13, §48–50).
+// Desktop acceptance: no internal vertical scroll at 1440×900; only the
+// catalog card strip scrolls, horizontally, on its own.
+
+mat-dialog-content.picker-content {
+  // Material caps dialog content at 65vh — this dialog is designed to fit
+  // the viewport instead; small screens still scroll gracefully.
+  max-height: calc(100dvh - 11rem);
+}
+
+// ── Catalog strip ────────────────────────────────────────────────────────────
+.catalog {
   display: grid;
   gap: var(--sp-2);
-  min-width: min(30rem, 84vw);
-  padding-top: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+
+.catalog-search {
+  width: 100%;
+}
+
+.catalog-heading {
+  margin: 0;
+  font-size: var(--fs-caption);
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+}
+
+.preset-cards {
+  display: flex;
+  gap: var(--sp-2);
+  overflow-x: auto;
+  padding-bottom: var(--sp-1);
+  scrollbar-width: thin;
+}
+
+.preset-card {
+  flex: 0 0 8.25rem;
+  display: grid;
+  justify-items: center;
+  gap: 0.15rem;
+  padding: var(--sp-3) var(--sp-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-m);
+  background: var(--surface-1);
+  cursor: pointer;
+  text-align: center;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+
+  &:hover {
+    border-color: var(--brand-500);
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+
+  &.selected {
+    border-color: var(--brand-500);
+    background: var(--brand-soft);
+  }
+
+  &.no-fit {
+    opacity: 0.75;
+  }
+
+  .card-thumb {
+    --thumb-size: 3rem;
+    margin-bottom: 0.15rem;
+  }
+
+  .card-name {
+    font: 650 var(--fs-caption) var(--font-ui);
+    color: var(--text-1);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .card-sci {
+    font-size: 0.6563rem;
+    font-style: italic;
+    color: var(--text-3);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .card-meta {
+    font-size: 0.6875rem;
+    color: var(--text-2);
+  }
+
+  .card-fit {
+    font-size: 0.6563rem;
+    font-weight: 650;
+    color: var(--text-3);
+    border-radius: var(--radius-pill);
+    padding: 0.05rem var(--sp-2);
+    background: var(--surface-2);
+
+    &.excellent {
+      color: var(--brand-700);
+      background: var(--brand-soft);
+    }
+
+    &.warn {
+      color: var(--accent-amber);
+      background: var(--amber-soft);
+    }
+  }
+}
+
+.no-results {
+  margin: 0;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+  padding: var(--sp-2) 0;
+}
+
+// ── Form ─────────────────────────────────────────────────────────────────────
+.form {
+  display: grid;
+  gap: var(--sp-3);
+  min-width: min(48rem, 88vw);
+  padding-top: var(--sp-1);
 }
 
 .row {
@@ -10,9 +140,18 @@
   grid-template-columns: 1fr 1fr;
   gap: var(--sp-3);
 
-  @media (max-width: 540px) {
+  &.align-start {
+    align-items: start;
+  }
+
+  @media (max-width: 640px) {
     grid-template-columns: 1fr;
   }
+}
+
+.area-block {
+  display: grid;
+  gap: var(--sp-2);
 }
 
 .capacity-preview {
@@ -22,8 +161,52 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-m);
   background: var(--surface-2);
-  margin-bottom: var(--sp-3);
   transition: border-color var(--dur-fast) var(--ease-out);
+
+  .capacity-title {
+    margin: 0;
+    font-size: var(--fs-caption);
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-2);
+  }
+
+  .capacity-math {
+    margin: 0;
+    display: grid;
+    gap: var(--sp-1);
+  }
+
+  .capacity-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: var(--fs-caption);
+
+    dt {
+      color: var(--text-2);
+    }
+
+    dd {
+      margin: 0;
+      font-weight: 600;
+      color: var(--text-1);
+    }
+
+    &.total {
+      border-top: 1px dashed var(--border-strong);
+      padding-top: var(--sp-1);
+
+      dd {
+        color: var(--brand-700);
+      }
+
+      &.negative dd {
+        color: var(--danger);
+      }
+    }
+  }
 
   &.overcrowded {
     border-color: color-mix(in srgb, var(--danger) 45%, transparent);
@@ -31,9 +214,53 @@
   }
 }
 
+// ── Live preview tile ────────────────────────────────────────────────────────
+.plant-preview {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-m);
+  background:
+    radial-gradient(
+      circle at 20% 15%,
+      color-mix(in srgb, var(--map-lawn) 55%, transparent),
+      transparent 70%
+    ),
+    var(--surface-1);
+
+  .preview-thumb {
+    --thumb-size: 4.25rem;
+  }
+
+  .preview-text {
+    display: grid;
+    gap: 0.1rem;
+    min-width: 0;
+  }
+
+  .preview-name {
+    font: 650 var(--fs-body) var(--font-ui);
+    color: var(--text-1);
+  }
+
+  .preview-sci {
+    font-size: var(--fs-caption);
+    font-style: italic;
+    color: var(--text-3);
+  }
+
+  .preview-note {
+    font-size: 0.6875rem;
+    color: var(--text-3);
+  }
+}
+
 .humidity-block {
   display: grid;
   gap: var(--sp-1);
+  align-content: start;
 
   mat-slider {
     width: 100%;
@@ -55,6 +282,7 @@
 }
 
 .target-hint {
+  margin: 0;
   font-size: var(--fs-caption);
   color: var(--text-3);
 }

@@ -6,7 +6,7 @@ interface CacheEntry {
   storedAt: number;
 }
 
-export interface SwrResult<T> {
+interface SwrResult<T> {
   /** Last known value (fresh or stale) — render it immediately when present. */
   readonly cached: T | undefined;
   /**
@@ -31,6 +31,14 @@ export class QueryCache {
   private readonly config = inject(APP_CONFIG);
   private readonly entries = new Map<string, CacheEntry>();
   private readonly inflight = new Map<string, Promise<unknown>>();
+  /**
+   * Bumped by every write-through `set()`. An in-flight fetch that started
+   * before a local mutation wrote through resolves to the mutation's (newer)
+   * view instead of its own stale response — otherwise creating a garden
+   * while the list revalidates would make the new card vanish (race fixed
+   * by spec: 'a write-through during an in-flight fetch wins').
+   */
+  private readonly writeVersions = new Map<string, number>();
 
   read<T>(key: string): T | undefined {
     return this.entries.get(key)?.value as T | undefined;
@@ -57,6 +65,7 @@ export class QueryCache {
 
   /** Write-through: mutations that already know the fresh value store it directly. */
   set<T>(key: string, value: T): void {
+    this.writeVersions.set(key, (this.writeVersions.get(key) ?? 0) + 1);
     this.entries.set(key, { value, storedAt: Date.now() });
   }
 
@@ -79,9 +88,17 @@ export class QueryCache {
       return existing as Promise<T>;
     }
 
+    const versionAtStart = this.writeVersions.get(key) ?? 0;
     const request = fetcher()
       .then((value) => {
-        this.set(key, value);
+        if ((this.writeVersions.get(key) ?? 0) !== versionAtStart) {
+          // A mutation wrote through while this response was in flight — the
+          // response is older than what the user already sees. Prefer the
+          // mutated view; fall back to the response only if it was invalidated.
+          const current = this.read<T>(key);
+          return current ?? value;
+        }
+        this.entries.set(key, { value, storedAt: Date.now() });
         return value;
       })
       .finally(() => {

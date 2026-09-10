@@ -1,5 +1,6 @@
 import { ErrorHandler, Injectable, inject } from '@angular/core';
 import { ApiError } from './api-error';
+import { Logger } from '../logging/logger';
 import { ToastStore } from './toast-store';
 
 /**
@@ -10,6 +11,7 @@ import { ToastStore } from './toast-store';
 @Injectable()
 export class GlobalErrorHandler implements ErrorHandler {
   private readonly toasts = inject(ToastStore);
+  private readonly logger = inject(Logger);
 
   handleError(error: unknown): void {
     const unwrapped = unwrapRejection(error);
@@ -17,15 +19,15 @@ export class GlobalErrorHandler implements ErrorHandler {
     if (unwrapped instanceof ApiError) {
       if (unwrapped.kind === 'functional' || unwrapped.kind === 'not-found') {
         // Expected unhappy paths that escaped their screen — log, don't alarm.
-        console.warn(`[api:${unwrapped.status}] ${unwrapped.message}`);
+        this.logger.warn(`api:${unwrapped.status}`, unwrapped.message);
         return;
       }
-      console.error(`[api:${unwrapped.status}] unhandled technical failure`, unwrapped.cause);
+      this.logger.error(`api:${unwrapped.status}`, 'unhandled technical failure', unwrapped.cause);
       this.toasts.error(unwrapped.message);
       return;
     }
 
-    console.error('[app] unhandled error', unwrapped);
+    this.logger.error('app', 'unhandled error', unwrapped);
     this.toasts.error('Something unexpected happened. Please try again.');
   }
 }

@@ -1,0 +1,810 @@
+// Garden Map — digital twin scene (ADR-007 + visual layer).
+// Token-only colors; motion gated by prefers-reduced-motion.
+// Layers: lawn → texture → grid → fence → free soil → beds → vegetation → HUD.
+
+.map-shell {
+  display: grid;
+  // Planner ratio ≈ 72/28 on wide desktops (§16): the inspector earns real
+  // room for its grouped stats instead of being squeezed to a sidebar strip.
+  grid-template-columns: minmax(0, 1fr) clamp(17rem, 26%, 21rem);
+  gap: var(--sp-4);
+  align-items: stretch;
+}
+
+@media (max-width: 900px) {
+  .map-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+:host(.fullscreen) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+
+  .map-shell {
+    flex: 1;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .map-stage,
+  .map-svg {
+    max-height: none;
+    height: 100%;
+  }
+}
+
+// ── Stage ────────────────────────────────────────────────────────────────────
+.map-stage {
+  position: relative;
+  border-radius: var(--radius-m);
+  background: var(--map-lawn-deep);
+  border: 1px solid var(--map-border);
+  overflow: hidden;
+  min-height: 19rem;
+}
+
+.map-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 19rem;
+  max-height: 27rem;
+  touch-action: none;
+  cursor: grab;
+  outline: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  &:focus-visible {
+    box-shadow: var(--focus-ring);
+  }
+}
+
+// ── Surface paint (tokens → theme-free remap) ───────────────────────────────
+.lawn-stop-a {
+  stop-color: var(--map-lawn);
+}
+
+.lawn-stop-b {
+  stop-color: var(--map-lawn-deep);
+}
+
+.speckle {
+  fill: var(--map-lawn-speckle);
+}
+
+.grid-line {
+  stroke: var(--map-grid);
+  stroke-width: 1px;
+}
+
+.garden-fence {
+  fill: none;
+  stroke: var(--map-fence);
+  stroke-width: 2px;
+  stroke-dasharray: 1 6;
+  stroke-linecap: round;
+  opacity: 0.8;
+}
+
+.halo-stop-a {
+  stop-color: var(--map-humidity);
+  stop-opacity: 0.5;
+}
+
+.halo-stop-b {
+  stop-color: var(--map-humidity);
+  stop-opacity: 0;
+}
+
+.lawn {
+  stroke: var(--map-border);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+}
+
+.free-band {
+  fill: var(--map-free-soil);
+  stroke: var(--map-free-border);
+  stroke-width: 1.5px;
+  stroke-dasharray: 6 6;
+}
+
+.free-label {
+  fill: var(--map-free-text);
+  font-family: var(--font-ui);
+  font-weight: 650;
+  paint-order: stroke;
+  stroke: var(--map-free-soil);
+  stroke-width: 0.12em;
+}
+
+.free-marker {
+  circle {
+    fill: var(--map-free-soil);
+    stroke: var(--map-free-border);
+    stroke-width: 1.5px;
+    vector-effect: non-scaling-stroke;
+  }
+
+  path {
+    stroke: var(--map-free-text);
+    stroke-width: 2px;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+    fill: none;
+  }
+}
+
+.free-furrows .furrow,
+.free-furrows path {
+  stroke: var(--map-furrow);
+  stroke-width: 1px;
+}
+
+.furrow {
+  stroke: var(--map-furrow);
+  stroke-width: 1px;
+}
+
+.empty-zone {
+  fill: none;
+  stroke: var(--map-free-border);
+  stroke-width: 1.5px;
+  stroke-dasharray: 4 6;
+  opacity: 0.8;
+}
+
+// ── Creation ghost bed (in-flight POST — ASYNC-UX) ───────────────────────────
+.ghost-bed rect {
+  fill: var(--skeleton-base);
+  stroke: var(--border-strong);
+  stroke-width: 1.5px;
+  stroke-dasharray: 5 5;
+  opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ghost-bed rect {
+    animation: ghost-breathe 1.6s var(--ease-out) infinite alternate;
+  }
+
+  @keyframes ghost-breathe {
+    from {
+      opacity: 0.6;
+    }
+
+    to {
+      opacity: 0.9;
+    }
+  }
+}
+
+// ── Plant beds & vegetation ─────────────────────────────────────────────────
+.plot {
+  cursor: pointer;
+  outline: none;
+
+  .plot-bed {
+    fill: var(--map-bed);
+    stroke: var(--map-bed-border);
+    stroke-width: 1.5px;
+    filter: drop-shadow(0 0.06px 0.12px rgb(28 25 23 / 0.28));
+    transition: filter var(--dur-fast) var(--ease-out);
+  }
+
+  .veg {
+    pointer-events: none;
+  }
+
+  &:hover .plot-bed,
+  &:focus-visible .plot-bed {
+    filter: drop-shadow(0 0 0.14rem color-mix(in srgb, var(--brand-500) 60%, transparent));
+    stroke-width: 2.5px;
+  }
+
+  &:focus-visible .plot-bed {
+    stroke: var(--map-selected);
+  }
+
+  // Mutation ghost: same plant, desaturated while the server decides
+  &.mutating {
+    pointer-events: none;
+
+    .veg {
+      filter: grayscale(1) brightness(1.06);
+      opacity: 0.45;
+    }
+
+    .plot-bed {
+      fill: var(--skeleton-base);
+      stroke: var(--border-strong);
+      stroke-dasharray: 5 5;
+    }
+
+    .plot-label rect {
+      fill: var(--skeleton-base);
+    }
+
+    .plot-name {
+      opacity: 0.4;
+    }
+  }
+}
+
+// Selection: emphasize the chosen bed, softly recede the rest
+.has-selection .plot:not(.selected):not(:hover) {
+  .veg {
+    opacity: 0.78;
+  }
+}
+
+.selection-ring {
+  fill: none;
+  stroke: var(--map-selected);
+  stroke-width: 2.5px;
+  stroke-dasharray: 10 6;
+  pointer-events: none;
+}
+
+.plot-label {
+  pointer-events: none;
+
+  rect {
+    fill: var(--map-hud-glass);
+    stroke: color-mix(in srgb, var(--border) 80%, transparent);
+    stroke-width: 0.5px;
+  }
+
+  .plot-name {
+    fill: var(--text-1);
+    font-family: var(--font-ui);
+    font-weight: 650;
+  }
+}
+
+// Grow-in on insertion + one-shot selection pulse + selected sway — gated
+@media (prefers-reduced-motion: no-preference) {
+  .plot .veg {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: opacity var(--dur-base) var(--ease-out);
+
+    @starting-style {
+      opacity: 0;
+    }
+  }
+
+  .plot .plot-bed {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition:
+      opacity var(--dur-base) var(--ease-out),
+      transform var(--dur-base) var(--ease-out),
+      filter var(--dur-fast) var(--ease-out);
+
+    @starting-style {
+      opacity: 0;
+      transform: scale(0.85);
+    }
+  }
+
+  .selection-ring {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: ring-pulse 420ms var(--ease-out) 1;
+  }
+
+  // The selected plant alone gets a barely-there living sway
+  .plot.selected .veg {
+    animation: leaf-sway 5.5s ease-in-out infinite alternate;
+  }
+
+  @keyframes ring-pulse {
+    0% {
+      transform: scale(1.06);
+      opacity: 0;
+    }
+
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes leaf-sway {
+    from {
+      transform: rotate(-0.7deg);
+    }
+
+    to {
+      transform: rotate(0.7deg);
+    }
+  }
+}
+
+// Foliage reads slightly muted under moonlight
+:host-context([data-theme='dark']) .veg {
+  filter: brightness(0.88) saturate(0.92);
+}
+
+// ── Toolbar ──────────────────────────────────────────────────────────────────
+.map-toolbar {
+  position: absolute;
+  top: var(--sp-3);
+  right: var(--sp-3);
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: var(--sp-1);
+  border-radius: var(--radius-pill);
+  background: var(--map-hud-glass);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-1);
+}
+
+.tool-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-2);
+  font: 600 var(--fs-body) var(--font-ui);
+  cursor: pointer;
+
+  svg {
+    width: 1.05rem;
+    height: 1.05rem;
+  }
+
+  &:hover:not(:disabled) {
+    background: var(--surface-2);
+    color: var(--text-1);
+  }
+
+  &:disabled {
+    color: var(--text-3);
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  &:focus-visible {
+    box-shadow: var(--focus-ring);
+  }
+}
+
+.zoom-level {
+  min-width: 2.7rem;
+  text-align: center;
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 1.1rem;
+  background: var(--border-strong);
+  margin: 0 var(--sp-1);
+}
+
+// ── HUD: one glass panel ─────────────────────────────────────────────────────
+.map-hud {
+  position: absolute;
+  left: var(--sp-3);
+  bottom: var(--sp-3);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-m);
+  background: var(--map-hud-glass);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  max-width: calc(100% - var(--sp-6));
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out);
+
+  // While a bed is dragged the HUD steps aside — it must never hide the
+  // drop zone (it already lets pointer events through; this is for the eye).
+  &.hud-muted {
+    opacity: 0.15;
+  }
+}
+
+.hud-stat {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+
+  .hud-value {
+    font-size: var(--fs-emphasis);
+    font-weight: 700;
+    color: var(--text-1);
+  }
+
+  .hud-label {
+    font-size: var(--fs-caption);
+    color: var(--text-3);
+  }
+
+  &.humidity .drop-icon {
+    width: 0.8rem;
+    height: 0.8rem;
+    color: var(--map-humidity);
+    align-self: center;
+  }
+
+  &.full-badge {
+    font-size: var(--fs-caption);
+    font-weight: 650;
+    color: var(--accent-amber);
+  }
+}
+
+.hud-divider {
+  width: 1px;
+  height: 1.4rem;
+  background: var(--border);
+}
+
+.hud-bar {
+  width: 3.4rem;
+  height: 0.3rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+  align-self: center;
+  margin-left: var(--sp-1);
+
+  .hud-bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: var(--radius-pill);
+    background: var(--gradient-brand);
+    transition: width var(--dur-slow) var(--ease-out);
+
+    &.warn {
+      background: var(--accent-amber);
+    }
+
+    &.full {
+      background: var(--danger);
+    }
+  }
+}
+
+// ── Empty state overlay ──────────────────────────────────────────────────────
+.map-empty-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--sp-2);
+  text-align: center;
+  padding: var(--sp-6);
+  background: color-mix(in srgb, var(--map-lawn) 22%, transparent);
+
+  .empty-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--fs-h3);
+    font-weight: 650;
+    color: var(--text-1);
+  }
+
+  .empty-sub {
+    margin: 0 0 var(--sp-2);
+    font-size: var(--fs-body);
+    color: var(--text-2);
+  }
+}
+
+// ── Tooltip ──────────────────────────────────────────────────────────────────
+.map-tooltip {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  gap: 0.1rem;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-s);
+  background: var(--map-hud-glass);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  pointer-events: none;
+  max-width: 12rem;
+
+  .tip-name {
+    font-size: var(--fs-caption);
+    font-weight: 650;
+    color: var(--text-1);
+  }
+
+  .tip-meta {
+    font-size: 0.6875rem;
+    color: var(--text-2);
+  }
+
+  .tip-hint {
+    font-size: 0.6875rem;
+    color: var(--text-3);
+  }
+}
+
+// ── Inspector ────────────────────────────────────────────────────────────────
+.map-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border-radius: var(--radius-m);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-1);
+  min-height: 13rem;
+}
+
+.inspector-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+
+  h3 {
+    margin: 0;
+    font-size: var(--fs-emphasis);
+    font-weight: 650;
+    color: var(--text-1);
+  }
+
+  .species {
+    margin: 0;
+    font-size: var(--fs-caption);
+    color: var(--text-3);
+    font-style: italic;
+  }
+
+  .inspector-title {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.inspector-thumb {
+  --thumb-size: 3.75rem;
+}
+
+// Grouped stat tiles (§14): caption over value, two columns — no more
+// tiny dashed rows. The idle (garden overview) state reuses the same grid.
+.inspector-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-2);
+  margin: 0;
+
+  .fact {
+    display: grid;
+    gap: 0.1rem;
+    align-content: start;
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--radius-s);
+    background: var(--surface-2);
+
+    dt {
+      font-size: 0.6563rem;
+      font-weight: 650;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-3);
+    }
+
+    dd {
+      margin: 0;
+      font-size: var(--fs-emphasis);
+      font-weight: 650;
+      color: var(--text-1);
+    }
+
+    .fact-sub {
+      display: block;
+      font-size: 0.6875rem;
+      font-weight: 500;
+      color: var(--text-3);
+
+      &.above {
+        color: var(--info-blue);
+      }
+
+      &.below {
+        color: var(--accent-amber);
+      }
+    }
+
+    .type-name {
+      text-transform: capitalize;
+      font-weight: 500;
+    }
+  }
+}
+
+.contribution {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+
+  .contribution-label {
+    font-size: 0.6875rem;
+    color: var(--text-3);
+  }
+
+  .contribution-bar {
+    flex: 1;
+    height: 0.3rem;
+    border-radius: var(--radius-pill);
+    background: var(--surface-3);
+    overflow: hidden;
+  }
+
+  .contribution-fill {
+    display: block;
+    height: 100%;
+    border-radius: var(--radius-pill);
+    background: var(--gradient-brand);
+    transition: width var(--dur-slow) var(--ease-out);
+  }
+
+  .contribution-value {
+    font-size: var(--fs-caption);
+    font-weight: 650;
+    color: var(--text-1);
+  }
+}
+
+.inspector-actions {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: auto;
+
+  .danger {
+    color: var(--danger);
+  }
+}
+
+.inspector-idle {
+  display: grid;
+  gap: var(--sp-3);
+  align-content: start;
+
+  .inspector-hint {
+    margin: 0;
+    font-size: var(--fs-caption);
+    color: var(--text-3);
+  }
+}
+
+.inspector-ghost {
+  display: grid;
+  gap: var(--sp-3);
+
+  .ghost-head {
+    display: flex;
+    gap: var(--sp-3);
+    align-items: center;
+  }
+
+  .ghost-head-text {
+    flex: 1;
+    display: grid;
+    gap: var(--sp-2);
+  }
+}
+
+// ── Planner additions (§14–19, §37–41) ──────────────────────────────────────
+.plot.overlapping .plot-bed {
+  stroke: var(--accent-amber);
+  stroke-dasharray: 4 3;
+}
+
+.humidity-pref {
+  fill: var(--map-lawn);
+  opacity: 0.25;
+  pointer-events: none;
+
+  &.wants-more {
+    fill: var(--map-humidity);
+  }
+
+  &.wants-less {
+    fill: var(--accent-amber);
+  }
+}
+
+.plot-area-detail {
+  fill: var(--text-2);
+  font-family: var(--font-ui);
+  font-weight: 550;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: var(--map-hud-glass);
+  // em, NOT px: px here means SVG user units, and this text is ~0.09 units
+  // tall — a 2.5px stroke turned every glyph into a giant white slab the
+  // moment the zoom-LOD revealed it (the "white patches at 140%" bug).
+  stroke-width: 0.18em;
+}
+
+// Layer visibility (CSS-only — the scene never re-renders for a toggle)
+.layer-no-labels .plot-label {
+  display: none;
+}
+
+.layer-no-footprints .plot-bed {
+  fill: transparent;
+  stroke: color-mix(in srgb, var(--map-bed-border) 40%, transparent);
+  filter: none;
+}
+
+.layer-no-grid .soil-grid-fill {
+  display: none;
+}
+
+.layer-no-free .free-soil {
+  display: none;
+}
+
+.layers-panel {
+  position: absolute;
+  top: calc(var(--sp-3) + 2.6rem);
+  right: var(--sp-3);
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-radius: var(--radius-m);
+  background: var(--map-hud-glass);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  z-index: 3;
+}
+
+.layer-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-caption);
+  color: var(--text-1);
+  cursor: pointer;
+
+  input {
+    accent-color: var(--brand-500);
+  }
+}
+
+.layers-note {
+  margin: 0;
+  font-size: 0.6563rem;
+  color: var(--text-3);
+  max-width: 11rem;
+}
+
+// Dragging: the moving bed rises above its neighbors
+@media (prefers-reduced-motion: no-preference) {
+  .plot:active .plot-bed {
+    filter: drop-shadow(0 0.12px 0.28px rgb(28 25 23 / 0.4));
+  }
+}
+
+.drag-hint {
+  margin: 0;
+  font-size: 0.6875rem;
+  color: var(--text-3);
+}

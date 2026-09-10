@@ -1,11 +1,13 @@
 import { InjectionToken } from '@angular/core';
+import { environment } from '../../../environments/environment';
 
 /**
- * Runtime configuration (CODING-GUIDELINES §2 — no magic numbers in code).
- * Values that could ever change live here, injected app-wide.
+ * Application configuration (CODING-GUIDELINES §2 — no magic numbers in code).
+ * Values that could ever change live here, injected app-wide; deployment-
+ * dependent values come from `environments/` and are swapped at build time.
  */
 export interface AppConfig {
-  /** Base path all API calls are prefixed with (proxied to the Fastify backend). */
+  /** Base path all API calls are prefixed with — the app's ONLY API address. */
   readonly apiBaseUrl: string;
   /** Retry policy for transient technical failures (ADR-004). */
   readonly retry: {
@@ -28,7 +30,7 @@ export interface AppConfig {
 
 export const APP_CONFIG = new InjectionToken<AppConfig>('APP_CONFIG', {
   factory: (): AppConfig => ({
-    apiBaseUrl: '/api',
+    apiBaseUrl: environment.apiBaseUrl,
     retry: {
       maxAttempts: 3,
       baseDelayMs: 250,

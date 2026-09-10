@@ -11,6 +11,7 @@ import { EmptyState } from '../shared/ui/empty-state/empty-state';
   template: `
     <div class="wrap">
       <app-empty-state
+        [headingLevel]="1"
         title="This patch is empty"
         message="The page you're looking for doesn't exist — it may have been moved or deleted."
       >

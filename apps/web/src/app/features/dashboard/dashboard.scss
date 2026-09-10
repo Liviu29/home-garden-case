@@ -1,4 +1,11 @@
+// Smart Garden Control Center (DESIGN-SYSTEM §6). Desktop uses the full
+// 80rem shell width: 4 KPI columns, then Attention (2fr) beside Garden
+// Health (3fr), collapsing intelligently at tablet/mobile widths.
+
+// ── Hero ─────────────────────────────────────────────────────────────────────
 .hero {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -10,10 +17,39 @@
   color: var(--text-on-dark);
   box-shadow: var(--shadow-2);
 
-  @media (max-width: 640px) {
+  // Subtle garden-grid motif over the gradient (§35) — barely-there texture
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgb(255 255 255 / 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 255 255 / 0.04) 1px, transparent 1px);
+    background-size: 2.5rem 2.5rem;
+    mask-image: radial-gradient(120% 100% at 100% 50%, #000 30%, transparent 75%);
+    pointer-events: none;
+  }
+
+  @media (max-width: 720px) {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+.hero-art {
+  position: absolute;
+  right: -1rem;
+  top: 50%;
+  transform: translateY(-46%);
+  height: 130%;
+  color: var(--brand-400);
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+.hero-text,
+.hero-actions {
+  position: relative; // above the art
 }
 
 .hero-title {
@@ -27,15 +63,130 @@
   margin-top: var(--sp-2);
 }
 
-.hero-cta {
-  flex: none;
+.hero-ghost {
+  display: inline-block;
 }
 
+.hero-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  padding: 0.2rem var(--sp-3);
+  border-radius: var(--radius-pill);
+  border: 1px solid rgb(255 255 255 / 0.14);
+  background: rgb(255 255 255 / 0.07);
+  color: var(--text-on-dark);
+
+  svg {
+    width: 0.85rem;
+    height: 0.85rem;
+  }
+
+  &.ok svg {
+    color: var(--brand-400);
+  }
+
+  &.warn svg {
+    color: #fbbf24; // amber that reads on the dark hero (decorative accent)
+  }
+}
+
+.hero-actions {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp-2);
+
+  @media (max-width: 720px) {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+}
+
+.hero-cta-secondary {
+  // Material text buttons paint the theme primary — unreadable on the dark
+  // hero, so override through the M3 token AND the color property.
+  --mat-text-button-label-text-color: var(--text-on-dark-dim);
+  --mat-button-text-label-text-color: var(--text-on-dark-dim);
+  color: var(--text-on-dark-dim);
+  font-size: var(--fs-caption);
+
+  &:hover {
+    color: var(--text-on-dark);
+  }
+}
+
+// Hero micro-stagger (§4): three steps, 150ms apart, fade+4px rise only
+.hero-step-1,
+.hero-step-2,
+.hero-step-3 {
+  animation: hero-enter 0.4s var(--ease-out) both;
+}
+
+.hero-step-2 {
+  animation-delay: 120ms;
+}
+
+.hero-step-3 {
+  animation-delay: 240ms;
+}
+
+@keyframes hero-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-step-1,
+  .hero-step-2,
+  .hero-step-3 {
+    animation: none;
+  }
+}
+
+// ── KPI grid ─────────────────────────────────────────────────────────────────
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: var(--sp-4);
-  margin-bottom: var(--sp-8);
+  margin-bottom: var(--sp-6);
+
+  @media (max-width: 1024px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// ── Two-column overview region ───────────────────────────────────────────────
+.overview-grid {
+  display: grid;
+  grid-template-columns: 2fr 3fr;
+  gap: var(--sp-6);
+  align-items: start;
+
+  @media (max-width: 960px) {
+    grid-template-columns: 1fr;
+  }
 }
 
 .section {
@@ -51,47 +202,98 @@
   margin-bottom: var(--sp-3);
 }
 
+// ── Attention Center (§8): compact rich cards, semantic left accent ─────────
 .attention-list {
   display: grid;
-  gap: var(--sp-2);
+  gap: var(--sp-3);
 }
 
-.attention-row {
+.attention-card {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-4);
+  padding: var(--sp-4);
   background: var(--surface-1);
-  border: 1px solid color-mix(in srgb, var(--accent-amber) 35%, var(--border));
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent-amber);
   border-radius: var(--radius-m);
+  box-shadow: var(--shadow-1);
   color: inherit;
   text-decoration: none;
 
   &:hover {
     text-decoration: none;
+
+    .attention-cta {
+      color: var(--brand-600);
+    }
+  }
+
+  &.is-humidity {
+    border-left-color: var(--info-blue);
+  }
+
+  &.is-full {
+    border-left-color: var(--danger);
   }
 }
 
-.warn-dot {
+.attention-icon {
   flex: none;
   display: grid;
   place-items: center;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 2rem;
+  height: 2rem;
   border-radius: 50%;
   background: var(--amber-soft);
   color: var(--accent-amber);
-  font-weight: 700;
-  font-size: var(--fs-caption);
+
+  svg {
+    width: 1.05rem;
+    height: 1.05rem;
+  }
+
+  .is-humidity & {
+    background: var(--info-soft);
+    color: var(--info-blue);
+  }
+
+  .is-full & {
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
 }
 
-.attention-info {
+.attention-body {
   flex: 1;
   display: grid;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.attention-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-2);
 }
 
 .attention-name {
   font-weight: 650;
+}
+
+.attention-badge {
+  font-size: var(--fs-caption);
+  font-weight: 650;
+  color: var(--accent-amber);
+
+  .is-humidity & {
+    color: var(--info-blue);
+  }
+
+  .is-full & {
+    color: var(--danger);
+  }
 }
 
 .attention-reason {
@@ -101,22 +303,95 @@
 
 .attention-metric {
   font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+
+.attention-cta {
+  margin-top: var(--sp-1);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--text-2);
+  justify-self: end;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+// Humidity mini-scale (§40): target vs average on a 0–100 track
+.humidity-scale {
+  position: relative;
+  display: block;
+  height: 0.75rem;
+  margin-top: var(--sp-1);
+}
+
+.scale-track {
+  position: absolute;
+  inset: 45% 0 auto;
+  height: 0.2rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+}
+
+.scale-mark {
+  position: absolute;
+  top: 12%;
+  width: 0.2rem;
+  height: 76%;
+  border-radius: var(--radius-pill);
+  transform: translateX(-50%);
+
+  &.target {
+    background: var(--text-3);
+  }
+
+  &.actual {
+    background: var(--info-blue);
+  }
+}
+
+// Positive empty state (§10)
+.all-healthy {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  background: var(--surface-1);
+  border: 1px solid color-mix(in srgb, var(--brand-500) 25%, var(--border));
+  border-radius: var(--radius-m);
+}
+
+.healthy-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  color: var(--brand-600);
+
+  svg {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+}
+
+.healthy-title {
+  font-weight: 650;
+}
+
+.healthy-sub {
+  font-size: var(--fs-caption);
   color: var(--text-2);
 }
 
-.insight-grid {
+// ── Garden Health cards (§11–14): the compact portfolio ─────────────────────
+.health-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
   gap: var(--sp-4);
 }
 
-.insight-ghosts {
-  display: grid;
-  gap: var(--sp-2);
-  margin-top: var(--sp-4);
-}
-
-.insight-card {
+.health-card {
   display: grid;
   gap: var(--sp-2);
   padding: var(--sp-4);
@@ -129,18 +404,64 @@
 
   &:hover {
     text-decoration: none;
+
+    .mini-preview {
+      transform: translateY(-1px);
+    }
+
+    .health-cta {
+      color: var(--brand-600);
+    }
   }
 }
 
-.insight-top {
+.mini-preview {
+  transition: transform var(--dur-fast) var(--ease-out);
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.health-top {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: var(--sp-2);
 }
 
-.insight-name {
+.health-name {
   font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Status chip visuals live in the shared StatusBadge (§30) — only layout here
+.health-status {
+  flex: none;
+}
+
+.health-meta {
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+}
+
+.health-humidity {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+
+.health-cta {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--text-2);
+  justify-self: end;
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
 .delta {
@@ -162,13 +483,52 @@
   }
 }
 
-.insight-target {
-  font-size: var(--fs-caption);
-  color: var(--text-3);
-  margin-top: calc(-1 * var(--sp-2));
+// ── Content-shaped skeleton layout (§22–26) — primitives do the shimmer ─────
+.dash-skeleton {
+  display: grid;
+  gap: var(--sp-6);
 }
 
-.insight-meta {
-  font-size: var(--fs-caption);
-  color: var(--text-3);
+.kpi-ghost {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-6);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-l);
+}
+
+.ghost-stack {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.attention-ghost {
+  display: flex;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+}
+
+.ghost-lines {
+  flex: 1;
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.ghost-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
+  gap: var(--sp-4);
+}
+
+.health-ghost {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
 }

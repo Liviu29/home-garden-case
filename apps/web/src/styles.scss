@@ -13,6 +13,12 @@
 
 // ── Angular Material M3 theme, tuned to the Verdant palette ──────────────────
 html {
+  color-scheme: light;
+
+  &[data-theme='dark'] {
+    color-scheme: dark;
+  }
+
   @include mat.theme(
     (
       color: (
@@ -56,7 +62,9 @@ body {
   font-size: var(--fs-body);
   line-height: 1.5;
   color: var(--text-1);
-  background: var(--gradient-page) fixed, var(--surface-0);
+  background:
+    var(--gradient-page) fixed,
+    var(--surface-0);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -122,4 +130,51 @@ a {
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mutation ghosts (docs/design/ASYNC-UX.md) — the ONE skeleton engine applied
+// in place: same gray tokens, same shimmer gradient, same sweep keyframe as
+// the Skeleton primitive. variant: content stays roughly in shape, grayed,
+// while a POST/PUT/DELETE is in flight — skeleton-first, always.
+// ─────────────────────────────────────────────────────────────────────────────
+.mutation-ghost {
+  position: relative;
+  overflow: hidden;
+  pointer-events: none;
+
+  > * {
+    opacity: 0.35;
+    filter: grayscale(1);
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+    background: var(--gradient-shimmer), color-mix(in srgb, var(--skeleton-base) 55%, transparent);
+    animation: shimmer-sweep 1.4s ease-in-out infinite;
+  }
+}
+
+// Ghost bar inside a disabled submit button (replaces "Saving…" text)
+.btn-ghost {
+  display: inline-block;
+  width: 4.25rem;
+  height: 0.6rem;
+  border-radius: var(--radius-pill);
+  background: var(--gradient-skeleton-base);
+  position: relative;
+  overflow: hidden;
+  vertical-align: middle;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--gradient-shimmer);
+    animation: shimmer-sweep 1.4s ease-in-out infinite;
+  }
 }

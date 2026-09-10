@@ -102,6 +102,22 @@ describe('QueryCache (stale-while-revalidate, ADR-004)', () => {
     expect(cache.read(cacheKeys.gardens)).toEqual(['g']);
   });
 
+  it('a write-through during an in-flight fetch wins over the stale response', async () => {
+    // The race: list revalidation is in flight; the user creates a garden;
+    // the fetch (started before the create) resolves with a list that lacks it.
+    let resolveFetch!: (value: string[]) => void;
+    const fetcher = vi
+      .fn()
+      .mockImplementation(() => new Promise<string[]>((r) => (resolveFetch = r)));
+
+    const { revalidate } = cache.swr('gardens', fetcher);
+    cache.set('gardens', ['old-garden', 'NEW-garden']); // mutation writes through
+    resolveFetch(['old-garden']); // stale response arrives last
+
+    await expect(revalidate).resolves.toEqual(['old-garden', 'NEW-garden']);
+    expect(cache.read('gardens')).toEqual(['old-garden', 'NEW-garden']); // not clobbered
+  });
+
   it('write-through set makes a value fresh (mutations skip refetching)', async () => {
     const fetcher = vi.fn();
     cache.set(cacheKeys.gardens, ['written']);

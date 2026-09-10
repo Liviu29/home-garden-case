@@ -6,11 +6,15 @@ import { Garden, Plant } from '../../core/api/models';
 import { SessionStore } from '../../core/auth/session-store';
 import { CapacityBar } from '../../shared/ui/capacity-bar/capacity-bar';
 import { EmptyState } from '../../shared/ui/empty-state/empty-state';
+import { PlantArtworkDefs } from '../../shared/ui/plant-visuals/plant-artwork-defs';
 import { Skeleton } from '../../shared/ui/skeleton/skeleton';
 import { SkeletonGroup } from '../../shared/ui/skeleton/skeleton-group';
 import { StatCard } from '../../shared/ui/stat-card/stat-card';
 import {
+  CAPACITY_STATUS_LABEL,
+  CapacityStatus,
   averageHumidity,
+  capacityStatus,
   gardenAttention,
   humidityDelta,
   occupancyRatio,
@@ -18,20 +22,36 @@ import {
 } from '../../shared/utils/garden-insights';
 import { GardensStore } from '../gardens/gardens-store';
 import { PlantsIndexStore } from '../gardens/plants-index-store';
+import { GardenMiniPreview } from './garden-mini-preview';
+import { StatusBadge, StatusTone } from '../../shared/ui/status-badge/status-badge';
+import { CAPACITY_STATUS_TONE } from '../../shared/ui/capacity-status/capacity-status';
+
+type AttentionKind = 'capacity' | 'humidity';
 
 interface GardenInsight {
   readonly garden: Garden;
   readonly plants: readonly Plant[] | undefined;
   readonly delta: number | null;
+  readonly avgHumidity: number | null;
   readonly occupancy: number;
+  readonly used: number;
+  readonly status: CapacityStatus;
+  readonly statusLabel: string;
+  readonly statusTone: StatusTone;
   readonly needsAttention: boolean;
+  readonly attentionKind: AttentionKind;
   readonly attentionReason: string;
+  /** Lower sorts first in the Attention Center (UI presentation only). */
+  readonly severity: number;
 }
 
 /**
- * Overview: greeting hero, count-up stats, humidity-vs-target per garden and
- * an attention list (near-capacity or humidity drift, DESIGN-SYSTEM §6).
+ * Smart Garden Control Center: hero with derived portfolio status, four KPI
+ * tiles, an Attention Center and a Garden Health grid whose cards carry a
+ * mini botanical preview (the visual bridge to the Garden Planner).
  * Reuses GardensStore + PlantsIndexStore — no duplicate fetching, all SWR.
+ * Every number is derived from existing data via computed(); nothing here is
+ * stored, persisted or invented (feature brief §42–44).
  */
 @Component({
   selector: 'app-dashboard',
@@ -45,6 +65,9 @@ interface GardenInsight {
     SkeletonGroup,
     EmptyState,
     CapacityBar,
+    GardenMiniPreview,
+    PlantArtworkDefs,
+    StatusBadge,
   ],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
@@ -78,20 +101,62 @@ export class Dashboard {
       const attention = gardenAttention(garden, known);
       const needsAttention =
         plants !== undefined && (attention.nearCapacity || attention.humidityDrift);
+      const status = capacityStatus(garden, known);
+      const delta = plants ? humidityDelta(garden, plants) : null;
+      const occupancy = occupancyRatio(garden, known);
+      const kind: AttentionKind = attention.nearCapacity ? 'capacity' : 'humidity';
       return {
         garden,
         plants,
-        delta: plants ? humidityDelta(garden, plants) : null,
-        occupancy: occupancyRatio(garden, known),
+        delta,
+        avgHumidity: plants ? averageHumidity(plants) : null,
+        occupancy,
+        used: usedSurfaceArea(known),
+        status,
+        statusLabel:
+          plants === undefined
+            ? '…'
+            : known.length === 0
+              ? 'No plants yet'
+              : attention.humidityDrift && !attention.nearCapacity
+                ? 'Humidity attention'
+                : CAPACITY_STATUS_LABEL[status],
+        statusTone:
+          plants === undefined || known.length === 0
+            ? ('neutral' as const)
+            : attention.humidityDrift && !attention.nearCapacity
+              ? ('warning' as const)
+              : CAPACITY_STATUS_TONE[status],
         needsAttention,
+        attentionKind: kind,
+        // Reuse the semantic status vocabulary — a 100% garden says "Full",
+        // not "almost" (spotted in the final screenshot pass).
         attentionReason: attention.nearCapacity
-          ? 'Almost at capacity'
+          ? CAPACITY_STATUS_LABEL[status]
           : 'Humidity drifting from target',
+        // UI-only ordering (documented in DESIGN-SYSTEM §6): full → near-full
+        // → humidity drift by distance. Not a business rule.
+        severity:
+          status === 'full'
+            ? 0
+            : attention.nearCapacity
+              ? 1 - occupancy // closer to full sorts higher
+              : 2 - Math.min(1, Math.abs(delta ?? 0) / 100),
       };
     }),
   );
 
-  protected readonly attention = computed(() => this.insights().filter((i) => i.needsAttention));
+  protected readonly attention = computed(() =>
+    this.insights()
+      .filter((i) => i.needsAttention)
+      .sort((a, b) => a.severity - b.severity),
+  );
+
+  protected readonly healthyCount = computed(
+    () => this.insights().filter((i) => i.plants !== undefined && !i.needsAttention).length,
+  );
+
+  protected readonly mostUrgent = computed<GardenInsight | null>(() => this.attention()[0] ?? null);
 
   protected readonly totalPlants = computed(() =>
     Object.values(this.plantsIndex.byGarden()).reduce((sum, plants) => sum + plants.length, 0),
@@ -101,12 +166,22 @@ export class Dashboard {
     this.gardens.gardens().reduce((sum, g) => sum + g.totalSurfaceArea, 0),
   );
 
-  protected readonly overallAvgHumidity = computed(() => {
-    const allPlants = Object.values(this.plantsIndex.byGarden()).flat();
-    return averageHumidity(allPlants);
+  protected readonly usedArea = computed(() =>
+    Object.values(this.plantsIndex.byGarden()).reduce(
+      (sum, plants) => sum + usedSurfaceArea(plants),
+      0,
+    ),
+  );
+
+  protected readonly freeArea = computed(() => Math.max(0, this.totalArea() - this.usedArea()));
+
+  protected readonly utilizationPct = computed(() => {
+    const total = this.totalArea();
+    return total > 0 ? Math.round((this.usedArea() / total) * 100) : 0;
   });
 
-  protected usedOf(plants: readonly Plant[]): number {
-    return usedSurfaceArea(plants);
-  }
+  /** True once every garden's plant list has arrived (KPIs are then exact). */
+  protected readonly plantsSettled = computed(() =>
+    this.gardens.gardens().every((g) => this.plantsIndex.byGarden()[g.gardenId] !== undefined),
+  );
 }

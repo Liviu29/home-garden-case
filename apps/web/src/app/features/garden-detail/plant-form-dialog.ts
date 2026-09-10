@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { DecimalPipe } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -10,7 +11,13 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSliderModule } from '@angular/material/slider';
 import { Garden, PLANT_TYPES, Plant, PlantInput } from '../../core/api/models';
+import { PlantCatalogFacade } from '../../shared/config/plant-catalog-facade';
+import { PLANT_AREA_PRESETS } from '../../shared/config/product-defaults';
 import { CapacityBar } from '../../shared/ui/capacity-bar/capacity-bar';
+import { PlantThumb } from '../../shared/ui/plant-visuals/plant-thumb';
+import { ValuePresets } from '../../shared/ui/value-presets/value-presets';
+import { PlantRecommendation } from '../../shared/utils/plant-recommendation';
+import { fromPlantationDate, toPlantationDate } from '../../shared/utils/plantation-date';
 import {
   remainingCapacity,
   usedSurfaceArea,
@@ -46,6 +53,9 @@ export interface PlantFormData {
     MatDatepickerModule,
     MatNativeDateModule,
     CapacityBar,
+    DecimalPipe,
+    ValuePresets,
+    PlantThumb,
   ],
   templateUrl: './plant-form-dialog.html',
   styleUrl: './plant-form-dialog.scss',
@@ -67,7 +77,7 @@ export class PlantFormDialog {
       Validators.required,
     ]),
     plantationDate: this.fb.control<Date>(
-      this.data.plant ? new Date(this.data.plant.plantationDate) : new Date(),
+      this.data.plant ? fromPlantationDate(this.data.plant.plantationDate) : new Date(),
       [Validators.required],
     ),
     surfaceAreaRequired: this.fb.control(this.data.plant?.surfaceAreaRequired ?? 1, [
@@ -84,6 +94,86 @@ export class PlantFormDialog {
   private readonly requestedArea = toSignal(this.form.controls.surfaceAreaRequired.valueChanges, {
     initialValue: this.form.controls.surfaceAreaRequired.value,
   });
+
+  /** Convenience quick-picks (product defaults, not botany, not backend rules). */
+  protected readonly areaPresets = PLANT_AREA_PRESETS;
+  protected readonly currentArea = this.requestedArea;
+
+  // ── Plant discovery (feature brief §3–8): local catalog, ranked for THIS
+  // garden; selecting a card prefills — every value stays editable and every
+  // validator stays authoritative. Custom plants remain first-class.
+  private readonly catalog = inject(PlantCatalogFacade);
+  protected readonly query = signal('');
+
+  /** Typed bridge for the native input event — keeps `$any` out of templates. */
+  protected onQueryInput(event: Event): void {
+    this.query.set((event.target as HTMLInputElement).value);
+  }
+  protected readonly selectedPresetId = signal<string | null>(null);
+
+  private readonly ranked = this.catalog.recommendSync(this.data.garden, this.data.plants);
+
+  protected readonly cards = computed<readonly PlantRecommendation[]>(() => {
+    const q = this.query().trim().toLowerCase();
+    if (!q) {
+      return this.ranked.slice(0, 8); // best matches for this garden
+    }
+    return this.ranked.filter(
+      (r) =>
+        r.preset.commonName.toLowerCase().includes(q) ||
+        r.preset.scientificName.toLowerCase().includes(q),
+    );
+  });
+
+  protected applyPreset(rec: PlantRecommendation): void {
+    this.selectedPresetId.set(rec.preset.id);
+    this.form.patchValue({
+      plantName: rec.preset.commonName,
+      species: rec.preset.scientificName,
+      plantType: rec.preset.plantType,
+      surfaceAreaRequired: rec.preset.suggestedArea,
+      idealHumidityLevel: rec.preset.suggestedHumidity,
+    });
+    this.form.markAsDirty();
+  }
+
+  protected fitBadge(rec: PlantRecommendation): string {
+    if (!rec.fitsAvailableArea) {
+      return `Needs ${rec.preset.suggestedArea} m²`;
+    }
+    if (rec.humidityMatch === 'excellent') {
+      return 'Excellent fit';
+    }
+    if (rec.humidityMatch === 'good') {
+      return 'Good fit';
+    }
+    return `Prefers ${rec.preset.suggestedHumidity}% humidity`;
+  }
+
+  // ── Live preview: always derived from the ACTUAL form values, so custom
+  // plants get the same treatment as catalog picks (generic artwork fallback).
+  private readonly nameValue = toSignal(this.form.controls.plantName.valueChanges, {
+    initialValue: this.form.controls.plantName.value,
+  });
+  private readonly speciesValue = toSignal(this.form.controls.species.valueChanges, {
+    initialValue: this.form.controls.species.value,
+  });
+  private readonly typeValue = toSignal(this.form.controls.plantType.valueChanges, {
+    initialValue: this.form.controls.plantType.value,
+  });
+
+  protected readonly previewPlant = computed(() => ({
+    plantId: 0,
+    plantName: this.nameValue() || 'New plant',
+    species: this.speciesValue() || '',
+    plantType: this.typeValue(),
+  }));
+
+  /** Writes through the control — the overcrowding check still applies live. */
+  protected applyAreaPreset(value: number): void {
+    this.form.controls.surfaceAreaRequired.setValue(value);
+    this.form.controls.surfaceAreaRequired.markAsDirty();
+  }
 
   /** m² the rest of the garden leaves for this plant (self excluded on edit). */
   protected readonly capacityLeft = computed(() =>
@@ -108,6 +198,12 @@ export class PlantFormDialog {
     return others + Math.max(0, this.requestedArea() ?? 0);
   });
 
+  /** What this form currently asks for (never negative for display purposes). */
+  protected readonly requires = computed(() => Math.max(0, this.requestedArea() ?? 0));
+
+  /** m² left in the garden after saving this form as-is (negative = overcrowded). */
+  protected readonly remainingAfterSave = computed(() => this.capacityLeft() - this.requires());
+
   protected async submit(): Promise<void> {
     this.form.markAllAsTouched();
     if (this.form.invalid || this.overcrowds() || this.data.store.saving()) {
@@ -120,7 +216,7 @@ export class PlantFormDialog {
       plantName: raw.plantName.trim(),
       species: raw.species.trim(),
       plantType: raw.plantType,
-      plantationDate: raw.plantationDate.toISOString(),
+      plantationDate: toPlantationDate(raw.plantationDate),
       surfaceAreaRequired: raw.surfaceAreaRequired,
       idealHumidityLevel: raw.idealHumidityLevel,
       gardenId: this.data.garden.gardenId,

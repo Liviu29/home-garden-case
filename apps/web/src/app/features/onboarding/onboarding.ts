@@ -9,6 +9,8 @@ import { UserProfile } from '../../core/api/models';
 import { SessionStore } from '../../core/auth/session-store';
 import { toApiError } from '../../core/errors/api-error';
 import { QueryCache, cacheKeys } from '../../core/resilience/query-cache';
+import { ThemeStore } from '../../core/config/theme-store';
+import { PlantArtworkDefs } from '../../shared/ui/plant-visuals/plant-artwork-defs';
 import { Skeleton } from '../../shared/ui/skeleton/skeleton';
 import { SkeletonGroup } from '../../shared/ui/skeleton/skeleton-group';
 
@@ -28,6 +30,7 @@ type Status = 'loading' | 'ready' | 'error';
     MatInputModule,
     Skeleton,
     SkeletonGroup,
+    PlantArtworkDefs,
   ],
   templateUrl: './onboarding.html',
   styleUrl: './onboarding.scss',
@@ -38,18 +41,27 @@ export class Onboarding {
   private readonly session = inject(SessionStore);
   private readonly router = inject(Router);
   private readonly fb = inject(NonNullableFormBuilder);
+  protected readonly theme = inject(ThemeStore);
 
   protected readonly profiles = signal<readonly UserProfile[]>([]);
   protected readonly status = signal<Status>('loading');
   protected readonly creating = signal(false);
   protected readonly showCreate = signal(false);
   protected readonly serverError = signal<string | null>(null);
+  /**
+   * Set when POST /users answers 409 (verified: "User with email x already
+   * exists"). The address is already a profile, so we offer to continue as it
+   * via GET /users/email/{emailAddress} instead of stranding the user.
+   */
+  protected readonly duplicateEmail = signal<string | null>(null);
+  protected readonly resolvingDuplicate = signal(false);
 
   // Rules mirror apps/api/src/app/schemas/user.schema.ts
   protected readonly form = this.fb.group({
     firstName: this.fb.control(''),
     lastName: this.fb.control(''),
     emailAddress: this.fb.control('', [Validators.required, Validators.email]),
+    age: this.fb.control<number | null>(null, [Validators.min(1)]),
   });
 
   constructor() {
@@ -98,21 +110,50 @@ export class Onboarding {
     }
     this.creating.set(true);
     this.serverError.set(null);
+    this.duplicateEmail.set(null);
 
     const raw = this.form.getRawValue();
+    const emailAddress = raw.emailAddress.trim();
     try {
       const created = await this.api.create({
-        emailAddress: raw.emailAddress.trim(),
+        emailAddress,
         firstName: raw.firstName.trim() || null,
         lastName: raw.lastName.trim() || null,
+        age: raw.age === null || Number.isNaN(raw.age) ? null : raw.age,
       });
       this.cache.invalidate(cacheKeys.users);
       this.select(created);
     } catch (err) {
       const error = toApiError(err);
-      this.serverError.set(error.message);
+      if (error.status === 409) {
+        this.duplicateEmail.set(emailAddress);
+        this.serverError.set('A profile already uses that email address.');
+      } else {
+        this.serverError.set(error.message);
+      }
     } finally {
       this.creating.set(false);
+    }
+  }
+
+  /** Recovery path for the 409 above — GET /users/email/{emailAddress}. */
+  protected async continueAsExisting(): Promise<void> {
+    const email = this.duplicateEmail();
+    if (!email || this.resolvingDuplicate()) {
+      return;
+    }
+    this.resolvingDuplicate.set(true);
+    try {
+      this.select(await this.api.getByEmail(email));
+    } catch (err) {
+      const error = toApiError(err);
+      this.serverError.set(
+        error.kind === 'not-found'
+          ? 'That profile could not be opened. Try picking it from the list.'
+          : error.message,
+      );
+    } finally {
+      this.resolvingDuplicate.set(false);
     }
   }
 }

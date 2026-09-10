@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { PercentPipe } from '@angular/common';
 
-export type CapacityLevel = 'ok' | 'warn' | 'full';
+type CapacityLevel = 'ok' | 'warn' | 'full';
 
 /**
  * Animated surface-area occupancy bar (DESIGN-SYSTEM §6).
