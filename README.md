@@ -5,8 +5,8 @@ plants, target humidity and a capacity rule — with the focus on frontend archi
 state, a resilient experience on a deliberately slow and flaky API, accessibility, testing, and an
 interactive planner that makes garden capacity visible.
 
-Angular 22 · TypeScript · Signals · NgRx SignalStore · Angular Material 3 · RxJS · Nx · Vitest ·
-Playwright
+Angular 22 · TypeScript · Signals · NgRx SignalStore · Angular Material 3 · RxJS · Highcharts ·
+Nx · Vitest · Playwright
 
 ![The garden planner: every bed drawn at its real m², with the garden summary and watering zones](docs/screenshots/planner.jpg)
 
@@ -47,7 +47,9 @@ It is a profile session, not security — see [trade-offs](#deliberate-trade-off
 
 **Dashboard** — a greeting with the portfolio in one line, KPI tiles (gardens, plants, m², utilisation),
 a _Needs attention_ list (gardens at least 90% full, or drifting from their humidity target) and a
-_Garden health_ grid with a small preview of each garden.
+_Garden health_ grid with a small preview of each garden. A _portfolio map_ (a Highcharts bubble
+chart) places every planted garden by how full it is and how far its humidity drifts, with the
+attention rules drawn as bands; choosing a bubble opens that garden.
 
 **Gardens** — create, edit and delete with name, surface, location and target humidity; search and
 sort; a capacity bar and humidity target on every card; designed loading, empty, error and
@@ -59,6 +61,10 @@ match, fit in the free area, variety); picking one only pre-fills the form, and 
 first-class. A live _Garden fit_ panel shows available, required and remaining m² while you type.
 
 **Garden planner** — the centre of Garden Detail; see [below](#the-garden-planner).
+
+**Humidity profile** — below the plan, one column per plant (a Highcharts variwide chart): as wide
+as the m² it takes, as tall as the humidity it wants, coloured by watering zone, against the
+garden's target. Choosing a column selects that plant on the plan.
 
 Light and dark themes; layouts from 375 to 1920 px.
 
@@ -279,7 +285,7 @@ Coverage follows risk: the most tests sit where a bug would hurt most.
 | Playwright, mocked        | what randomness cannot guarantee: exact delays, persistent 500s, failing mutations, planner interaction, layouts, axe scans | Playwright       |
 | Playwright, integration   | the core flows against the real slow, flaky API — retry layer included                                                      | Playwright       |
 
-Supporting numbers: 721 Vitest tests in 51 files, 71 mocked and 6 integration Playwright tests, and
+Supporting numbers: 760 Vitest tests in 58 files, 73 mocked and 6 integration Playwright tests, and
 a 95% threshold on statements, branches, functions and lines.
 
 Some of the tests that matter most:
@@ -308,6 +314,8 @@ readable — and those are different things:
 - **Less code up front** — about 133 kB of JavaScript transferred on first load (gzip). Every route
   is lazy, and the planner is a separate ~19 kB chunk behind `@defer`. Budgets in `angular.json` fail
   the build on regression.
+- **Charts on demand** — Highcharts (about 158 kB transferred) loads only when a chart scrolls into
+  view, behind a skeleton of the same size; the first screen never pays for it ([ADR-008](docs/adr/ADR-008-charts-highcharts.md)).
 - **Perceived speed** — skeletons and ghosts do not shorten the wait; they make it stable and legible,
   with no layout shift when data lands.
 - **Assets** — the decorative backdrop is responsive WebP (800 and 1600 px), plant artwork is inline
@@ -325,7 +333,10 @@ Designed toward WCAG 2.2 AA expectations:
 - a keyboard-operable planner: every bed is a labelled button, arrow keys move a bed as the
   alternative to dragging, and each move is announced;
 - state never relies on colour alone, and every animation respects `prefers-reduced-motion`;
-- axe scans in both themes run in the Playwright suite and fail it on serious or critical issues.
+- the charts use Highcharts' accessibility module: every bubble and column is a labelled,
+  keyboard-reachable graphic with a full-sentence description;
+- axe scans in both themes, charts included, run in the Playwright suite and fail it on serious or
+  critical issues.
 
 ([ACCESSIBILITY.md](docs/architecture/ACCESSIBILITY.md))
 
@@ -404,6 +415,8 @@ requirements and recommended security headers are in
   explicit ownership and derived state.
 - **SVG over Canvas or WebGL** — right for tens of beds and for accessibility; the renderer boundary
   keeps WebGL an option.
+- **Highcharts for the two analytic charts** — accessible bubble and variwide charts out of the box,
+  at about 158 kB loaded on demand, and a licence a commercial product would need ([ADR-008](docs/adr/ADR-008-charts-highcharts.md)).
 - **Client-side rendering, no SSR** — the app sits behind a profile session and has no public,
   indexable content.
 - **Confirmed writes, not optimistic ones** — a little slower to feel, but every number on screen is
@@ -440,7 +453,7 @@ requirements and recommended security headers are in
 | Planner interaction design                       | [INTERACTIVE-GARDEN-UX.md](docs/design/INTERACTIVE-GARDEN-UX.md)           |
 | Design system                                    | [DESIGN-SYSTEM.md](docs/design/DESIGN-SYSTEM.md)                           |
 | Build, hosting, dependencies                     | [PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md)                    |
-| Architecture decisions                           | [ADR-001 … ADR-007](docs/adr/)                                             |
+| Architecture decisions                           | [ADR-001 … ADR-008](docs/adr/)                                             |
 
 A walkthrough deck is in [docs/presentation/home-garden-demo.html](docs/presentation/home-garden-demo.html)
 (open it locally in a browser).
@@ -454,6 +467,8 @@ A walkthrough deck is in [docs/presentation/home-garden-demo.html](docs/presenta
   the case assignment document, re-encoded to WebP; decorative only.
 - **Fonts** — Inter and Sora (SIL Open Font License 1.1), self-hosted through `@fontsource-variable`;
   their licences ship in the build's `3rdpartylicenses.txt`.
+- **Charts** — Highcharts (Highsoft AS): free for non-commercial use such as this case; commercial
+  use needs a licence ([ADR-008](docs/adr/ADR-008-charts-highcharts.md)).
 
 Nothing is fetched from a third-party network at runtime.
 

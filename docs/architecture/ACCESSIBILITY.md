@@ -16,6 +16,11 @@ Target: WCAG 2.2 AA. Accessibility here is architecture, not garnish — the sam
 - Everything informational also exists as plain DOM: the toolbar is a real `role="toolbar"` of native buttons, the HUD chips are text, and the selected plot's full details render in the inspector `aside[aria-label="Plant inspector"]` with Edit/Remove as real buttons. The hover tooltip is a visual duplicate and is `aria-hidden`.
 - The e2e a11y suite scans the detail page **with the map hydrated** and asserts plot keyboard operation (focus + Enter → `aria-pressed` + inspector).
 
+**Charts (Highcharts — ADR-008)**
+
+- Both charts load Highcharts' accessibility module: the chart is a labelled region with a summary, and every bubble or column is a keyboard-reachable graphic whose name is a full sentence ("Rooftop: 95% full, 9.5 of 10 m². Plants want 60% humidity, 10 points above the 50% target."). Arrow keys move between points; Enter does what a click does.
+- Colour is never the only signal: the zone is also in each column's description and tooltip, and the plants table below repeats every value.
+
 **Keyboard**
 
 - Skip-to-content link as the first focusable element, visible on keyboard focus, jumping to `#main-content`.
@@ -43,7 +48,7 @@ Target: WCAG 2.2 AA. Accessibility here is architecture, not garnish — the sam
 
 **Automated verification**
 
-- @axe-core/playwright scans dashboard (both themes), gardens and garden detail in the mocked e2e project; `serious`/`critical` violations fail the suite. Accent tokens (`--text-3`, amber, info, danger) are tuned per theme to pass AA (darker in light, lighter in dark). Scans run under reduced-motion emulation so entry animations can't blend colors mid-scan.
+- @axe-core/playwright scans dashboard (both themes, portfolio map included), gardens and garden detail (humidity profile included) in the mocked e2e project; `serious`/`critical` violations fail the suite. Accent tokens (`--text-3`, amber, info, danger) are tuned per theme to pass AA (darker in light, lighter in dark). Scans run under reduced-motion emulation so entry animations can't blend colors mid-scan.
 - Keyboard behaviour is asserted in e2e: dialog autofocus, focus containment, Escape-restore to trigger, slider arrow-key operation.
 
 ## Known gaps

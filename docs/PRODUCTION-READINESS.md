@@ -126,7 +126,7 @@ major versions across the workspace.
 
 | Where                  | What it is                                                                                                                                                  | Reaches the user?                  |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| Shipped browser bundle | Runtime dependencies are `@angular/*`, `@ngrx/signals`, `rxjs`, `tslib` and two self-hosted font packages; none appears in any advisory                     | No                                 |
+| Shipped browser bundle | Runtime dependencies are `@angular/*`, `@ngrx/signals`, `rxjs`, `tslib`, `highcharts` and two self-hosted font packages; none appears in any advisory       | No                                 |
 | Frontend build tooling | `esbuild`, `@babel/core`, `browserslist`, `picomatch`, `yaml`, `ajv`, `fast-uri` — compile-time only, never emitted                                         | No                                 |
 | Nx / lint tooling      | `minimatch` / `brace-expansion` ReDoS reachable through `@nx/devkit`; fixed by Nx 22.7.x                                                                    | No — developer machines and CI     |
 | Provided backend       | `fastify` (fixed in 5.12.3), `@fastify/static` via `@fastify/swagger-ui`, `kysely` (unsanitised JSON-path keys — this codebase builds no JSON-path queries) | Only if this backend were deployed |
@@ -166,19 +166,25 @@ by the integration project.
 
 ### Production bundle
 
-|                               | Raw       | Transfer (gz) |
-| ----------------------------- | --------- | ------------- |
-| **Initial total**             | 497.96 kB | **132.76 kB** |
-| `garden-detail` (lazy)        | 181.15 kB | 37.16 kB      |
-| `garden-map` (lazy, `@defer`) | 82.60 kB  | 19.40 kB      |
-| `dashboard` (lazy)            | 35.75 kB  | 8.53 kB       |
-| `onboarding` (lazy)           | 20.93 kB  | 5.70 kB       |
-| `garden-list` (lazy)          | 14.96 kB  | 4.54 kB       |
-| `profile-dialog` (lazy)       | 4.83 kB   | 1.85 kB       |
-| styles                        | 20.50 kB  | 4.23 kB       |
+|                                     | Raw       | Transfer (gz) |
+| ----------------------------------- | --------- | ------------- |
+| **Initial total**                   | 498.19 kB | **133.13 kB** |
+| `garden-detail` (lazy)              | 186.58 kB | 38.82 kB      |
+| `garden-map` (lazy, `@defer`)       | 82.60 kB  | 19.40 kB      |
+| `dashboard` (lazy)                  | 41.76 kB  | 10.46 kB      |
+| `onboarding` (lazy)                 | 20.93 kB  | 5.70 kB       |
+| `garden-list` (lazy)                | 14.96 kB  | 4.54 kB       |
+| `profile-dialog` (lazy)             | 4.83 kB   | 1.85 kB       |
+| Highcharts core (lazy, first chart) | 279.37 kB | 90.61 kB      |
+| Highcharts accessibility (lazy)     | 137.16 kB | 35.06 kB      |
+| `highcharts-more` (lazy)            | 100.21 kB | 30.40 kB      |
+| `variwide` (lazy)                   | 4.04 kB   | 1.70 kB       |
+| styles                              | 20.50 kB  | 4.23 kB       |
 
-There is no Three.js or other heavy visualization dependency — the 3D mode was
-evaluated and declined with written rationale
+The one visualization dependency is Highcharts, for the two analytic charts, and it never ships in
+the initial bundle: its four lazy chunks (about 158 kB transferred) arrive the first time a chart
+scrolls into view ([ADR-008](./adr/ADR-008-charts-highcharts.md)). There is no Three.js or WebGL
+engine — the 3D mode was evaluated and declined with written rationale
 ([ADR-007](./adr/ADR-007-garden-visualization-engine.md)).
 
 ## Known considerations
@@ -205,3 +211,6 @@ evaluated and declined with written rationale
    is recorded in ADR-001.
 7. **CI**: `.gitlab-ci.yml` runs `npm ci`, `nx run-many -t lint typecheck test build`
    and the spinner check on `node:22`. The Playwright projects are not wired into CI.
+8. **Highcharts licence**: free for non-commercial use, which covers this case; a commercial
+   deployment needs a Highcharts licence, or a swap contained to the two chart option builders
+   and `<app-chart>` ([ADR-008](./adr/ADR-008-charts-highcharts.md)).

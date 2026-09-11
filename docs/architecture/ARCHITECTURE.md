@@ -77,7 +77,8 @@ apps/web/src/
 │   │   └── not-found/
 │   └── shared/ui/             # presentational kit, one folder per component: skeletons, empty
 │                              # state, stat card, capacity bar, humidity gauge, confirm dialog,
-│                              # toasts, value presets, plant artwork and its resolver
+│                              # toasts, value presets, plant artwork and its resolver,
+│                              # and <app-chart>: Highcharts, loaded on demand (ADR-008)
 ├── environments/              # the one build-time switch: apiBaseUrl
 └── styles/                    # design tokens, motion presets, the skeleton engine
 ```
@@ -205,7 +206,8 @@ construction.
 
 Zoneless + OnPush + signals: change detection runs only where a signal changed. Every route is a
 lazy chunk, and the planner ships in its own `@defer (on viewport; prefetch on idle)` chunk behind a
-dimension-matched ghost. Skeletons reserve the final layout, bars and gauges animate `transform`
+dimension-matched ghost; the two charts load the same way, and the Highcharts library is imported only
+when one scrolls into view ([ADR-008](../adr/ADR-008-charts-highcharts.md)). Skeletons reserve the final layout, bars and gauges animate `transform`
 only, fonts are self-hosted, and `angular.json` budgets fail the build on regression. Measurements
 and the cache design: [PERFORMANCE-AND-CACHING.md](./PERFORMANCE-AND-CACHING.md).
 

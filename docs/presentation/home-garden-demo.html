@@ -1142,10 +1142,10 @@
         <div class="card">
           <div style="display: flex; justify-content: space-between; align-items: baseline"><span class="label green">Production build · estimated transfer</span><span class="note">raw in brackets</span></div>
           <div class="bars" style="margin-top: 22px">
-            <div class="bar-row"><span class="name"><b>Initial</b></span><div class="track"><div class="fill" style="width: 100%"></div></div><span class="v">132.8 kB <small>(498.0)</small></span></div>
-            <div class="bar-row"><span class="name">garden-detail</span><div class="track"><div class="fill dim" style="width: 28%"></div></div><span class="v">37.2 kB <small>(181.2)</small></span></div>
+            <div class="bar-row"><span class="name"><b>Initial</b></span><div class="track"><div class="fill" style="width: 100%"></div></div><span class="v">133.1 kB <small>(498.0)</small></span></div>
+            <div class="bar-row"><span class="name">garden-detail</span><div class="track"><div class="fill dim" style="width: 28%"></div></div><span class="v">38.8 kB <small>(181.2)</small></span></div>
             <div class="bar-row"><span class="name">garden-map · @defer</span><div class="track"><div class="fill dim" style="width: 14.6%"></div></div><span class="v">19.4 kB <small>(82.6)</small></span></div>
-            <div class="bar-row"><span class="name">dashboard</span><div class="track"><div class="fill dim" style="width: 6.4%"></div></div><span class="v">8.5 kB <small>(35.8)</small></span></div>
+            <div class="bar-row"><span class="name">dashboard</span><div class="track"><div class="fill dim" style="width: 6.4%"></div></div><span class="v">10.5 kB <small>(35.8)</small></span></div>
             <div class="bar-row"><span class="name">onboarding</span><div class="track"><div class="fill dim" style="width: 4.3%"></div></div><span class="v">5.7 kB <small>(20.9)</small></span></div>
             <div class="bar-row"><span class="name">garden-list</span><div class="track"><div class="fill dim" style="width: 3.4%"></div></div><span class="v">4.5 kB <small>(15.0)</small></span></div>
             <div class="bar-row"><span class="name">profile-dialog</span><div class="track"><div class="fill dim" style="width: 1.4%"></div></div><span class="v">1.9 kB <small>(4.8)</small></span></div>
@@ -1195,10 +1195,10 @@
     <div class="body" style="gap: 44px">
       <div class="pyramid" style="flex: 0 0 880px; align-content: center">
         <div class="lvl" style="width: 52%"><div><h4>Real backend</h4><p>core flows, real flaky API</p></div><span class="n">6</span></div>
-        <div class="lvl" style="width: 70%"><div><h4>Playwright · mocked network</h4><p>latency, failures, ghosts, planner, 375 px</p></div><span class="n">65 + 6 a11y</span></div>
+        <div class="lvl" style="width: 70%"><div><h4>Playwright · mocked network</h4><p>latency, failures, ghosts, planner, 375 px</p></div><span class="n">67 + 6 a11y</span></div>
         <div class="lvl" style="width: 86%; border-color: rgb(79 212 131 / 0.4)"><div><h4>Stores &amp; components</h4><p>races, single-flight, all four UI states</p></div><span class="n" style="font-size: 26px">Vitest + TestBed</span></div>
         <div class="lvl" style="width: 100%; border-color: rgb(79 212 131 / 0.4)"><div><h4>Pure domain &amp; infrastructure</h4><p>capacity rule, layout, camera, cache, retry</p></div><span class="n" style="font-size: 26px">Vitest</span></div>
-        <p class="note" style="margin: 6px 0 0; justify-self: center"><b>721 Vitest tests in 51 files</b> across the two base layers</p>
+        <p class="note" style="margin: 6px 0 0; justify-self: center"><b>760 Vitest tests in 58 files</b> across the two base layers</p>
       </div>
       <div class="col grow">
         <span class="label green">What the critical tests prove</span>
@@ -1408,10 +1408,10 @@
       <table class="t" style="flex: 0 0 1000px">
         <thead><tr><th>File</th><th class="num">Raw</th><th class="num">Est. transfer</th></tr></thead>
         <tbody>
-          <tr><td>Initial total</td><td class="num">498.0 kB</td><td class="num">132.8 kB</td></tr>
+          <tr><td>Initial total</td><td class="num">498.2 kB</td><td class="num">133.1 kB</td></tr>
           <tr><td>└ main</td><td class="num">195.1 kB</td><td class="num">46.9 kB</td></tr>
           <tr><td>└ styles</td><td class="num">20.5 kB</td><td class="num">4.2 kB</td></tr>
-          <tr><td>garden-detail (lazy)</td><td class="num">181.2 kB</td><td class="num">37.2 kB</td></tr>
+          <tr><td>garden-detail (lazy)</td><td class="num">186.6 kB</td><td class="num">38.8 kB</td></tr>
           <tr><td>garden-map (@defer)</td><td class="num">82.6 kB</td><td class="num">19.4 kB</td></tr>
           <tr><td>dashboard · onboarding · garden-list</td><td class="num">35.8 · 20.9 · 15.0</td><td class="num">8.5 · 5.7 · 4.5</td></tr>
           <tr><td>profile-dialog (on demand)</td><td class="num">4.8 kB</td><td class="num">1.9 kB</td></tr>

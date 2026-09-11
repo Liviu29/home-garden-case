@@ -571,8 +571,8 @@
       <div class="sec-head"><span class="id">S21</span><h2>Testing Strategy</h2><span class="est">~1 min 5 sec</span></div>
       <div class="say">
         <p>The testing strategy follows risk, and each layer proves something different.</p>
-        <p>At the base are 721 Vitest tests in 51 files. The pure domain tests cover the business rules: the capacity boundary, the edit self-exclusion, the planner layout and camera. Store and infrastructure tests cover the nasty async cases: a stale response can never overwrite a fresh one, three clicks produce one POST, and the retry never retries a 4xx. Component tests cover skeleton, data, empty and error states.</p>
-        <p>Then 65 Playwright tests run against a mocked network, plus six accessibility tests. Mocked on purpose: to test ghosts and recovery I need deterministic slowness and deterministic failures, and a random backend can't guarantee that.</p>
+        <p>At the base are 760 Vitest tests in 58 files. The pure domain tests cover the business rules: the capacity boundary, the edit self-exclusion, the planner layout and camera. Store and infrastructure tests cover the nasty async cases: a stale response can never overwrite a fresh one, three clicks produce one POST, and the retry never retries a 4xx. Component tests cover skeleton, data, empty and error states.</p>
+        <p>Then 67 Playwright tests run against a mocked network, plus six accessibility tests. Mocked on purpose: to test ghosts and recovery I need deterministic slowness and deterministic failures, and a random backend can't guarantee that.</p>
         <p>Finally, six integration tests run the core flows against the real, flaky backend — that's what proves the contract.</p>
         <p>Coverage is gated at ninety-five percent in the configuration. What's not done yet is running Playwright in CI — today the pipeline runs lint, typecheck, unit tests, the build and the no-spinner check.</p>
       </div>
