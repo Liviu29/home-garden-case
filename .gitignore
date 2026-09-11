@@ -24,10 +24,15 @@ node_modules
 !.vscode/launch.json
 !.vscode/extensions.json
 
+# test & coverage output (any project)
+coverage/
+test-results/
+playwright-report/
+__screenshots__/
+
 # misc
 /.sass-cache
 /connect.lock
-/coverage
 /libpeerconnection.log
 npm-debug.log
 yarn-error.log

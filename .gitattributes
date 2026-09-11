@@ -1,4 +1,4 @@
-# Cross-platform hygiene (REM-007): normalize EOL in the repo, keep binaries intact
+# Cross-platform hygiene: normalize EOL in the repo, keep binaries intact
 * text=auto eol=lf
 *.png binary
 *.ico binary

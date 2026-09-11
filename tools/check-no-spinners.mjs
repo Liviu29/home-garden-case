@@ -24,7 +24,8 @@ function walk(dir) {
       walk(path);
       continue;
     }
-    if (!/\.(ts|html|scss)$/.test(entry)) {
+    // Specs are exempt: they name spinners precisely to assert there are none.
+    if (!/\.(ts|html|scss)$/.test(entry) || entry.endsWith('.spec.ts')) {
       continue;
     }
     const content = readFileSync(path, 'utf8');
