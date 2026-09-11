@@ -746,7 +746,7 @@
         <div class="card"><span class="label green">State</span><ul class="ticks tight" style="margin-top: 16px"><li><b>Signals</b> + <b>NgRx SignalStore 22</b></li><li><b>RxJS 7.8</b> — HTTP retry, one fan-out</li></ul></div>
         <div class="card"><span class="label green">UI</span><ul class="ticks tight" style="margin-top: 16px"><li><b>Angular Material 22</b> (M3) + CDK</li><li>SCSS design tokens · self-hosted fonts</li></ul></div>
         <div class="card"><span class="label green">Testing</span><ul class="ticks tight" style="margin-top: 16px"><li><b>Vitest 4</b> + jsdom (unit &amp; component)</li><li><b>Playwright 1.63</b> + axe-core</li></ul></div>
-        <div class="card"><span class="label green">Tooling</span><ul class="ticks tight" style="margin-top: 16px"><li><b>Nx 22</b> monorepo · ESLint 9 · Prettier</li><li>GitLab CI: lint · typecheck · test · build</li></ul></div>
+        <div class="card"><span class="label green">Tooling</span><ul class="ticks tight" style="margin-top: 16px"><li><b>Nx 22</b> monorepo · ESLint 9 · Prettier</li><li>GitHub Actions: lint · typecheck · tests · build · Playwright</li></ul></div>
         <div class="card"><span class="label green">Backend integration</span><ul class="ticks tight" style="margin-top: 16px"><li>Provided <b>Fastify 5</b> · zod · Kysely/SQLite</li><li>Swagger / OpenAPI · Bruno (16 requests)</li></ul></div>
       </div>
       <div class="card soft" style="display: flex; align-items: center; gap: 22px">
@@ -1198,7 +1198,7 @@
         <div class="lvl" style="width: 70%"><div><h4>Playwright · mocked network</h4><p>latency, failures, ghosts, planner, 375 px</p></div><span class="n">67 + 6 a11y</span></div>
         <div class="lvl" style="width: 86%; border-color: rgb(79 212 131 / 0.4)"><div><h4>Stores &amp; components</h4><p>races, single-flight, all four UI states</p></div><span class="n" style="font-size: 26px">Vitest + TestBed</span></div>
         <div class="lvl" style="width: 100%; border-color: rgb(79 212 131 / 0.4)"><div><h4>Pure domain &amp; infrastructure</h4><p>capacity rule, layout, camera, cache, retry</p></div><span class="n" style="font-size: 26px">Vitest</span></div>
-        <p class="note" style="margin: 6px 0 0; justify-self: center"><b>760 Vitest tests in 58 files</b> across the two base layers</p>
+        <p class="note" style="margin: 6px 0 0; justify-self: center"><b>815 web + 31 API Vitest tests</b> across the base layers</p>
       </div>
       <div class="col grow">
         <span class="label green">What the critical tests prove</span>
@@ -1269,9 +1269,9 @@
         <ul class="ticks" style="margin-top: 20px">
           <li><b>Auth</b>: OIDC via a BFF, httpOnly cookie session</li>
           <li><b>Idempotency keys</b>; retries only where safe</li>
-          <li><b>Backend</b>: dashboard aggregation, capacity check on garden edits</li>
+          <li><b>Backend</b>: paging and user scoping, ETag revalidation</li>
           <li><b>Observability</b>: errors + Web Vitals behind the logger seam</li>
-          <li><b>Playwright in CI</b>, security headers, server-side planner layouts</li>
+          <li><b>Security headers</b>, server-side planner layouts</li>
         </ul>
       </div>
     </div>
@@ -1433,8 +1433,8 @@
     <div class="body mid">
       <div class="grid g3 grow" style="align-content: start">
         <div class="card"><span class="label green">1 · Trust</span><ul class="ticks tight" style="margin-top: 16px"><li>OIDC + BFF, httpOnly session</li><li>owner-scoped data</li><li>idempotency keys</li><li>CSP &amp; security headers</li></ul></div>
-        <div class="card"><span class="label green">2 · Operate</span><ul class="ticks tight" style="margin-top: 16px"><li>Playwright in CI</li><li>error tracking behind the Logger seam</li><li>Web Vitals &amp; tracing</li><li>private source-map upload</li></ul></div>
-        <div class="card"><span class="label green">3 · Scale the product</span><ul class="ticks tight" style="margin-top: 16px"><li>dashboard aggregation endpoint</li><li>server capacity check on garden edits</li><li>server-side planner layouts</li><li>external plant catalog via the provider seam</li></ul></div>
+        <div class="card"><span class="label green">2 · Operate</span><ul class="ticks tight" style="margin-top: 16px"><li>WebKit run as a merge gate</li><li>error tracking behind the Logger seam</li><li>Web Vitals &amp; tracing</li><li>private source-map upload</li></ul></div>
+        <div class="card"><span class="label green">3 · Scale the product</span><ul class="ticks tight" style="margin-top: 16px"><li>paging and user scoping</li><li>ETag revalidation</li><li>server-side planner layouts</li><li>external plant catalog via the provider seam</li></ul></div>
       </div>
     </div>
   </section>

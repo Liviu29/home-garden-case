@@ -571,10 +571,10 @@
       <div class="sec-head"><span class="id">S21</span><h2>Testing Strategy</h2><span class="est">~1 min 5 sec</span></div>
       <div class="say">
         <p>The testing strategy follows risk, and each layer proves something different.</p>
-        <p>At the base are 760 Vitest tests in 58 files. The pure domain tests cover the business rules: the capacity boundary, the edit self-exclusion, the planner layout and camera. Store and infrastructure tests cover the nasty async cases: a stale response can never overwrite a fresh one, three clicks produce one POST, and the retry never retries a 4xx. Component tests cover skeleton, data, empty and error states.</p>
+        <p>At the base are 815 Vitest tests in 59 files, plus 31 tests that boot the real API on an in-memory database. The pure domain tests cover the business rules: the capacity boundary, the edit self-exclusion, the planner layout and camera. Store and infrastructure tests cover the nasty async cases: a stale response can never overwrite a fresh one, three clicks produce one POST, and the retry never retries a 4xx. Component tests cover skeleton, data, empty and error states.</p>
         <p>Then 67 Playwright tests run against a mocked network, plus six accessibility tests. Mocked on purpose: to test ghosts and recovery I need deterministic slowness and deterministic failures, and a random backend can't guarantee that.</p>
         <p>Finally, six integration tests run the core flows against the real, flaky backend — that's what proves the contract.</p>
-        <p>Coverage is gated at ninety-five percent in the configuration. What's not done yet is running Playwright in CI — today the pipeline runs lint, typecheck, unit tests, the build and the no-spinner check.</p>
+        <p>Coverage is gated at ninety-five percent in the configuration. GitHub Actions runs all of it on every push: lint, typecheck, API and unit tests, the build, the no-spinner check, and both Playwright projects against their own database.</p>
       </div>
       <p class="next">That leads to production readiness.</p>
       <details class="deep"><summary>Optional deeper answer — How do you prevent race conditions?</summary>
@@ -601,11 +601,11 @@
       <div class="say">
         <p>I want to be honest about the edges.</p>
         <p>Some things I deliberately didn't build. No SSR — this is a signed-in management app with no SEO value. No classic NgRx, no query library, no WebGL engine — each would add weight without solving a problem I had. And no fake authentication pretending to be secure: there's a profile session, plus a documented design for the real thing.</p>
-        <p>In a real product, I'd add proper authentication — OIDC through a backend-for-frontend with an httpOnly cookie session. I'd add idempotency keys, so write retries are safe everywhere. I'd ask the backend for an aggregation endpoint, because the dashboard currently makes one request per garden, and for a capacity check on garden updates. I'd add observability and Web Vitals behind the existing logger seam, run Playwright in CI, and store planner layouts on the server.</p>
+        <p>In a real product, I'd add proper authentication — OIDC through a backend-for-frontend with an httpOnly cookie session. I'd add idempotency keys, so write retries are safe everywhere. I'd add paging and user scoping to the list endpoints, with ETags so revalidation is nearly free. I'd add observability and Web Vitals behind the existing logger seam, and store planner layouts on the server.</p>
       </div>
       <p class="next">Let me wrap up.</p>
       <details class="deep"><summary>Optional deeper answer — What would you change with another week?</summary>
-        <p>Wire Playwright into CI, add idempotency keys and narrow the write retries, pull the planner stylesheet back under its budget, and prototype server-side layouts. Then work with the backend on the dashboard aggregation endpoint, because that's the biggest remaining source of latency.</p>
+        <p>Add idempotency keys and narrow the write retries, make the WebKit run a merge gate, and prototype server-side layouts. Then work with the backend on paging and user scoping.</p>
       </details>
     </section>
 
@@ -639,7 +639,7 @@
       <h3>Why skeletons rather than spinners?</h3><p>They keep orientation and remove layout shift, and localized ghosts keep the rest of the screen usable. The numbers only change when the server confirms.</p>
       <h3>How is accessibility handled?</h3><p>WCAG 2.2 AA target: skip link, focus management, semantic tables, live regions, keyboard-operable planner with arrow-key moves, reduced motion, and axe scans in both themes.</p>
       <h3>How is the application production-ready?</h3><p>Optimized, hashed build without source maps, budgets, one configuration seam, CI with a UX guardrail, documented hosting — and an honest list of what a launch still needs.</p>
-      <h3>What would you change with another week?</h3><p>Playwright in CI, idempotency keys, the planner stylesheet back under budget, server-side layouts, and a dashboard aggregation endpoint with the backend team.</p>
+      <h3>What would you change with another week?</h3><p>Idempotency keys, the WebKit run as a merge gate, server-side layouts, and paging and user scoping with the backend team.</p>
     </section>
 
     <!-- Appendix notes -->
@@ -665,7 +665,7 @@
     </section>
     <section class="sec" id="A06" data-title="Production Roadmap" data-est="0">
       <div class="sec-head"><span class="id">A06</span><h2>Production Roadmap</h2></div>
-      <div class="say"><p>Three phases. Trust: real authentication, owner-scoped data, idempotency keys, security headers. Operate: Playwright in CI, error tracking and Web Vitals. Scale the product: an aggregation endpoint, a server-side capacity check on garden edits, server-side layouts, and an external plant catalog through the existing provider seam.</p></div>
+      <div class="say"><p>Three phases. Trust: real authentication, owner-scoped data, idempotency keys, security headers. Operate: error tracking and Web Vitals, and the WebKit run as a merge gate. Scale the product: paging and user scoping, ETag revalidation, server-side layouts, and an external plant catalog through the existing provider seam.</p></div>
     </section>
 
   </main>

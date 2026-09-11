@@ -1,18 +1,9 @@
-# Production Readiness
-
-What is configured, what is deliberately _not_, and how a release candidate is
-verified. Companion reading: [ARCHITECTURE.md](./architecture/ARCHITECTURE.md) ·
-[PERFORMANCE-AND-CACHING.md](./architecture/PERFORMANCE-AND-CACHING.md) ·
-[API-INTEGRATION.md](./architecture/API-INTEGRATION.md).
-
-## Baseline
-
-|            |                                                                                                                                                                |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Workspace  | Nx 22.0.2 monorepo, npm workspaces (`apps/*`), `package-lock.json` authoritative                                                                               |
-| Frontend   | Angular 22.1.x — standalone, zoneless, signals, strict + `strictTemplates`                                                                                     |
-| Backend    | Fastify 5 + Kysely + better-sqlite3 (the case's own API; extended once, [ADR-003](./adr/ADR-003-backend-extension.md))                                         |
-| Node       | 22.22.3+, 24.15+ or 26+ — the Angular CLI's `engines` range                                                                                                    |
+42.39 kB | 10.67 kB || 21.49 kB || 38.87 kB || | |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Workspace | Nx 22.0.2 monorepo, npm workspaces (`apps/*`), `package-lock.json` authoritative |
+| Frontend | Angular 22.1.x — standalone, zoneless, signals, strict + `strictTemplates` |
+| Backend | Fastify 5 + Kysely + better-sqlite3 (the case's own API; extended once, [ADR-003](./adr/ADR-003-backend-extension.md)) |
+| Node | 22.22.3+ or 24.15+, pinned to 24.21.0 in `.nvmrc`. `engine-strict` stops `npm ci` early on any other version; Node 26 is out because better-sqlite3 12.4 stops at 24 |
 | TypeScript | 5.9 at the workspace root (Nx + API), 6.0 inside `apps/web` (Angular 22). Two pins on purpose — each project builds against the version its toolchain supports |
 
 ## Development configuration
@@ -168,49 +159,45 @@ by the integration project.
 
 |                                     | Raw       | Transfer (gz) |
 | ----------------------------------- | --------- | ------------- |
-| **Initial total**                   | 498.19 kB | **133.13 kB** |
-| `garden-detail` (lazy)              | 186.58 kB | 38.82 kB      |
-| `garden-map` (lazy, `@defer`)       | 82.60 kB  | 19.40 kB      |
-| `dashboard` (lazy)                  | 41.76 kB  | 10.46 kB      |
+| **Initial total**                   | 498.21 kB | **133.17 kB** |
+| `garden-detail` (lazy)              | 186.65 kB | 38.87 kB      |
+| `garden-map` (lazy, `@defer`)       | 93.57 kB  | 21.49 kB      |
+| `dashboard` (lazy)                  | 42.39 kB  | 10.67 kB      |
 | `onboarding` (lazy)                 | 20.93 kB  | 5.70 kB       |
 | `garden-list` (lazy)                | 14.96 kB  | 4.54 kB       |
 | `profile-dialog` (lazy)             | 4.83 kB   | 1.85 kB       |
 | Highcharts core (lazy, first chart) | 279.37 kB | 90.61 kB      |
 | Highcharts accessibility (lazy)     | 137.16 kB | 35.06 kB      |
-| `highcharts-more` (lazy)            | 100.21 kB | 30.40 kB      |
 | `variwide` (lazy)                   | 4.04 kB   | 1.70 kB       |
 | styles                              | 20.50 kB  | 4.23 kB       |
 
 The one visualization dependency is Highcharts, for the two analytic charts, and it never ships in
-the initial bundle: its four lazy chunks (about 158 kB transferred) arrive the first time a chart
-scrolls into view ([ADR-008](./adr/ADR-008-charts-highcharts.md)). There is no Three.js or WebGL
+the initial bundle: its three lazy chunks (about 127 kB transferred) are fetched in idle time on
+the two screens that show a chart ([ADR-008](./adr/ADR-008-charts-highcharts.md)). There is no Three.js or WebGL
 engine — the 3D mode was evaluated and declined with written rationale
 ([ADR-007](./adr/ADR-007-garden-visualization-engine.md)).
 
 ## Known considerations
 
-1. **The dashboard issues `1 + N` requests** (one per garden) because `Garden` carries
-   no plant data and the API offers no `?include=`, aggregate endpoint or pagination.
-   At the scale this app runs — a fresh database starts empty and a user creates a
-   handful of gardens — this is a handful of parallel, cached, individually-retried
-   requests. It does not scale to hundreds of gardens, and the fix is server-side, not
-   a client workaround; both are documented in API-INTEGRATION.md.
-2. **`PUT /gardens/{id}` has no server-side capacity check** — shrinking a garden below
-   its occupied area returns 200. The client warns; the server should refuse.
-3. **One style-budget warning**: the Garden Map stylesheet (~13 kB) is above the 12 kB
-   `anyComponentStyle` warning and below the 16 kB error; the rationale is in ADR-007.
-4. **Font subsets**: `@fontsource-variable` ships Cyrillic/Greek/Vietnamese `woff2` files
+1. **`GET /plants` is unpaginated.** The dashboard and the gardens grid read every plant in
+   one request (it replaced one request per garden), and like `GET /gardens` it has no
+   paging or user scoping. At the scale this app runs — a handful of gardens per user —
+   that is one small response; at thousands of plants it needs paging, server-side.
+2. **Font subsets**: `@fontsource-variable` ships Cyrillic/Greek/Vietnamese `woff2` files
    alongside Latin. They are `unicode-range`-gated, so no browser downloads them for this
    app's content; trimming them would mean hand-writing `@font-face` blocks, which is not
    worth the maintenance cost.
-5. **The integration e2e project writes to the local `db.sqlite`** (uniquely named
+3. **The integration e2e project writes to the local `db.sqlite`** (uniquely named
    entities per run). The database is git-ignored and disposable — delete the file to
    reset.
-6. **No PWA, service worker or SSR.** None is part of the architecture, and adding one
+4. **No PWA, service worker or SSR.** None is part of the architecture, and adding one
    would introduce caching and hydration risk for no user benefit here. Deliberate CSR
    is recorded in ADR-001.
-7. **CI**: `.gitlab-ci.yml` runs `npm ci`, `nx run-many -t lint typecheck test build`
-   and the spinner check on `node:22`. The Playwright projects are not wired into CI.
-8. **Highcharts licence**: free for non-commercial use, which covers this case; a commercial
+5. **CI** runs on GitHub Actions (`.github/workflows/ci.yml`) on every push to `main` and
+   every pull request: lint, typecheck, the API tests, the web unit tests with the 95%
+   coverage gate, the production build with its budgets, the spinner check, then every
+   Playwright project in a second job (the report is uploaded when it fails). The case's
+   original `.gitlab-ci.yml` is kept for GitLab.
+6. **Highcharts licence**: free for non-commercial use, which covers this case; a commercial
    deployment needs a Highcharts licence, or a swap contained to the two chart option builders
    and `<app-chart>` ([ADR-008](./adr/ADR-008-charts-highcharts.md)).
