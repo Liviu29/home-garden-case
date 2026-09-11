@@ -15,8 +15,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenuModule } from '@angular/material/menu';
 import { Garden, Plant } from '../../core/api/models';
-import { plantHumidityDelta } from '../../shared/utils/garden-insights';
-import { WateringZone, wateringZone } from '../../shared/utils/garden-planner';
+import { plantHumidityDelta } from '../../domain/garden-insights/garden-insights';
+import { WateringZone, wateringZone } from '../../domain/garden-planner/garden-planner';
 import { CapacityBar } from '../../shared/ui/capacity-bar/capacity-bar';
 import { CapacityStatusChip } from '../../shared/ui/capacity-status/capacity-status';
 import { ConfirmService } from '../../shared/ui/confirm-dialog/confirm-dialog';
@@ -26,13 +26,16 @@ import { PlantArtworkDefs } from '../../shared/ui/plant-visuals/plant-artwork-de
 import { PlantThumb } from '../../shared/ui/plant-visuals/plant-thumb';
 import { Skeleton } from '../../shared/ui/skeleton/skeleton';
 import { SkeletonGroup } from '../../shared/ui/skeleton/skeleton-group';
-import { GardenFormDialog } from '../gardens/garden-form-dialog';
-import { GardensStore } from '../gardens/gardens-store';
-import { GardenDetailStore } from './garden-detail-store';
-import { GardenLayoutRepository, LayoutPositions } from './garden-map/garden-layout-repository';
+import { GardenFormDialog } from '../gardens/garden-form-dialog/garden-form-dialog';
+import { GardensStore } from '../../state/gardens-store/gardens-store';
+import { GardenDetailStore } from './garden-detail-store/garden-detail-store';
+import {
+  GardenLayoutRepository,
+  LayoutPositions,
+} from './garden-map/garden-layout-repository/garden-layout-repository';
 import { GardenMap } from './garden-map/garden-map';
-import { GardenMapSkeleton } from './garden-map/garden-map-skeleton';
-import { PlantFormDialog } from './plant-form-dialog';
+import { GardenMapSkeleton } from './garden-map/garden-map-skeleton/garden-map-skeleton';
+import { PlantFormDialog } from './plant-form-dialog/plant-form-dialog';
 
 type PlantSortKey = 'name' | 'planted' | 'area' | 'humidity';
 type SortDir = 'asc' | 'desc';

@@ -19,10 +19,10 @@ import {
   humidityDelta,
   occupancyRatio,
   usedSurfaceArea,
-} from '../../shared/utils/garden-insights';
-import { GardensStore } from '../gardens/gardens-store';
-import { PlantsIndexStore } from '../gardens/plants-index-store';
-import { GardenMiniPreview } from './garden-mini-preview';
+} from '../../domain/garden-insights/garden-insights';
+import { GardensStore } from '../../state/gardens-store/gardens-store';
+import { PlantsIndexStore } from '../../state/plants-index-store/plants-index-store';
+import { GardenMiniPreview } from './garden-mini-preview/garden-mini-preview';
 import { StatusBadge, StatusTone } from '../../shared/ui/status-badge/status-badge';
 import { CAPACITY_STATUS_TONE } from '../../shared/ui/capacity-status/capacity-status';
 

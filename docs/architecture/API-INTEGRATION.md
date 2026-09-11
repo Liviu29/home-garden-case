@@ -118,7 +118,7 @@ the five real plant fields.
   `Σ existing + new > garden.totalSurfaceArea` with a 400 whose message names both numbers.
   `PUT /plants/{id}` recomputes with the edited plant **excluded**, so growing a plant to exactly the
   garden total succeeds. The frontend mirrors both in `wouldOvercrowd` / `remainingCapacity`
-  (`shared/utils/garden-insights.ts`) for instant feedback, and renders the server verdict inline
+  (`domain/garden-insights/garden-insights.ts`) for instant feedback, and renders the server verdict inline
   when it arrives.
 - **`PUT /gardens/{id}` has no capacity check** — a 20 m² garden holding 20 m² of plants accepted
   `totalSurfaceArea: 5`. The garden dialog warns before shrinking below the used area; the planner

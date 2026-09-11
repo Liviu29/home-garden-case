@@ -1,5 +1,5 @@
 import { of } from 'rxjs';
-import { GardensStore } from './gardens-store';
+import { GardensStore } from '../../state/gardens-store/gardens-store';
 import { ConfirmService } from '../../shared/ui/confirm-dialog/confirm-dialog';
 import { MatDialog } from '@angular/material/dialog';
 import { TestBed } from '@angular/core/testing';

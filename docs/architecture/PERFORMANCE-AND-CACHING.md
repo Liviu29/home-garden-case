@@ -96,7 +96,7 @@ The cache stores the in-flight promise, not just the settled value, so **identic
 
 ## Prefetch
 
-`features/gardens/prefetch-garden.ts` warms `gardens:{id}` and `plants:garden:{id}` through the same SWR cache on hover/focus of a garden card. On a 1-second-median API this is the difference between a skeleton and an instant screen, and it costs nothing extra when the user does click (de-duplication) — at most one wasted pair of requests when they do not. Route chunks are prefetched separately by `@defer (prefetch on idle)` and Angular's lazy loading, so code and data arrive in parallel.
+`features/gardens/prefetch-garden/prefetch-garden.ts` warms `gardens:{id}` and `plants:garden:{id}` through the same SWR cache on hover/focus of a garden card. On a 1-second-median API this is the difference between a skeleton and an instant screen, and it costs nothing extra when the user does click (de-duplication) — at most one wasted pair of requests when they do not. Route chunks are prefetched separately by `@defer (prefetch on idle)` and Angular's lazy loading, so code and data arrive in parallel.
 
 Prefetch is deliberately **not** applied to the dashboard's `1 + N` fan-out: warming every garden's plants on hover would trade a perceived-latency win for a request storm on a rate-limit-free hobby API. The right fix for that shape is server-side.
 

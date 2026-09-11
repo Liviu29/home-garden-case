@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { Plant } from '../../../core/api/models';
-import { resolvePlantVisual } from '../../utils/plant-visual-resolver';
+import { resolvePlantVisual } from './plant-visual-resolver';
 
 /**
  * Small botanical thumbnail — the same resolved artwork the Garden Map draws,

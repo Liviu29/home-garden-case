@@ -48,27 +48,49 @@ apps/web/src/
 │   │   ├── layout/            # the shell: top bar, navigation, profile menu, page backdrop
 │   │   ├── logging/           # the Logger seam
 │   │   └── resilience/        # QueryCache: SWR + in-flight de-duplication
-│   ├── features/              # one lazy route per folder
+│   ├── state/                 # app-wide SignalStores, providedIn: 'root'
+│   │   ├── gardens-store/         # GardensStore + the list's search/sort (garden-view.ts)
+│   │   └── plants-index-store/    # PlantsIndexStore: the one writable owner of plants
+│   ├── domain/                # business rules and maths — no HTTP, no stores
+│   │   ├── garden-insights/       # capacity and humidity rules
+│   │   ├── garden-map-layout/     # the area-true treemap layout
+│   │   ├── garden-planner/        # watering zones, clashes, grouping, timeline
+│   │   ├── plant-recommendation/  # ranks the catalog for one garden
+│   │   ├── plantation-date/       # UTC calendar-day handling
+│   │   └── catalog/               # the plant catalog and its provider seam
+│   ├── features/              # one lazy route per folder; the files at its root are the page
 │   │   ├── onboarding/        # profile selection and creation
 │   │   ├── dashboard/         # portfolio KPIs, attention center, garden health
-│   │   ├── gardens/           # garden grid, garden dialog, GardensStore, PlantsIndexStore
-│   │   ├── garden-detail/     # header, plants table, plant dialog, GardenDetailStore
-│   │   │   └── garden-map/    # the planner: SVG scene, camera, inspector, layout storage
-│   │   └── profile/           # edit-profile dialog (loaded on demand)
-│   ├── pages/                 # not-found
-│   └── shared/
-│       ├── config/            # product defaults, the plant catalog and its provider seam
-│       ├── ui/                # presentational kit: skeletons, empty state, stat card, capacity
-│       │                      # bar, humidity gauge, confirm dialog, toasts, plant artwork
-│       └── utils/             # pure domain functions: capacity, planner layout, recommendations
+│   │   │   └── garden-mini-preview/
+│   │   ├── gardens/           # the garden grid
+│   │   │   ├── garden-form-dialog/
+│   │   │   └── prefetch-garden/       # hover/focus prefetch directive
+│   │   ├── garden-detail/     # header and plants table
+│   │   │   ├── garden-detail-store/   # GardenDetailStore (route-scoped)
+│   │   │   ├── plant-form-dialog/
+│   │   │   └── garden-map/            # the planner: SVG scene and toolbar
+│   │   │       ├── garden-layout-repository/  # saved bed positions (localStorage)
+│   │   │       ├── garden-map-skeleton/
+│   │   │       ├── map-camera/        # pan and zoom maths
+│   │   │       └── map-inspector/
+│   │   ├── profile/           # edit-profile dialog (loaded on demand)
+│   │   └── not-found/
+│   └── shared/ui/             # presentational kit, one folder per component: skeletons, empty
+│                              # state, stat card, capacity bar, humidity gauge, confirm dialog,
+│                              # toasts, value presets, plant artwork and its resolver
 ├── environments/              # the one build-time switch: apiBaseUrl
 └── styles/                    # design tokens, motion presets, the skeleton engine
 ```
 
-- `core` is infrastructure; `shared` is stateless and reusable; a feature never imports another
-  feature — anything two features need moves to `shared` or `core`. (`GardensStore` and
-  `PlantsIndexStore` live in `gardens/` and are `providedIn: 'root'`, consumed by the dashboard
-  and detail routes through DI.)
+- **One folder per unit.** The files at the root of a feature folder are its routed page. Every
+  other component, directive, store or domain module lives in its own folder, named after it,
+  together with its template, styles and spec.
+- **Dependencies point one way:** `features` → `state` → `domain` and `core`. `domain` imports only
+  the model types from `core/api`; `shared/ui` never imports a feature, `state` or an API service.
+- **Features do not import each other, and `core` does not import features**, with two deliberate
+  exceptions: the shell (`core/layout`) lazy-loads the profile dialog on demand, and garden detail
+  reuses the garden form dialog from `gardens/` to edit the open garden. State that two features
+  need lives in `state/`.
 - Files follow the current schematic naming (`garden-list.ts`, no `.component` suffix); every
   feature is reached only through `loadComponent`.
 
@@ -148,7 +170,7 @@ an operation and an id, never a payload.
 Rules:
 
 - **Derived state is never stored.** Used/free area, occupancy and utilization are `computed()`
-  from the source data through pure functions in `shared/utils/garden-insights.ts`, so they cannot
+  from the source data through pure functions in `domain/garden-insights/garden-insights.ts`, so they cannot
   go stale — and the forms, the dashboard, the planner and the server's rule share one definition.
 - **Immutable updates only** (`patchState` with new references) — zoneless rendering depends on it.
 - **One state pattern.** Small, self-contained state (session, toasts, theme) uses plain signal
@@ -190,7 +212,7 @@ and the cache design: [PERFORMANCE-AND-CACHING.md](./PERFORMANCE-AND-CACHING.md)
 ## 7. The Garden Planner
 
 The planner (`features/garden-detail/garden-map/`) is a pipeline: store state → a pure,
-deterministic layout (`shared/utils/garden-map-layout.ts`, a squarified treemap where each bed's area
+deterministic layout (`domain/garden-map-layout/garden-map-layout.ts`, a squarified treemap where each bed's area
 is its real m²) → saved positions applied on top (`GardenLayoutRepository`, versioned
 `localStorage`) → a view model → SVG rendered by Angular. The renderer owns only UI state (camera,
 selection, layers); business state stays in the stores. Rationale and trade-offs:
@@ -221,8 +243,8 @@ selection, layers); business state stays in the stores. Rationale and trade-offs
   timings live in `APP_CONFIG`, never as magic numbers.
 - **Components:** `inject()` at field level; signal `input()` / `output()` / `model()`; built-in
   control flow with `track` on every `@for`; non-trivial template logic moves into `computed()`.
-  Components never call HTTP; `shared/ui` components are presentational (inputs in, outputs out,
-  no store awareness).
+  Components never call HTTP; `shared/ui` components are presentational (inputs in, outputs
+  out; no feature, `state` or API-service imports).
 - **State:** immutable `patchState` updates with new references — zoneless rendering depends on
   them.
 - **HTTP:** features call the typed API services only; retry lives in the one interceptor and

@@ -16,8 +16,8 @@ import { APP_CONFIG, AppConfig } from '../../core/config/app-config';
 import { ApiError } from '../../core/errors/api-error';
 import { ConfirmService } from '../../shared/ui/confirm-dialog/confirm-dialog';
 import { GardenDetail } from './garden-detail';
-import { GardenDetailStore } from './garden-detail-store';
-import { GardenLayoutRepository } from './garden-map/garden-layout-repository';
+import { GardenDetailStore } from './garden-detail-store/garden-detail-store';
+import { GardenLayoutRepository } from './garden-map/garden-layout-repository/garden-layout-repository';
 
 const CONFIG = {
   apiBaseUrl: '/api',

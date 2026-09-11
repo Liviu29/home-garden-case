@@ -23,7 +23,7 @@ import {
   occupancyRatio,
   plantHumidityDelta,
   usedSurfaceArea,
-} from '../../../shared/utils/garden-insights';
+} from '../../../domain/garden-insights/garden-insights';
 import {
   PLANNER_SNAP,
   applyPositions,
@@ -31,7 +31,7 @@ import {
   computeGardenMapLayout,
   findOverlappingPlots,
   settleDrop,
-} from '../../../shared/utils/garden-map-layout';
+} from '../../../domain/garden-map-layout/garden-map-layout';
 import {
   WATERING_ZONES,
   WateringZone,
@@ -42,14 +42,14 @@ import {
   plantingDays,
   wateringZone,
   zoneBreakdown,
-} from '../../../shared/utils/garden-planner';
-import { LayoutPositions } from './garden-layout-repository';
-import { MapInspector } from './map-inspector';
+} from '../../../domain/garden-planner/garden-planner';
+import { LayoutPositions } from './garden-layout-repository/garden-layout-repository';
+import { MapInspector } from './map-inspector/map-inspector';
 import {
   PlantVisual,
   computeVegetation,
   resolvePlantVisual,
-} from '../../../shared/utils/plant-visual-resolver';
+} from '../../../shared/ui/plant-visuals/plant-visual-resolver';
 import {
   CameraState,
   MAX_ZOOM,
@@ -62,7 +62,7 @@ import {
   panBy,
   viewBoxOf,
   zoomBy,
-} from './map-camera';
+} from './map-camera/map-camera';
 
 interface VegView {
   /** Top-left corner + size of the <use>, absolute map units. */

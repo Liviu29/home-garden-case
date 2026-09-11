@@ -92,7 +92,8 @@ flowchart TD
 Arrows point from a layer to what it depends on, and they only point one way. Components read
 signals and call store methods. Stores own server state and derive everything else through pure
 functions. Only the API services know the backend's shapes, and only the interceptors know its
-address. The shared UI kit is presentational — inputs in, outputs out, no store or HTTP access.
+address. The shared UI kit is presentational — inputs in, outputs out; it never imports a feature, app state
+or an API service.
 
 That is what makes each layer testable on its own: domain functions without Angular, stores
 against a stubbed API service, components through the real DOM.
@@ -149,7 +150,7 @@ many teams share cross-cutting state or need action-level tooling.
 Σ plant.surfaceAreaRequired  ≤  garden.totalSurfaceArea
 ```
 
-One implementation, in `shared/utils/garden-insights.ts`, serves the plant form's validator and its
+One implementation, in `domain/garden-insights/garden-insights.ts`, serves the plant form's validator and its
 live _Garden fit_ panel, the stores' occupancy figures, the dashboard and the planner. It follows
 the server's semantics:
 
@@ -336,9 +337,12 @@ apps/
 ├── web/        the Angular application
 │   └── src/app/
 │       ├── core/       API client, interceptors, cache, errors, session, shell
-│       ├── features/   onboarding, dashboard, gardens, garden-detail (with the planner), profile
-│       ├── shared/     UI kit, pure domain utilities, product configuration
-│       └── pages/      not-found
+│       ├── state/      app-wide SignalStores, one folder each
+│       ├── domain/     business rules and maths, one folder per module
+│       ├── features/   one folder per screen: onboarding, dashboard, gardens,
+│       │               garden-detail (with the planner), profile, not-found —
+│       │               the page at its root, every other unit in its own folder
+│       └── shared/ui/  presentational components, one folder each
 └── web-e2e/    Playwright: integration and mocked projects
 bruno/          API collection
 docs/           architecture notes, ADRs, design notes, screenshots, walkthrough deck

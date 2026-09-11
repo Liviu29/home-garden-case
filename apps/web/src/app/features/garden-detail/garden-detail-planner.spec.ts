@@ -10,8 +10,8 @@ import { PlantsApi } from '../../core/api/plants-api';
 import { APP_CONFIG, AppConfig } from '../../core/config/app-config';
 import { ConfirmService } from '../../shared/ui/confirm-dialog/confirm-dialog';
 import { GardenDetail } from './garden-detail';
-import { GardenDetailStore } from './garden-detail-store';
-import { GardenLayoutRepository } from './garden-map/garden-layout-repository';
+import { GardenDetailStore } from './garden-detail-store/garden-detail-store';
+import { GardenLayoutRepository } from './garden-map/garden-layout-repository/garden-layout-repository';
 
 /**
  * The detail screen's planner wiring and plants-table extras: one-bed resets

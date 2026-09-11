@@ -2,7 +2,7 @@ import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { Garden, Plant } from '../../../core/api/models';
-import { LayoutPositions } from './garden-layout-repository';
+import { LayoutPositions } from './garden-layout-repository/garden-layout-repository';
 import { GardenMap } from './garden-map';
 
 /**

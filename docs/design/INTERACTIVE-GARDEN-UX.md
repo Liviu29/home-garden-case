@@ -121,7 +121,7 @@ plants get the same treatment as catalog picks.
 Every tool below is derived from real data — footprints from the layout,
 ideal humidity and plantation dates from the API — and is advice or
 presentation only: none of it changes a capacity number or calls the backend.
-The pure logic lives in `shared/utils/garden-planner.ts` (unit-tested).
+The pure logic lives in `domain/garden-planner/garden-planner.ts` (unit-tested).
 
 - **Free soil follows the beds.** The open ground is drawn as the garden
   _minus every bed_ (an SVG mask), not as a fixed treemap cell. In the

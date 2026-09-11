@@ -12,8 +12,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenuModule } from '@angular/material/menu';
 import { Garden, Plant } from '../../core/api/models';
-import { usedSurfaceArea } from '../../shared/utils/garden-insights';
-import { PlantsIndexStore } from './plants-index-store';
+import { usedSurfaceArea } from '../../domain/garden-insights/garden-insights';
+import { PlantsIndexStore } from '../../state/plants-index-store/plants-index-store';
 import { CapacityBar } from '../../shared/ui/capacity-bar/capacity-bar';
 import { CapacityStatusChip } from '../../shared/ui/capacity-status/capacity-status';
 import { ConfirmService } from '../../shared/ui/confirm-dialog/confirm-dialog';
@@ -22,10 +22,14 @@ import { PageHeader } from '../../shared/ui/page-header/page-header';
 import { Skeleton } from '../../shared/ui/skeleton/skeleton';
 import { SkeletonGroup } from '../../shared/ui/skeleton/skeleton-group';
 import { SkeletonGardenCard } from '../../shared/ui/skeleton/skeleton-garden-card';
-import { GardenFormDialog } from './garden-form-dialog';
-import { GardensStore } from './gardens-store';
-import { GARDEN_SORT_LABEL, GardenSort, filterAndSortGardens } from './garden-view';
-import { PrefetchGarden } from './prefetch-garden';
+import { GardenFormDialog } from './garden-form-dialog/garden-form-dialog';
+import { GardensStore } from '../../state/gardens-store/gardens-store';
+import {
+  GARDEN_SORT_LABEL,
+  GardenSort,
+  filterAndSortGardens,
+} from '../../state/gardens-store/garden-view';
+import { PrefetchGarden } from './prefetch-garden/prefetch-garden';
 import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';

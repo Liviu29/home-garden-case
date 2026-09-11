@@ -1,6 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { Garden, Plant } from '../../../core/api/models';
-import { CAPACITY_STATUS_LABEL, CapacityStatus, capacityStatus } from '../../utils/garden-insights';
+import {
+  CAPACITY_STATUS_LABEL,
+  CapacityStatus,
+  capacityStatus,
+} from '../../../domain/garden-insights/garden-insights';
 import { StatusBadge, StatusTone } from '../status-badge/status-badge';
 
 /** UI-only mapping from the domain capacity status to a presentation tone. */

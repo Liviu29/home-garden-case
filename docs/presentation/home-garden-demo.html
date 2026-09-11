@@ -804,13 +804,14 @@
 ├─ <span style="color: var(--green)">web/src/app/</span>
 │  ├─ <span style="color: var(--text)">core/</span>      api · auth · config · errors
 │  │             http · layout · logging · resilience
-│  ├─ <span style="color: var(--text)">shared/</span>    ui · utils <span style="color: var(--green)">(pure domain)</span> · config
+│  ├─ <span style="color: var(--text)">state/</span>     app-wide SignalStores
+│  ├─ <span style="color: var(--text)">domain/</span>    <span style="color: var(--green)">business rules &amp; maths</span> · catalog
 │  ├─ <span style="color: var(--text)">features/</span>  onboarding · dashboard · gardens
-│  │             garden-detail/garden-map · profile
-│  └─ <span style="color: var(--text)">pages/</span>     not-found
+│  │             garden-detail/garden-map · profile · not-found
+│  └─ <span style="color: var(--text)">shared/ui/</span> one folder per component
 ├─ <span style="color: var(--green)">web-e2e/src/</span> integration · mocked
 └─ <span style="color: var(--green)">api/</span>          provided Fastify backend
-<span style="color: var(--text)">docs/</span>  adr ×7 · architecture · design · reviews
+<span style="color: var(--text)">docs/</span>  adr ×7 · architecture · design · presentation
 <span style="color: var(--text)">bruno/</span> · <span style="color: var(--text)">tools/</span>check-no-spinners.mjs</pre>
       </div>
       <div class="col grow">
@@ -883,7 +884,7 @@
     </header>
     <div class="body mid">
       <div class="col" style="flex: 0 0 900px">
-        <div class="code"><span class="c">// shared/utils/garden-insights.ts</span><br /><span class="k">wouldOvercrowd</span>(garden, plants, requested, <span class="a">excludePlantId</span>)<br />&nbsp;&nbsp;<span class="g">otherArea</span> + requested <span class="a">&gt;</span> garden.totalSurfaceArea</div>
+        <div class="code"><span class="c">// domain/garden-insights/garden-insights.ts</span><br /><span class="k">wouldOvercrowd</span>(garden, plants, requested, <span class="a">excludePlantId</span>)<br />&nbsp;&nbsp;<span class="g">otherArea</span> + requested <span class="a">&gt;</span> garden.totalSurfaceArea</div>
         <ul class="ticks">
           <li>Mirrors the server's strict <b>&gt;</b> — a garden can be exactly <b>100%</b> full</li>
           <li>Editing a plant <b>excludes its own area</b></li>
