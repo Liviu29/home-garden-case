@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  afterNextRender,
   computed,
   effect,
   inject,
@@ -39,6 +40,7 @@ import { PlantFormDialog } from './plant-form-dialog/plant-form-dialog';
 import { ThemeStore } from '../../core/config/theme-store';
 import { Chart } from '../../shared/ui/chart/chart';
 import { readChartPalette } from '../../shared/ui/chart/chart-palette';
+import { HighchartsLoader } from '../../shared/ui/chart/highcharts-loader';
 import { humidityProfileOptions } from './humidity-profile/humidity-profile-options';
 
 type PlantSortKey = 'name' | 'planted' | 'area' | 'humidity';
@@ -174,6 +176,9 @@ export class GardenDetail {
         this.title.setTitle(`${garden.gardenName} · HomeGarden`);
       }
     });
+    // The humidity profile sits below the plan: have its library ready by the time it scrolls in.
+    const charts = inject(HighchartsLoader);
+    afterNextRender(() => charts.prefetchWhenIdle());
   }
 
   protected openEditGarden(garden: Garden): void {

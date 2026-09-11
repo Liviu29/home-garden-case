@@ -131,6 +131,19 @@ describe('humidityProfileOptions (the garden humidity profile)', () => {
     expect(spoken).toContain('Selecting it finds the plant on the plan.');
   });
 
+  it('signs the tooltip drift after rounding: below, on and above the target', () => {
+    const custom = data[0].custom as ProfilePlant;
+    const tooltipFor = (delta: number) =>
+      invoke(
+        options.tooltip?.pointFormatter,
+        asPoint({ ...data[0], custom: { ...custom, delta } }),
+      );
+
+    expect(tooltipFor(-10)).toContain('−10 vs the 35% target');
+    expect(tooltipFor(0.3)).toContain('±0 vs the 35% target');
+    expect(tooltipFor(-0.4)).toContain('±0 vs the 35% target');
+  });
+
   it('finds the plant on the plan when its column is chosen', () => {
     const onSelect = vi.fn();
     const chosen = humidityProfileOptions(GARDEN, plants, null, PALETTE, onSelect);

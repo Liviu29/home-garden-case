@@ -1,10 +1,21 @@
-import type { Point, SeriesBubbleOptions, XAxisOptions, YAxisOptions } from 'highcharts';
+import type {
+  Point,
+  PointOptionsObject,
+  SeriesScatterOptions,
+  XAxisOptions,
+  YAxisOptions,
+} from 'highcharts';
 import {
   ATTENTION_HUMIDITY_DRIFT,
   ATTENTION_OCCUPANCY_RATIO,
 } from '../../../domain/garden-insights/garden-insights';
 import { ChartPalette } from '../../../shared/ui/chart/chart-palette';
-import { PortfolioPoint, describeGarden, portfolioChartOptions } from './portfolio-chart-options';
+import {
+  PortfolioPoint,
+  describeGarden,
+  markerRadius,
+  portfolioChartOptions,
+} from './portfolio-chart-options';
 
 const PALETTE: ChartPalette = {
   text: '#111111',
@@ -64,27 +75,86 @@ describe('portfolioChartOptions (the dashboard portfolio map)', () => {
     garden({ gardenId: 3, name: 'Orchard', occupancyPct: 53.3, drift: 1.4, area: 120, used: 64 }),
   ];
   const options = portfolioChartOptions(gardens, PALETTE, vi.fn());
-  const series = options.series as SeriesBubbleOptions[];
+  const series = options.series as SeriesScatterOptions[];
   const x = options.xAxis as XAxisOptions;
   const y = options.yAxis as YAxisOptions;
+  const pointsOf = (s: SeriesScatterOptions) => s.data as PointOptionsObject[];
 
-  it('draws one bubble series per reason a garden sits where it does', () => {
-    expect(series.map((s) => [s.name, s.color])).toEqual([
-      ['Near capacity', PALETTE.warn],
-      ['Humidity drift', PALETTE.info],
-      ['Healthy', PALETTE.brand],
+  it('draws one series per reason a garden sits where it does', () => {
+    expect(options.chart?.type).toBe('scatter');
+    expect(series.map((s) => [s.id, s.name, s.color])).toEqual([
+      ['capacity', 'Near capacity', PALETTE.warn],
+      ['humidity', 'Humidity drift', PALETTE.info],
+      ['healthy', 'Healthy', PALETTE.brand],
     ]);
   });
 
   it('leaves out a group with no gardens, so the legend never lists an empty one', () => {
     const onlyHealthy = portfolioChartOptions([gardens[2]], PALETTE, vi.fn());
-    expect((onlyHealthy.series as SeriesBubbleOptions[]).map((s) => s.name)).toEqual(['Healthy']);
+    expect((onlyHealthy.series as SeriesScatterOptions[]).map((s) => s.name)).toEqual(['Healthy']);
   });
 
-  it('places each garden by fullness (x), humidity drift (y) and area (z)', () => {
-    expect(series[1].data).toEqual([
-      expect.objectContaining({ x: 38.3, y: 41.3, z: 6, name: 'Balcony <Jungle>' }),
+  it('places each garden by fullness (x) and humidity drift (y), sized by its area', () => {
+    expect(pointsOf(series[1])).toEqual([
+      expect.objectContaining({
+        x: 38.3,
+        y: 41.3,
+        name: 'Balcony <Jungle>',
+        marker: { radius: markerRadius(6, 120) },
+      }),
     ]);
+  });
+
+  it('sizes markers so their AREA follows the garden’s m², like a bubble chart', () => {
+    expect(markerRadius(120, 120)).toBe(26);
+    expect(markerRadius(30, 120)).toBe(16.5); // a quarter of the area → half the extra radius
+    expect(markerRadius(0, 120)).toBe(7); // the smallest stays big enough to click
+    expect(markerRadius(-5, 120)).toBe(7);
+    expect(markerRadius(10, 0)).toBe(7);
+  });
+
+  it('puts names in the near-capacity band on the left, clear of the 100% line', () => {
+    const [full] = pointsOf(series[0]);
+    const [drifting] = pointsOf(series[1]);
+    const fullRadius = markerRadius(10, 120);
+    const driftRadius = markerRadius(6, 120);
+
+    expect(full.dataLabels).toEqual({ align: 'right', x: -(fullRadius + 4), y: -22 });
+    expect(drifting.dataLabels).toEqual({ align: 'left', x: driftRadius + 4, y: 0 });
+  });
+
+  it('stacks the names of gardens crowded near 100% instead of hiding them', () => {
+    const crowded = portfolioChartOptions(
+      [
+        garden({ gardenId: 1, occupancyPct: 91, kind: 'capacity' }),
+        garden({ gardenId: 2, occupancyPct: 100, kind: 'capacity' }),
+        garden({ gardenId: 3, occupancyPct: 98, kind: 'capacity' }),
+        garden({ gardenId: 4, occupancyPct: 40 }),
+      ],
+      PALETTE,
+      vi.fn(),
+    );
+    const offsets = (crowded.series as SeriesScatterOptions[])
+      .flatMap(pointsOf)
+      .map((p) => [(p.custom as PortfolioPoint).gardenId, (p.dataLabels as { y: number }).y]);
+
+    // Off the markers' line: the fullest just above, the next just below,
+    // the next further up. A garden outside the band keeps its own line.
+    expect(offsets).toEqual(
+      expect.arrayContaining([
+        [2, -22],
+        [3, 22],
+        [1, -44],
+        [4, 0],
+      ]),
+    );
+  });
+
+  it('labels the near-capacity band briefly, from its left edge', () => {
+    expect(x.plotBands?.[0].label).toMatchObject({
+      text: `≥ ${ATTENTION_OCCUPANCY_RATIO * 100}% full`,
+      align: 'left',
+    });
   });
 
   it('shades the two attention rules exactly where the dashboard applies them', () => {
@@ -135,6 +205,7 @@ describe('portfolioChartOptions (the dashboard portfolio map)', () => {
     const labels = series.map((s) => s.dataLabels as { enabled?: boolean; formatter?: unknown });
     expect(labels.map((l) => l.enabled)).toEqual([true, true, false]);
     expect(invoke(labels[1].formatter, asPoint(gardens[1]))).toBe('Balcony &lt;Jungle&gt;');
+    expect(invoke(labels[1].formatter, { name: undefined })).toBe('');
   });
 
   it('opens the garden behind a bubble when it is chosen', () => {
@@ -146,12 +217,16 @@ describe('portfolioChartOptions (the dashboard portfolio map)', () => {
     expect(onOpen).toHaveBeenCalledWith(3);
   });
 
-  it('gives narrow screens a bottom legend, smaller bubbles and no labels', () => {
+  it('gives narrow screens a bottom legend and switches every series’ labels off', () => {
     expect(options.responsive?.rules?.[0]).toMatchObject({
       condition: { maxWidth: 560 },
       chartOptions: {
         legend: { verticalAlign: 'bottom' },
-        plotOptions: { bubble: { maxSize: 36 }, series: { dataLabels: { enabled: false } } },
+        series: [
+          { id: 'capacity', dataLabels: { enabled: false } },
+          { id: 'humidity', dataLabels: { enabled: false } },
+          { id: 'healthy', dataLabels: { enabled: false } },
+        ],
       },
     });
   });

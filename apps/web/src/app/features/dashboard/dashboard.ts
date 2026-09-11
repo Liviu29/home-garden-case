@@ -1,4 +1,11 @@
-import { computed, inject, ChangeDetectionStrategy, Component, Injector } from '@angular/core';
+import {
+  afterNextRender,
+  computed,
+  inject,
+  ChangeDetectionStrategy,
+  Component,
+  Injector,
+} from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -28,6 +35,7 @@ import { StatusBadge, StatusTone } from '../../shared/ui/status-badge/status-bad
 import { CAPACITY_STATUS_TONE } from '../../shared/ui/capacity-status/capacity-status';
 import { Chart } from '../../shared/ui/chart/chart';
 import { readChartPalette } from '../../shared/ui/chart/chart-palette';
+import { HighchartsLoader } from '../../shared/ui/chart/highcharts-loader';
 import { PortfolioPoint, portfolioChartOptions } from './portfolio-chart/portfolio-chart-options';
 
 type AttentionKind = 'capacity' | 'humidity';
@@ -84,13 +92,16 @@ export class Dashboard {
   private readonly router = inject(Router);
   private readonly theme = inject(ThemeStore);
 
-  /** The source the plants index follows; the store owns the fan-out itself. */
+  /** The source the plants index follows; the store owns the loading itself. */
   private readonly gardenIds = computed(() => this.gardens.gardens().map((g) => g.gardenId));
 
   constructor() {
     void this.gardens.load();
     // Declare the source once — see PlantsIndexStore.ensureForGardens.
     this.plantsIndex.ensureForGardens(this.gardenIds, { injector: inject(Injector) });
+    // The portfolio map is further down: have its library ready by the time it scrolls in.
+    const charts = inject(HighchartsLoader);
+    afterNextRender(() => charts.prefetchWhenIdle());
   }
 
   protected readonly greeting = computed(() => {

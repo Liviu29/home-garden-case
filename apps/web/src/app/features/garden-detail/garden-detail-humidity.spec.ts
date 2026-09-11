@@ -78,7 +78,10 @@ describe('GardenDetail humidity profile', () => {
         { provide: ConfirmService, useValue: { confirm: vi.fn() } },
         {
           provide: HighchartsLoader,
-          useValue: { load: () => Promise.resolve({ chart } as unknown as HighchartsLib) },
+          useValue: {
+            load: () => Promise.resolve({ chart } as unknown as HighchartsLib),
+            prefetchWhenIdle: vi.fn(),
+          },
         },
       ],
     });

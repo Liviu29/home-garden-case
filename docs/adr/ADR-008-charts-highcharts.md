@@ -22,7 +22,7 @@ because it is a domain scene with custom interaction; these two are standard ana
 
 |                   | Hand-rolled SVG | Chart.js                     | ECharts                             | **Highcharts 13**                                                                  |
 | ----------------- | --------------- | ---------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------- |
-| Bubble + variwide | build both      | bubble only                  | bubble; variwide as a custom series | both built in (`highcharts-more`, `variwide`)                                      |
+| Bubble + variwide | build both      | bubble only                  | bubble; variwide as a custom series | both built in (bubble in `highcharts-more`, `variwide`)                            |
 | Rendering         | SVG             | canvas                       | canvas or SVG                       | SVG                                                                                |
 | Accessibility     | build it all    | canvas: needs a parallel DOM | ARIA description, limited keyboard  | accessibility module: keyboard navigation, per-point descriptions, a chart summary |
 | Licence           | —               | MIT                          | Apache-2.0                          | free for non-commercial use; commercial use needs a licence                        |
@@ -31,11 +31,13 @@ because it is a domain scene with custom interaction; these two are standard ana
 
 **Highcharts**, behind three rules:
 
-1. **Loaded on demand.** `HighchartsLoader` imports the core and the three modules the app uses
-   (`highcharts-more`, `variwide`, `accessibility`) with dynamic imports, once per app. Each
-   chart sits in `@defer (on viewport)` behind a skeleton of the same size, so no route pays for
-   the library until a chart scrolls into view. A failed load shows a text fallback and is
-   retried on the next request.
+1. **Loaded on demand.** `HighchartsLoader` imports the core and the two modules the app uses
+   (`variwide`, `accessibility`) with dynamic imports, once per app. Each chart sits in
+   `@defer (on viewport)` behind a skeleton of the same size, so no route's own chunk carries
+   the library. The two screens that show a chart also ask the loader to fetch it when the
+   browser is idle (`prefetchWhenIdle`, with a short timer where `requestIdleCallback` is
+   missing), so by the time a chart scrolls into view it usually draws at once. A failed load
+   shows a text fallback and is retried on the next request.
 2. **Options are pure functions of domain data.** `portfolioChartOptions` and
    `humidityProfileOptions` take plain data and a colour palette and return Highcharts options,
    unit-tested without Highcharts. The bands, zones and thresholds come from the domain
@@ -50,11 +52,20 @@ changes: Highcharts writes SVG presentation attributes, where `var(--token)` doe
 Both charts lead back into the app: choosing a bubble opens that garden; choosing a column selects
 the plant on the planner, and the planner's selection outlines its column.
 
+**Bubbles without `highcharts-more`.** The first version used Highcharts' bubble series, which
+lives in `highcharts-more` (30.4 kB transferred) together with a dozen series the app never
+draws. The portfolio map now uses the core scatter series with one circular marker per garden
+whose radius grows with the square root of its area — the area-proportional sizing the bubble
+series applies — so the picture is the same and the module is gone. Name labels in the
+near-capacity band sit to the left of their marker, clear of the dashed 100% line and the plot
+edge; on narrow screens the labels switch off per series.
+
 ## Consequences
 
 - **Bundle.** The initial bundle is unchanged (133.1 kB transferred). The library arrives in
-  lazy chunks on the first chart view — core 90.6 kB, accessibility 35.1 kB, `highcharts-more`
-  30.4 kB, `variwide` 1.7 kB: about **158 kB transferred**, once per session.
+  three lazy chunks — core 90.6 kB, accessibility 35.1 kB, `variwide` 1.7 kB: about
+  **127 kB transferred**, once per session, fetched in idle time on the dashboard and garden
+  screens.
 - **Accessibility.** Every bubble and column is a labelled, keyboard-reachable graphic. The axe
   scans in both themes include both charts, and the Playwright tests find points by their
   accessible names.
@@ -66,6 +77,6 @@ the plant on the planner, and the planner's selection outlines its column.
   `<app-chart>`, replacing the library would touch two builder files and one component.
 - **No third-party requests.** The export module is not loaded and the credit link is off; the
   library is bundled, so nothing is fetched from Highcharts' servers.
-- **Trade-off accepted.** About 158 kB for two charts is heavy next to a 133 kB app shell. It is
-  deferred, cached after the first view, and buys accessibility the app would otherwise have to
-  build and maintain itself.
+- **Trade-off accepted.** About 127 kB for two charts is heavy next to a 133 kB app shell. It is
+  deferred, fetched when the browser is idle, cached after the first view, and buys
+  accessibility the app would otherwise have to build and maintain itself.

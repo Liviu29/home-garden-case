@@ -28,8 +28,11 @@ const ZONE_LABEL: Readonly<Record<WateringZone, string>> = {
 };
 
 const round = (value: number, digits = 0): number => Number(value.toFixed(digits));
-const signed = (value: number): string =>
-  `${value > 0 ? '+' : value < 0 ? '−' : '±'}${Math.abs(round(value))}`;
+/** Sign of the ROUNDED value, so a 0.3-point drift reads "±0", never "+0". */
+const signed = (value: number): string => {
+  const whole = round(value);
+  return `${whole > 0 ? '+' : whole < 0 ? '−' : '±'}${Math.abs(whole)}`;
+};
 const plantOf = (point: Point): ProfilePlant => point.options.custom as ProfilePlant;
 
 /** One sentence per plant, shared by the tooltip and by screen readers. */

@@ -6,7 +6,7 @@ import {
 } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import type { Options, SeriesBubbleOptions } from 'highcharts';
+import type { Options, SeriesScatterOptions } from 'highcharts';
 import { Garden, Plant } from '../../core/api/models';
 import { GardensApi } from '../../core/api/gardens-api';
 import { PlantsApi } from '../../core/api/plants-api';
@@ -55,7 +55,7 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
  */
 describe('Dashboard portfolio map', () => {
   let gardensApi: { getAll: ReturnType<typeof vi.fn> };
-  let plantsApi: { getByGarden: ReturnType<typeof vi.fn> };
+  let plantsApi: { getByGarden: ReturnType<typeof vi.fn>; getAll: ReturnType<typeof vi.fn> };
   let chart: ReturnType<typeof vi.fn>;
   let instance: { update: ReturnType<typeof vi.fn>; destroy: ReturnType<typeof vi.fn> };
 
@@ -63,7 +63,7 @@ describe('Dashboard portfolio map', () => {
     instance = { update: vi.fn(), destroy: vi.fn() };
     chart = vi.fn<(container: HTMLElement, options: Options) => typeof instance>(() => instance);
     gardensApi = { getAll: vi.fn() };
-    plantsApi = { getByGarden: vi.fn().mockResolvedValue([]) };
+    plantsApi = { getByGarden: vi.fn().mockResolvedValue([]), getAll: vi.fn() };
     TestBed.configureTestingModule({
       imports: [Dashboard],
       deferBlockBehavior: DeferBlockBehavior.Manual,
@@ -75,7 +75,10 @@ describe('Dashboard portfolio map', () => {
         { provide: PlantsApi, useValue: plantsApi },
         {
           provide: HighchartsLoader,
-          useValue: { load: () => Promise.resolve({ chart } as unknown as HighchartsLib) },
+          useValue: {
+            load: () => Promise.resolve({ chart } as unknown as HighchartsLib),
+            prefetchWhenIdle: vi.fn(),
+          },
         },
       ],
     });
@@ -122,27 +125,20 @@ describe('Dashboard portfolio map', () => {
     expect(section.textContent).toContain('Plant something in a garden to place it on the map.');
   });
 
-  it('plots every planted garden — not the empty or unavailable ones — and a bubble opens it', async () => {
+  it('plots every planted garden — not the empty ones — and a bubble opens it', async () => {
     gardensApi.getAll.mockResolvedValue([
       garden(1, 'Rooftop', 10),
       garden(2, 'Orchard', 20),
       garden(3, 'New bed', 8),
-      garden(4, 'Offline', 8),
     ]);
-    plantsApi.getByGarden.mockImplementation((id: number) =>
-      id === 1
-        ? Promise.resolve([plant(1, 1, 9.5)])
-        : id === 2
-          ? Promise.resolve([plant(2, 2, 4, 55)])
-          : id === 3
-            ? Promise.resolve([])
-            : Promise.reject(new Error('unavailable')),
-    );
+    // Several gardens: their plants arrive in one request.
+    plantsApi.getAll.mockResolvedValue([plant(1, 1, 9.5), plant(2, 2, 4, 55)]);
     const { fixture } = await mount();
 
     const options = await renderChart(fixture);
 
-    const series = options.series as SeriesBubbleOptions[];
+    expect(plantsApi.getByGarden).not.toHaveBeenCalled();
+    const series = options.series as SeriesScatterOptions[];
     expect(series.map((s) => [s.name, (s.data ?? []).length])).toEqual([
       ['Near capacity', 1],
       ['Healthy', 1],
@@ -153,6 +149,22 @@ describe('Dashboard portfolio map', () => {
     ) => void;
     open.call({ options: { custom: { gardenId: 2 } } });
     expect(navigate).toHaveBeenCalledWith(['/gardens', 2]);
+  });
+
+  it('plots nothing for a garden whose plants could not be loaded', async () => {
+    gardensApi.getAll.mockResolvedValue([garden(1, 'Rooftop', 10), garden(4, 'Offline', 8)]);
+    plantsApi.getAll.mockRejectedValue(new Error('unavailable'));
+
+    const { section } = await mount();
+
+    expect(section.textContent).toContain('Plant something in a garden to place it on the map.');
+  });
+
+  it('warms the chart library once the dashboard has rendered', async () => {
+    gardensApi.getAll.mockResolvedValue([]);
+    await mount();
+
+    expect(TestBed.inject(HighchartsLoader).prefetchWhenIdle).toHaveBeenCalled();
   });
 
   it('redraws in the new palette when the theme changes', async () => {

@@ -1,4 +1,4 @@
-import type { Options, Point, SeriesBubbleOptions } from 'highcharts';
+import type { Options, Point, SeriesScatterOptions } from 'highcharts';
 import {
   ATTENTION_HUMIDITY_DRIFT,
   ATTENTION_OCCUPANCY_RATIO,
@@ -28,12 +28,39 @@ const SERIES_NAME: Readonly<Record<PortfolioKind, string>> = {
   healthy: 'Healthy',
 };
 
+/** Marker radius range in px — the smallest garden stays clickable, the largest never swamps. */
+const MIN_RADIUS = 7;
+const MAX_RADIUS = 26;
+/** Gap between a marker's edge and its name label, in px. */
+const LABEL_GAP = 4;
+/**
+ * Gardens crowd together near 100%, where Highcharts would hide every label
+ * that collides. Their names are stacked in rows off the markers' line
+ * instead — the fullest just above it, the next just below, then further out
+ * — so no name crosses a neighbour's marker. A row clears a label's padded box.
+ */
+const LABEL_ROWS = [-1, 1, -2, 2, -3, 3] as const;
+const LABEL_ROW_PX = 22;
+
 const round = (value: number, digits = 0): number => Number(value.toFixed(digits));
 const signed = (value: number): string => {
   const whole = round(value);
   return `${whole > 0 ? '+' : whole < 0 ? '−' : '±'}${Math.abs(whole)}`;
 };
 const pointOf = (point: Point): PortfolioPoint => point.options.custom as PortfolioPoint;
+
+/**
+ * A garden's marker radius: its drawn AREA is proportional to its m², the way
+ * a bubble chart sizes bubbles. Drawing the bubbles as sized scatter markers
+ * keeps the whole `highcharts-more` module (~30 kB gzipped) out of the app.
+ */
+export function markerRadius(area: number, largestArea: number): number {
+  if (largestArea <= 0) {
+    return MIN_RADIUS;
+  }
+  const share = Math.sqrt(Math.max(0, area) / largestArea);
+  return round(MIN_RADIUS + (MAX_RADIUS - MIN_RADIUS) * share, 1);
+}
 
 /** One sentence per garden, shared by the tooltip and by screen readers. */
 export function describeGarden(p: PortfolioPoint): string {
@@ -63,47 +90,77 @@ export function portfolioChartOptions(
   const tolerance = ATTENTION_HUMIDITY_DRIFT;
   const fullest = Math.max(0, ...points.map((p) => p.occupancyPct));
   const widestDrift = Math.max(0, ...points.map((p) => Math.abs(p.drift)));
+  const largestArea = Math.max(0, ...points.map((p) => p.area));
   const xMax = Math.max(100, Math.ceil((fullest + 5) / 10) * 10);
   const yMax = Math.max(30, Math.ceil((widestDrift + 8) / 10) * 10);
   const axisText = { color: palette.muted, fontSize: '12px' };
   const bandText = { color: palette.faint, fontSize: '11px', fontWeight: '600' };
+  const labelRow = new Map(
+    points
+      .filter((p) => p.occupancyPct >= nearPct)
+      .sort((a, b) => b.occupancyPct - a.occupancyPct || a.gardenId - b.gardenId)
+      .map((p, i) => [p.gardenId, LABEL_ROWS[i % LABEL_ROWS.length]]),
+  );
 
   const series = (['capacity', 'humidity', 'healthy'] as const)
-    .map((kind): SeriesBubbleOptions => ({
-      type: 'bubble',
-      name: SERIES_NAME[kind],
-      color:
-        kind === 'capacity' ? palette.warn : kind === 'humidity' ? palette.info : palette.brand,
-      data: points
-        .filter((p) => p.kind === kind)
-        .map((p) => ({
-          x: round(p.occupancyPct, 1),
-          y: round(p.drift, 1),
-          z: p.area,
-          name: p.name,
-          custom: p,
-        })),
-      dataLabels: {
-        // Name the gardens that need attention; healthy ones stay quiet.
-        enabled: kind !== 'healthy',
-        formatter: function (this: Point) {
-          return escapeLabel(String(this.name ?? ''));
+    .map((kind): SeriesScatterOptions => {
+      const color =
+        kind === 'capacity' ? palette.warn : kind === 'humidity' ? palette.info : palette.brand;
+      return {
+        type: 'scatter',
+        id: kind,
+        name: SERIES_NAME[kind],
+        color,
+        marker: {
+          symbol: 'circle',
+          fillColor: withAlpha(color, 0.55),
+          lineColor: color,
+          lineWidth: 1.5,
         },
-        // Click-through: a name label must never cover its own bubble.
-        style: {
-          color: palette.text,
-          textOutline: 'none',
-          fontSize: '11px',
-          fontWeight: '600',
-          pointerEvents: 'none',
+        data: points
+          .filter((p) => p.kind === kind)
+          .map((p) => {
+            const radius = markerRadius(p.area, largestArea);
+            // In the near-capacity band the name reads leftwards, away from
+            // the 100% line and the plot edge, so it never sits on either.
+            const leftwards = p.occupancyPct >= nearPct;
+            return {
+              x: round(p.occupancyPct, 1),
+              y: round(p.drift, 1),
+              name: p.name,
+              marker: { radius },
+              dataLabels: {
+                align: leftwards ? ('right' as const) : ('left' as const),
+                x: leftwards ? -(radius + LABEL_GAP) : radius + LABEL_GAP,
+                y: (labelRow.get(p.gardenId) ?? 0) * LABEL_ROW_PX,
+              },
+              custom: p,
+            };
+          }),
+        dataLabels: {
+          // Name the gardens that need attention; healthy ones stay quiet.
+          enabled: kind !== 'healthy',
+          verticalAlign: 'middle',
+          y: 0,
+          formatter: function (this: Point) {
+            return escapeLabel(String(this.name ?? ''));
+          },
+          // Click-through: a name label must never block its own marker.
+          style: {
+            color: palette.text,
+            textOutline: 'none',
+            fontSize: '11px',
+            fontWeight: '600',
+            pointerEvents: 'none',
+          },
         },
-      },
-    }))
+      };
+    })
     .filter((s) => (s.data?.length ?? 0) > 0);
 
   return {
     chart: {
-      type: 'bubble',
+      type: 'scatter',
       backgroundColor: 'transparent',
       spacing: [8, 8, 8, 8],
       style: { fontFamily: 'inherit' },
@@ -142,10 +199,14 @@ export function portfolioChartOptions(
           from: nearPct,
           to: xMax,
           color: withAlpha(palette.warn, 0.1),
+          // Short and anchored at the band's left edge, clear of the 100% line
+          // (the legend already says "Near capacity").
           label: {
-            text: `Near capacity ≥ ${nearPct}%`,
+            text: `≥ ${nearPct}% full`,
             rotation: 0,
+            align: 'left',
             verticalAlign: 'top',
+            x: 6,
             y: 14,
             style: bandText,
           },
@@ -209,13 +270,6 @@ export function portfolioChartOptions(
       },
     },
     plotOptions: {
-      bubble: {
-        minSize: 14,
-        maxSize: 56,
-        sizeBy: 'area',
-        zMin: 0,
-        marker: { fillOpacity: 0.55, lineWidth: 1.5 },
-      },
       series: {
         cursor: 'pointer',
         point: {
@@ -235,7 +289,9 @@ export function portfolioChartOptions(
           chartOptions: {
             legend: { align: 'center', verticalAlign: 'bottom' },
             yAxis: { title: { text: undefined } },
-            plotOptions: { bubble: { maxSize: 36 }, series: { dataLabels: { enabled: false } } },
+            // Series options outrank plotOptions, so the labels are switched
+            // off per series (matched by id), not with a plotOptions default.
+            series: series.map((s) => ({ id: s.id, dataLabels: { enabled: false } })),
           },
         },
       ],
