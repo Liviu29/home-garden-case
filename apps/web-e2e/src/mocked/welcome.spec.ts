@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * Welcome / profile selection (upgrade brief §52–57): content-shaped skeleton
+ * Welcome / profile selection: content-shaped skeleton
  * on the profiles GET (no spinner), zero-profile onboarding state, multiple
  * profiles, create-profile POST ghost, immediate synchronous selection, and a
  * mobile smoke. Deterministic via route mocks.

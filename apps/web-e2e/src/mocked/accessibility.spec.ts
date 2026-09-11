@@ -3,7 +3,7 @@ import { Page, expect, test } from '@playwright/test';
 import { gardenDto, plantDto, signIn } from '../support/helpers';
 
 /**
- * Automated WCAG scan (REM-010) + keyboard behaviour smoke.
+ * Automated WCAG scan + keyboard behaviour smoke.
  * Scans run on data-loaded states; serious/critical violations fail.
  */
 

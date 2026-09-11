@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { gardenDto, plantDto, signIn } from '../support/helpers';
 
 /**
- * Control-center dashboard (upgrade brief §54–55): content-shaped skeleton on
+ * Control-center dashboard: content-shaped skeleton on
  * the initial GET (no spinner, ever), attention/health card navigation, and a
  * mobile smoke. Deterministic via route mocks.
  */

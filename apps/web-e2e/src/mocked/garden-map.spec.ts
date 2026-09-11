@@ -68,8 +68,8 @@ test.describe('populated garden (map Test 1)', () => {
   });
 });
 
-test.describe('area honesty at 98% (refinement brief §60)', () => {
-  test('a 98% garden reads 98% on the HUD and its free space renders as a real sliver', async ({
+test.describe('area honesty at 98%', () => {
+  test('a 98% garden reads 98% on the HUD and its free space renders as its own cell', async ({
     page,
   }) => {
     await signIn(page);
@@ -90,10 +90,11 @@ test.describe('area honesty at 98% (refinement brief §60)', () => {
     await expect(hud.getByText('98%')).toBeVisible();
     await expect(hud.getByText('0.5 m²')).toBeVisible();
 
-    // The free capacity is drawn, not implied: the tilled strip exists and,
-    // being a sliver, carries the compact "+" marker rather than a label.
+    // The free capacity is drawn, not implied: the tilled cell exists and
+    // states its exact area (a treemap cell of its own, it has room for the
+    // label; only a cell too small for it falls back to a "+" marker).
     await expect(map.locator('.free-band')).toBeVisible();
-    await expect(map.locator('.free-marker')).toBeVisible();
+    await expect(map.locator('text.free-label')).toHaveText(/Available · 0\.5 m²/);
 
     // And the plant cells cover the surface: every plant renders as a plot
     for (const name of ['Sunflower', 'Strawberry', 'Zucchini', 'Lavender', 'Tomato']) {

@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { awaitDialogSettled, gardenDto, plantDto, signIn } from '../support/helpers';
 
 /**
- * Planner upgrade coverage (feature brief): plant discovery, no-scroll
+ * Planner coverage: plant discovery, no-scroll
  * dialog, drag positioning with local persistence, fullscreen, layers.
  */
 
@@ -153,11 +153,15 @@ test.describe('fullscreen planner + layers', () => {
     const embedded = (await stage.boundingBox())!;
 
     await map.getByRole('button', { name: 'Expand planner' }).click();
-    const stageBox = (await stage.boundingBox())!;
     // Fullscreen pins the panel to the viewport: the stage grows materially
     // in HEIGHT (the embedded card is height-capped; width was already near
-    // full-bleed once the shell widened to 80rem).
-    expect(stageBox.height).toBeGreaterThan(embedded.height * 1.25);
+    // full-bleed once the shell widened to 80rem). Zoneless renders on the
+    // next frame — poll, don't read synchronously (a read right after the
+    // click measured the embedded 448px in 4 of 5 repeated runs).
+    await expect
+      .poll(async () => (await stage.boundingBox())!.height)
+      .toBeGreaterThan(embedded.height * 1.25);
+    const stageBox = (await stage.boundingBox())!;
     expect(stageBox.width).toBeGreaterThanOrEqual(embedded.width);
 
     // Layers: hiding labels removes the name plates from the scene

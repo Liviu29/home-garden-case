@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { gardenDto, plantDto, signIn } from '../support/helpers';
 
 /**
- * Contract-driven resilience (BACKEND-API-AUDIT). Every scenario here mirrors a
+ * Contract-driven resilience (API-INTEGRATION.md). Every scenario here mirrors a
  * behaviour verified against the real API:
  *
  * - the API delays every response 200–2000 ms  → overlapping loads are normal

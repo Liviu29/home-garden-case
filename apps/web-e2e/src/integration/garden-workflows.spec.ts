@@ -176,9 +176,7 @@ test.describe('garden lifecycle (real API)', () => {
     await page.keyboard.press('Escape');
   });
 
-  test('REM-001 regression — malformed garden id shows the designed not-found state', async ({
-    page,
-  }) => {
+  test('a malformed garden id shows the designed not-found state', async ({ page }) => {
     await signIn(page);
     await page.goto('/gardens/not-a-number');
     await expect(page.getByText('Garden not found')).toBeVisible();

@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { gardenDto, plantDto, signIn } from '../support/helpers';
 
 /**
- * Request-ownership contract (F-02 / F-03).
+ * Request-ownership contract.
  *
  * Against a backend that adds 200–2000 ms to every response and fails 10 % of
  * them, an avoidable request is both latency and a one-in-ten chance of an

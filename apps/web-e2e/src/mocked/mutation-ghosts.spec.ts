@@ -123,6 +123,46 @@ test.describe('plant mutations render ghosts (ASYNC-UX)', () => {
   });
 });
 
+test.describe('failed mutations resolve back into content (ASYNC-UX)', () => {
+  test('a DELETE that keeps failing: ghost while retried, then the plant is back with a retry', async ({
+    page,
+  }) => {
+    await page.route('**/api/gardens/6', (r) => r.fulfill({ json: garden }));
+    await page.route('**/api/plants/garden/6', (r) => r.fulfill({ json: basePlants }));
+    let deletes = 0;
+    await page.route('**/api/plants/1', async (r) => {
+      deletes++;
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      await r.fulfill({
+        status: 500,
+        json: { error: 'Internal server error', details: ['Random error thrown'] },
+      });
+    });
+    await openDetail(page);
+    await page.getByRole('heading', { name: 'Garden plan' }).scrollIntoViewIfNeeded();
+
+    await page
+      .getByRole('row', { name: /Lavender/ })
+      .getByRole('button', { name: 'Plant actions' })
+      .click();
+    await page.getByRole('menuitem', { name: 'Remove' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Remove', exact: true }).click();
+
+    // In flight (transparently retried): the localized ghost, nothing else
+    await expect(page.locator('tr.ghost-row')).toBeVisible();
+    expect(await page.locator(NO_SPINNER).count()).toBe(0);
+
+    // Resolved back: the real row returns, no ghost is left behind, and the
+    // failure is explained with a way forward
+    await expect(page.getByRole('cell', { name: /Lavender/ })).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('tr.ghost-row')).toHaveCount(0);
+    await expect(page.locator('g.plot.mutating')).toHaveCount(0);
+    await expect(page.getByText("Couldn't remove", { exact: false })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
+    expect(deletes).toBeGreaterThan(1); // transient failures were retried before giving up
+  });
+});
+
 test.describe('garden mutations render ghosts (ASYNC-UX)', () => {
   test('delayed garden POST: a ghost card shimmers in the grid, then becomes the card', async ({
     page,
