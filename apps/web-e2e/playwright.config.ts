@@ -1,4 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
+import { mkdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 /**
  * Two suites, one confidence model (TESTING-STRATEGY.md):
@@ -13,7 +16,16 @@ import { defineConfig, devices } from '@playwright/test';
  *   the random backend cannot guarantee — persistent 500s, exact delays,
  *   empty responses — plus axe scans, keyboard and mobile smoke.
  *   Deterministic and isolated per test (own routes, own storage), so it runs
- *   fully parallel with tight timeouts and no retries.
+ *   fully parallel with tight timeouts and no retries. A shared fixture fails
+ *   any mocked test that makes an API request it did not mock.
+ *
+ * - `webkit`: a cross-engine smoke of the mocked screens on Safari's engine.
+ *   Opt-in locally (`E2E_WEBKIT=1`, after `npx playwright install webkit`);
+ *   always on in CI.
+ *
+ * The suite starts its own stack — a built API and a dev server — on ports of
+ * its own, with a fresh SQLite file per run: integration tests never write into
+ * the database you develop against, and never see what an earlier run left.
  *
  * Synchronization policy: wait for observable behaviour — roles, dialog
  * lifecycle, `waitForResponse`, MutationObserver, animation frames. There are
@@ -21,16 +33,28 @@ import { defineConfig, devices } from '@playwright/test';
  * `page.route` handlers, where they SIMULATE the backend's 200–2000 ms latency
  * rather than make a test wait for time to pass.
  */
+const API_PORT = Number(process.env['E2E_API_PORT'] ?? 3310);
+const WEB_PORT = Number(process.env['E2E_WEB_PORT'] ?? 4310);
+
+const dbDir = join(tmpdir(), 'home-garden-e2e');
+mkdirSync(dbDir, { recursive: true });
+const DB_PATH = join(dbDir, `run-${Date.now()}.sqlite`);
+
+const chromium = {
+  ...devices['Desktop Chrome'],
+  ...(process.env['CHROMIUM_PATH']
+    ? { launchOptions: { executablePath: process.env['CHROMIUM_PATH'] } }
+    : {}),
+};
+const withWebkit = Boolean(process.env['CI'] || process.env['E2E_WEBKIT']);
+
 export default defineConfig({
   testDir: './src',
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
-    baseURL: 'http://localhost:4200',
+    baseURL: `http://localhost:${WEB_PORT}`,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    ...(process.env['CHROMIUM_PATH']
-      ? { launchOptions: { executablePath: process.env['CHROMIUM_PATH'] } }
-      : {}),
   },
   projects: [
     {
@@ -40,7 +64,7 @@ export default defineConfig({
       timeout: 180_000,
       expect: { timeout: 30_000 },
       retries: 1, // the 10%-random-error backend can produce pathological streaks
-      use: { ...devices['Desktop Chrome'] },
+      use: chromium,
     },
     {
       name: 'mocked',
@@ -49,22 +73,46 @@ export default defineConfig({
       timeout: 60_000,
       expect: { timeout: 10_000 },
       retries: 0, // deterministic by construction
-      use: { ...devices['Desktop Chrome'] },
+      use: chromium,
     },
+    ...(withWebkit
+      ? [
+          {
+            name: 'webkit',
+            testDir: './src/mocked',
+            testMatch: [
+              'welcome.spec.ts',
+              'dashboard.spec.ts',
+              'charts.spec.ts',
+              'async-states.spec.ts',
+              'request-ownership.spec.ts',
+            ],
+            fullyParallel: true,
+            timeout: 60_000,
+            expect: { timeout: 10_000 },
+            retries: 0,
+            use: { ...devices['Desktop Safari'] },
+          },
+        ]
+      : []),
   ],
   webServer: [
     {
-      command: 'npx nx dev api',
-      url: 'http://localhost:3000/docs',
+      // A built API rather than the watch-mode dev target: nothing rebuilds
+      // under the suite's feet, and a dev API on :3000 is left alone.
+      command: 'npx nx build api --configuration=development && node apps/api/dist/main.js',
+      url: `http://localhost:${API_PORT}/docs`,
       cwd: '../..',
-      reuseExistingServer: true,
+      env: { PORT: String(API_PORT), HOST: 'localhost', DB_PATH },
+      reuseExistingServer: !process.env['CI'],
       timeout: 120_000,
     },
     {
-      command: 'npx nx dev web',
-      url: 'http://localhost:4200',
+      command: `npx nx dev web --port=${WEB_PORT} --proxy-config=proxy.e2e.conf.mjs`,
+      url: `http://localhost:${WEB_PORT}`,
       cwd: '../..',
-      reuseExistingServer: true,
+      env: { E2E_API_PORT: String(API_PORT) },
+      reuseExistingServer: !process.env['CI'],
       timeout: 180_000,
     },
   ],

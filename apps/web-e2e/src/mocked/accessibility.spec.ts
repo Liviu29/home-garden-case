@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
-import { Page, expect, test } from '@playwright/test';
-import { gardenDto, plantDto, signIn } from '../support/helpers';
+import { Page, expect, test } from '../support/fixtures';
+import { gardenDto, plantDto, routePlants, signIn } from '../support/helpers';
 
 /**
  * Automated WCAG scan + keyboard behaviour smoke.
@@ -22,14 +22,11 @@ async function mockHappyData(page: Page): Promise<void> {
   await page.route('**/api/gardens/1', (route) =>
     route.fulfill({ json: gardenDto({ gardenId: 1, gardenName: 'Axe Garden' }) }),
   );
-  await page.route('**/api/plants/garden/*', (route) =>
-    route.fulfill({
-      json: [
-        plantDto({ plantId: 1, gardenId: 1, name: 'Tomato', area: 6 }),
-        plantDto({ plantId: 2, gardenId: 1, name: 'Basil', area: 2 }),
-      ],
-    }),
-  );
+  await routePlants(page, [
+    plantDto({ plantId: 1, gardenId: 1, name: 'Tomato', area: 6 }),
+    plantDto({ plantId: 2, gardenId: 1, name: 'Basil', area: 2 }),
+    plantDto({ plantId: 3, gardenId: 2, name: 'Mint', area: 3 }),
+  ]);
 }
 
 async function expectNoSeriousViolations(page: Page, context: string): Promise<void> {
@@ -48,7 +45,7 @@ test.describe('axe scans (serious/critical must be zero)', () => {
     await signIn(page);
     await mockHappyData(page);
     await page.goto('/dashboard');
-    await expect(page.locator('.health-card').first()).toBeVisible();
+    await expect(page.getByTestId('health-card').first()).toBeVisible();
     // Hydrate the deferred portfolio map so the scan covers the chart too.
     await page.getByRole('heading', { name: 'Portfolio map' }).scrollIntoViewIfNeeded();
     await expect(page.locator('app-chart .highcharts-root')).toBeVisible();
@@ -62,7 +59,7 @@ test.describe('axe scans (serious/critical must be zero)', () => {
     await signIn(page);
     await mockHappyData(page);
     await page.goto('/gardens');
-    await expect(page.locator('article.card').first()).toBeVisible();
+    await expect(page.getByTestId('garden-card').first()).toBeVisible();
     await expectNoSeriousViolations(page, 'gardens');
   });
 

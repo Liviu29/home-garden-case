@@ -304,6 +304,7 @@
             @for (insight of attention(); track insight.garden.gardenId) {
               <a
                 class="attention-card lift-hover"
+                data-testid="attention-card"
                 [class.is-full]="insight.status === 'full'"
                 [class.is-humidity]="insight.attentionKind === 'humidity'"
                 [routerLink]="['/gardens', insight.garden.gardenId]"
@@ -402,7 +403,11 @@
         <h2 id="health-heading" class="section-title">Garden health</h2>
         <div class="health-grid stagger-children">
           @for (insight of insights(); track insight.garden.gardenId) {
-            <a class="health-card lift-hover" [routerLink]="['/gardens', insight.garden.gardenId]">
+            <a
+              class="health-card lift-hover"
+              data-testid="health-card"
+              [routerLink]="['/gardens', insight.garden.gardenId]"
+            >
               <app-garden-mini-preview
                 class="mini-preview"
                 [garden]="insight.garden"
@@ -425,7 +430,7 @@
                 }
               </span>
               @if (insight.plants; as plants) {
-                <span class="health-meta tabular">
+                <span class="health-meta tabular" data-testid="health-meta">
                   {{ plants.length }} {{ plants.length === 1 ? 'plant' : 'plants' }} ·
                   {{ insight.used | number: '1.0-1' }} / {{ insight.garden.totalSurfaceArea }} m² ·
                   {{ insight.occupancy * 100 | number: '1.0-0' }}%

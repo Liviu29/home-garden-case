@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../support/fixtures';
 import {
   awaitDialogSettled,
   expectNoSpinner,
@@ -17,7 +17,7 @@ const garden = gardenDto({ gardenId: 6, gardenName: 'Ghost Garden', totalSurface
 const basePlants = [plantDto({ plantId: 1, gardenId: 6, name: 'Lavender', area: 5 })];
 
 /** Signs in and opens the seeded "Ghost Garden" detail with its one plant. */
-async function openGhostGarden(page: import('@playwright/test').Page): Promise<void> {
+async function openGhostGarden(page: import('../support/fixtures').Page): Promise<void> {
   await signIn(page);
   await page.goto('/gardens/6');
   await expect(page.getByRole('cell', { name: /Lavender/ })).toBeVisible();
@@ -200,7 +200,9 @@ test.describe('garden mutations render ghosts (ASYNC-UX)', () => {
     await expectNoSpinner(page);
 
     // Resolved: the real card replaces the ghost
-    await expect(page.locator('article.card', { hasText: 'Ghosted Garden' })).toBeVisible();
+    await expect(
+      page.getByTestId('garden-card').filter({ hasText: 'Ghosted Garden' }),
+    ).toBeVisible();
     await expect(page.locator('[aria-label="Creating garden"]')).toHaveCount(0);
   });
 
@@ -222,7 +224,7 @@ test.describe('garden mutations render ghosts (ASYNC-UX)', () => {
     await page.route('**/api/plants/garden/*', (r) => r.fulfill({ json: [] }));
     await page.goto('/gardens');
 
-    const card = page.locator('article.card', { hasText: 'Doomed Garden' });
+    const card = page.getByTestId('garden-card').filter({ hasText: 'Doomed Garden' });
     await expect(card).toBeVisible();
     await card.getByRole('button', { name: 'Garden actions' }).click();
     await page.getByRole('menuitem', { name: 'Delete' }).click();

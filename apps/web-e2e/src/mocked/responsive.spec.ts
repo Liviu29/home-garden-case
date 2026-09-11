@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test';
-import { documentOverflow, gardenDto, plantDto, signIn } from '../support/helpers';
+import { expect, test } from '../support/fixtures';
+import { documentOverflow, gardenDto, plantDto, routePlants, signIn } from '../support/helpers';
 
 /** Mobile-viewport smoke (representative coverage, not a matrix). */
 test.describe('mobile 375×812', () => {
@@ -15,10 +15,10 @@ test.describe('mobile 375×812', () => {
         ],
       }),
     );
-    await page.route('**/api/plants/garden/*', (route) => route.fulfill({ json: [] }));
+    await routePlants(page, []);
     await page.goto('/gardens');
 
-    await expect(page.locator('article.card').first()).toBeVisible();
+    await expect(page.getByTestId('garden-card').first()).toBeVisible();
     expect(await documentOverflow(page)).toBe(0);
 
     await page.getByRole('button', { name: /New garden/ }).click();
@@ -84,7 +84,7 @@ const VIEWPORTS = [
  * the defect actually lives.
  */
 async function cardContentEscapes(
-  page: import('@playwright/test').Page,
+  page: import('../support/fixtures').Page,
   selector: string,
 ): Promise<number> {
   return page.evaluate((sel) => {
@@ -101,7 +101,7 @@ async function cardContentEscapes(
 }
 
 /** Worst-case payload: unbreakable names, full capacity, extreme humidity. */
-async function routeHostileFixture(page: import('@playwright/test').Page): Promise<void> {
+async function routeHostileFixture(page: import('../support/fixtures').Page): Promise<void> {
   const gardens = [
     gardenDto({
       gardenId: 1,
@@ -120,8 +120,7 @@ async function routeHostileFixture(page: import('@playwright/test').Page): Promi
   ];
   await page.route('**/api/gardens', (route) => route.fulfill({ json: gardens }));
   await page.route('**/api/gardens/1', (route) => route.fulfill({ json: gardens[0] }));
-  await page.route('**/api/plants/garden/1', (route) => route.fulfill({ json: plants }));
-  await page.route('**/api/plants/garden/2', (route) => route.fulfill({ json: [] }));
+  await routePlants(page, plants);
 }
 
 for (const viewport of VIEWPORTS) {
@@ -134,12 +133,12 @@ for (const viewport of VIEWPORTS) {
       await page.goto('/dashboard');
 
       await expect(page.getByRole('heading', { name: 'Garden health' })).toBeVisible();
-      await expect(page.locator('.health-card').first()).toBeVisible();
+      await expect(page.getByTestId('health-card').first()).toBeVisible();
       // Wait for the plant fan-out to settle: capacity text is the last thing in.
-      await expect(page.locator('.health-meta').first()).toBeVisible();
+      await expect(page.getByTestId('health-meta').first()).toBeVisible();
       expect(await documentOverflow(page)).toBe(0);
-      expect(await cardContentEscapes(page, '.health-card')).toBe(0);
-      expect(await cardContentEscapes(page, '.attention-card')).toBe(0);
+      expect(await cardContentEscapes(page, '[data-testid="health-card"]')).toBe(0);
+      expect(await cardContentEscapes(page, '[data-testid="attention-card"]')).toBe(0);
     });
 
     test('gardens grid does not overflow horizontally', async ({ page }) => {
@@ -147,9 +146,9 @@ for (const viewport of VIEWPORTS) {
       await routeHostileFixture(page);
       await page.goto('/gardens');
 
-      await expect(page.locator('article.card').first()).toBeVisible();
+      await expect(page.getByTestId('garden-card').first()).toBeVisible();
       expect(await documentOverflow(page)).toBe(0);
-      expect(await cardContentEscapes(page, 'article.card')).toBe(0);
+      expect(await cardContentEscapes(page, '[data-testid="garden-card"]')).toBe(0);
     });
 
     test('garden detail does not overflow horizontally', async ({ page }) => {

@@ -141,7 +141,7 @@ test.describe('garden lifecycle (real API)', () => {
       .getByRole('navigation', { name: 'Primary' })
       .getByRole('link', { name: 'Gardens' })
       .click();
-    const card = page.locator('article.card', { hasText: name });
+    const card = page.getByTestId('garden-card').filter({ hasText: name });
     await expect(card).toBeVisible();
     await card.getByRole('button', { name: 'Garden actions' }).click();
     await page.getByRole('menuitem', { name: 'Delete' }).click();

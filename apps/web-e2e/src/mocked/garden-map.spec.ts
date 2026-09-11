@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../support/fixtures';
 import { gardenDto, plantDto, signIn } from '../support/helpers';
 
 /**
@@ -21,7 +21,7 @@ const plants = [
 ];
 
 async function mockGarden(
-  page: import('@playwright/test').Page,
+  page: import('../support/fixtures').Page,
   opts: { plants: unknown[]; delayPlantsMs?: number },
 ): Promise<void> {
   await page.route('**/api/gardens/6', (route) => route.fulfill({ json: garden }));
@@ -33,7 +33,7 @@ async function mockGarden(
   });
 }
 
-async function openMap(page: import('@playwright/test').Page): Promise<void> {
+async function openMap(page: import('../support/fixtures').Page): Promise<void> {
   await page.goto('/gardens/6');
   // The map ships in a deferred chunk triggered on viewport — bring it in.
   await page.getByRole('heading', { name: 'Garden plan' }).scrollIntoViewIfNeeded();

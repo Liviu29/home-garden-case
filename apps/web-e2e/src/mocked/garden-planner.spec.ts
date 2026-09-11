@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
+import { expect, test } from '../support/fixtures';
 import { awaitDialogSettled, gardenDto, plantDto, signIn } from '../support/helpers';
 
 /**
@@ -17,7 +18,7 @@ const plants = [
   plantDto({ plantId: 2, gardenId: 6, name: 'Basil', area: 2 }),
 ];
 
-async function openPlan(page: import('@playwright/test').Page): Promise<void> {
+async function openPlan(page: import('../support/fixtures').Page): Promise<void> {
   await signIn(page);
   await page.route('**/api/gardens/6', (r) => r.fulfill({ json: garden }));
   await page.route('**/api/plants/garden/6', (r) => r.fulfill({ json: plants }));
@@ -27,6 +28,40 @@ async function openPlan(page: import('@playwright/test').Page): Promise<void> {
     page.getByRole('region', { name: 'Garden plan' }).getByRole('button', { name: /Lavender/ }),
   ).toBeVisible();
 }
+
+test.describe('the plan as a list', () => {
+  test('a text version of the plan: every bed, choosable, accessible, and Escape closes it', async ({
+    page,
+  }) => {
+    await openPlan(page);
+    const plan = page.getByRole('region', { name: 'Garden plan' });
+
+    await plan.getByRole('button', { name: 'Show the plan as a list' }).click();
+    const list = plan.getByRole('region', { name: 'Plan as a list' });
+    await expect(list).toBeVisible();
+    await expect(list.getByRole('row')).toHaveCount(3); // header + two beds
+    await expect(list.getByRole('rowheader', { name: /Lavender/ })).toBeVisible();
+
+    const axe = await new AxeBuilder({ page }).include('app-map-plan-list').analyze();
+    expect(axe.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')).toEqual(
+      [],
+    );
+
+    await list.getByRole('button', { name: 'Basil' }).click();
+    await expect(
+      plan
+        .getByRole('complementary', { name: 'Plant inspector' })
+        .getByRole('heading', { name: 'Basil' }),
+    ).toBeVisible();
+    await expect(plan.getByRole('button', { name: /^Basil,/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
+    await page.keyboard.press('Escape');
+    await expect(list).toHaveCount(0);
+  });
+});
 
 test.describe('plant discovery dialog', () => {
   test.use({ viewport: { width: 1440, height: 900 } });

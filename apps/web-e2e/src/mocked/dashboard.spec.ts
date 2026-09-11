@@ -1,5 +1,12 @@
-import { expect, test } from '@playwright/test';
-import { documentOverflow, expectNoSpinner, gardenDto, plantDto, signIn } from '../support/helpers';
+import { expect, test } from '../support/fixtures';
+import {
+  documentOverflow,
+  expectNoSpinner,
+  gardenDto,
+  plantDto,
+  routePlants,
+  signIn,
+} from '../support/helpers';
 
 /**
  * Control-center dashboard: content-shaped skeleton on
@@ -17,18 +24,12 @@ const gardens = [
   }),
 ];
 
-async function mockPlants(page: import('@playwright/test').Page): Promise<void> {
-  await page.route('**/api/plants/garden/1', (r) =>
-    r.fulfill({
-      json: [
-        plantDto({ plantId: 11, gardenId: 1, name: 'Sunflower row', area: 12 }),
-        plantDto({ plantId: 12, gardenId: 1, name: 'Zucchini', area: 7.5 }),
-      ],
-    }),
-  );
-  await page.route('**/api/plants/garden/2', (r) =>
-    r.fulfill({ json: [plantDto({ plantId: 21, gardenId: 2, name: 'Basil', area: 1 })] }),
-  );
+async function mockPlants(page: import('../support/fixtures').Page): Promise<void> {
+  await routePlants(page, [
+    plantDto({ plantId: 11, gardenId: 1, name: 'Sunflower row', area: 12 }),
+    plantDto({ plantId: 12, gardenId: 1, name: 'Zucchini', area: 7.5 }),
+    plantDto({ plantId: 21, gardenId: 2, name: 'Basil', area: 1 }),
+  ]);
 }
 
 test.describe('dashboard control center', () => {
@@ -53,7 +54,7 @@ test.describe('dashboard control center', () => {
     await expectNoSpinner(page);
 
     // Data lands: skeleton is replaced by the real sections, zero layout jumps
-    await expect(page.locator('.health-card').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('health-card').first()).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('.dash-skeleton')).toHaveCount(0);
     await expect(page.getByText('m² of growing space')).toBeVisible();
     await expect(page.getByText('Utilization')).toBeVisible();
@@ -68,13 +69,13 @@ test.describe('dashboard control center', () => {
     await page.goto('/dashboard');
 
     // Back Garden is 19.5/20 → attention card, sorted first, real link semantics
-    const attention = page.locator('.attention-card', { hasText: 'Back Garden' });
+    const attention = page.getByTestId('attention-card').filter({ hasText: 'Back Garden' });
     await expect(attention).toContainText('98% capacity');
     await attention.click();
     await expect(page.getByRole('heading', { name: 'Back Garden' })).toBeVisible();
 
     await page.goBack();
-    const health = page.locator('.health-card', { hasText: 'Herb Corner' });
+    const health = page.getByTestId('health-card').filter({ hasText: 'Herb Corner' });
     await expect(health).toContainText('Healthy capacity');
     await health.click();
     await expect(page.getByRole('heading', { name: 'Herb Corner' })).toBeVisible();
@@ -93,7 +94,7 @@ test.describe('dashboard control center', () => {
     await page.goto('/dashboard');
 
     await expect(page.getByText('Everything looks healthy')).toBeVisible();
-    await expect(page.locator('.attention-card')).toHaveCount(0);
+    await expect(page.getByTestId('attention-card')).toHaveCount(0);
   });
 
   test('mobile 375×812 smoke — hero, KPIs and cards stack with no horizontal overflow', async ({
@@ -105,7 +106,7 @@ test.describe('dashboard control center', () => {
     await page.route('**/api/gardens', (r) => r.fulfill({ json: gardens }));
     await page.goto('/dashboard');
 
-    await expect(page.locator('.health-card').first()).toBeVisible();
+    await expect(page.getByTestId('health-card').first()).toBeVisible();
     expect(await documentOverflow(page)).toBe(0);
   });
 });

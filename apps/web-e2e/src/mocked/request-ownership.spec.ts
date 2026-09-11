@@ -1,5 +1,5 @@
-import { Page, expect, test } from '@playwright/test';
-import { gardenDto, plantDto, signIn } from '../support/helpers';
+import { Page, expect, test } from '../support/fixtures';
+import { gardenDto, plantDto, routePlants, signIn } from '../support/helpers';
 
 /**
  * Request-ownership contract.
@@ -15,8 +15,9 @@ import { gardenDto, plantDto, signIn } from '../support/helpers';
  *   in flight or just fetched  → reused, never re-requested (hover-prefetch)
  *
  * Exactly one owner starts each fetch: `GardensStore` owns `/gardens`,
- * `PlantsIndexStore` owns `/plants/garden/:id` for list/dashboard screens, and
- * `GardenDetailStore` owns the detail screen's reads.
+ * `PlantsIndexStore` owns the plants — one `/plants` request for every garden
+ * on the list/dashboard screens, `/plants/garden/:id` for a single garden —
+ * and `GardenDetailStore` owns the detail screen's garden read.
  */
 const gardens = [1, 2, 3].map((id) => gardenDto({ gardenId: id, gardenName: `Garden ${id}` }));
 
@@ -34,12 +35,13 @@ async function routeThreeGardens(page: Page): Promise<void> {
   await page.route('**/api/gardens', (route) => route.fulfill({ json: gardens }));
   for (const id of [1, 2, 3]) {
     await page.route(`**/api/gardens/${id}`, (route) => route.fulfill({ json: gardens[id - 1] }));
-    await page.route(`**/api/plants/garden/${id}`, (route) =>
-      route.fulfill({
-        json: [plantDto({ plantId: id * 10, gardenId: id, name: `Plant ${id}`, area: 5 })],
-      }),
-    );
   }
+  await routePlants(
+    page,
+    [1, 2, 3].map((id) =>
+      plantDto({ plantId: id * 10, gardenId: id, name: `Plant ${id}`, area: 5 }),
+    ),
+  );
 }
 
 test.describe('request ownership: one owner, one request', () => {
@@ -50,22 +52,23 @@ test.describe('request ownership: one owner, one request', () => {
     await signIn(page);
     await routeThreeGardens(page);
 
-    // ── Cold load of the dashboard: gardens once, then one fan-out per garden.
+    // ── Cold load of the dashboard: gardens once, then ONE request for the
+    // plants of all three — not one per garden.
     await page.goto('/dashboard');
-    await expect(page.locator('.health-meta').first()).toBeVisible();
-    await expect.poll(() => countOf('GET /api/plants/garden/3')).toBe(1);
+    await expect(page.getByTestId('health-meta').first()).toBeVisible();
+    await expect.poll(() => countOf('GET /api/plants')).toBe(1);
 
     expect(countOf('GET /api/gardens')).toBe(1);
     for (const id of [1, 2, 3]) {
-      expect(countOf(`GET /api/plants/garden/${id}`)).toBe(1);
+      expect(countOf(`GET /api/plants/garden/${id}`)).toBe(0);
     }
 
     // ── Client-side navigation with a fresh cache: no network at all.
     const beforeNavigation = calls.length;
     await page.getByRole('link', { name: 'Gardens' }).first().click();
-    await expect(page.locator('article.card').first()).toBeVisible();
+    await expect(page.getByTestId('garden-card').first()).toBeVisible();
     await page.getByRole('link', { name: 'Dashboard' }).first().click();
-    await expect(page.locator('.health-meta').first()).toBeVisible();
+    await expect(page.getByTestId('health-meta').first()).toBeVisible();
 
     expect(calls.slice(beforeNavigation)).toEqual([]);
   });
@@ -78,7 +81,7 @@ test.describe('request ownership: one owner, one request', () => {
     await routeThreeGardens(page);
     await page.goto('/gardens');
 
-    const card = page.locator('article.card', { hasText: 'Garden 1' });
+    const card = page.getByTestId('garden-card').filter({ hasText: 'Garden 1' });
     await expect(card).toBeVisible();
 
     // The hover alone must start the detail read …
@@ -91,6 +94,9 @@ test.describe('request ownership: one owner, one request', () => {
     await expect(page.getByRole('heading', { name: 'Garden 1', exact: true })).toBeVisible();
     await expect(page.getByRole('cell', { name: /Plant 1/ })).toBeVisible();
     expect(countOf('GET /api/gardens/1')).toBe(1);
-    expect(countOf('GET /api/plants/garden/1')).toBe(1);
+    // The grid's single `/plants` answer was filed per garden, so the detail
+    // screen already has garden 1's plants and asks for nothing more.
+    expect(countOf('GET /api/plants')).toBe(1);
+    expect(countOf('GET /api/plants/garden/1')).toBe(0);
   });
 });

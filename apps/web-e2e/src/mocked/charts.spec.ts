@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test';
-import { gardenDto, plantDto, signIn } from '../support/helpers';
+import { expect, test } from '../support/fixtures';
+import { gardenDto, plantDto, routePlants, signIn } from '../support/helpers';
 
 /**
  * The two Highcharts views (ADR-008), driven through what users and assistive
@@ -21,13 +21,10 @@ test.describe('portfolio map (dashboard)', () => {
       }),
     );
     await page.route('**/api/gardens/1', (route) => route.fulfill({ json: rooftop }));
-    await page.route('**/api/plants/garden/1', (route) =>
-      route.fulfill({ json: [plantDto({ plantId: 1, gardenId: 1, name: 'Lavender', area: 9.5 })] }),
-    );
-    await page.route('**/api/plants/garden/2', (route) =>
-      route.fulfill({ json: [plantDto({ plantId: 2, gardenId: 2, name: 'Apple', area: 12 })] }),
-    );
-    await page.route('**/api/plants/garden/3', (route) => route.fulfill({ json: [] }));
+    await routePlants(page, [
+      plantDto({ plantId: 1, gardenId: 1, name: 'Lavender', area: 9.5 }),
+      plantDto({ plantId: 2, gardenId: 2, name: 'Apple', area: 12 }),
+    ]);
     await page.goto('/dashboard');
 
     await page.getByRole('heading', { name: 'Portfolio map' }).scrollIntoViewIfNeeded();

@@ -1,10 +1,11 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../support/fixtures';
 import {
   awaitDialogSettled,
   documentOverflow,
   expectNoSpinner,
   gardenDto,
   plantDto,
+  routePlants,
   signIn,
 } from '../support/helpers';
 
@@ -52,6 +53,7 @@ test.describe('API failure and recovery (Flow 8)', () => {
         ? route.fulfill({ json: [gardenDto({ gardenId: 1, gardenName: 'Recovered Garden' })] })
         : route.fulfill({ status: 500, json: { error: 'Random error thrown' } }),
     );
+    await routePlants(page, []);
     await page.goto('/gardens');
 
     // Retry interceptor exhausts its budget (4 attempts), then the error state renders
@@ -59,7 +61,9 @@ test.describe('API failure and recovery (Flow 8)', () => {
 
     healthy = true;
     await page.getByRole('button', { name: 'Try again' }).click();
-    await expect(page.locator('article.card', { hasText: 'Recovered Garden' })).toBeVisible();
+    await expect(
+      page.getByTestId('garden-card').filter({ hasText: 'Recovered Garden' }),
+    ).toBeVisible();
   });
 });
 
@@ -82,7 +86,7 @@ test.describe('slow reads render skeletons (Flow 9)', () => {
 
     // Content replaces the ghosts; the live region stays mounted (reliable
     // announcements) but no longer says anything is loading
-    await expect(page.locator('article.card', { hasText: 'Slow Garden' })).toBeVisible();
+    await expect(page.getByTestId('garden-card').filter({ hasText: 'Slow Garden' })).toBeVisible();
     await expect(page.locator('.ghost-slot')).toHaveCount(0);
     await expect(loading).not.toContainText('Loading');
 
@@ -129,7 +133,7 @@ test.describe('slow reads render skeletons (Flow 9)', () => {
     });
     await page.goto('/gardens');
 
-    await expect(page.locator('article.card', { hasText: 'Quick Garden' })).toBeVisible();
+    await expect(page.getByTestId('garden-card').filter({ hasText: 'Quick Garden' })).toBeVisible();
     const peak = await page.evaluate(
       () => (window as unknown as { __ghostPeak: number }).__ghostPeak,
     );
@@ -157,7 +161,7 @@ test.describe('slow reads render skeletons (Flow 9)', () => {
     expect(animation).toBe('skeleton-pulse');
 
     release();
-    await expect(page.locator('article.card', { hasText: 'Calm Garden' })).toBeVisible();
+    await expect(page.getByTestId('garden-card').filter({ hasText: 'Calm Garden' })).toBeVisible();
     await expect(page.locator('.ghost-slot')).toHaveCount(0);
   });
 });
@@ -228,7 +232,9 @@ test.describe('mutation pending state (Flow 10)', () => {
     await submit.click({ force: true });
 
     await expect(page.getByRole('dialog')).toHaveCount(0); // success closes it
-    await expect(page.locator('article.card', { hasText: 'Pending Garden' })).toBeVisible();
+    await expect(
+      page.getByTestId('garden-card').filter({ hasText: 'Pending Garden' }),
+    ).toBeVisible();
     await expect(page.getByText('created', { exact: false })).toBeVisible(); // success toast
     expect(postCount).toBe(1); // duplicate submissions never reached the network
   });

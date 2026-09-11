@@ -19,8 +19,10 @@ export const E2E_PROFILE = {
  * The app revalidates the persisted session against `GET /users/{userId}` on
  * boot and signs out on a 404 (a profile really can vanish — the backend audit
  * added this). Our synthetic profile does not exist server-side, so that single
- * lookup is stubbed here; every other request still goes wherever the project
- * points it. The revalidation behaviour itself is covered in `welcome.spec.ts`.
+ * lookup is stubbed here. Every other request is up to the test: the real API
+ * in the integration project, the test's own routes in the mocked project
+ * (which fails on any request left unrouted — see `fixtures.ts`). The
+ * revalidation behaviour itself is covered in `welcome.spec.ts`.
  */
 export async function signIn(page: Page): Promise<void> {
   await page.route(`**/api/users/${E2E_PROFILE.userId}`, (route) =>
@@ -52,12 +54,12 @@ export async function createGarden(page: Page, name: string, area: string): Prom
   await page.getByLabel('Total surface area (m²)').fill(area);
   await page.getByRole('button', { name: 'Create garden' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0); // closes only on success
-  await expect(page.locator('article.card', { hasText: name })).toBeVisible();
+  await expect(page.getByTestId('garden-card').filter({ hasText: name })).toBeVisible();
 }
 
 /** Open a garden's detail from the gardens grid. */
 export async function openDetail(page: Page, name: string): Promise<void> {
-  await page.locator('article.card', { hasText: name }).getByRole('link').first().click();
+  await page.getByTestId('garden-card').filter({ hasText: name }).getByRole('link').first().click();
   await expect(page.getByRole('heading', { name })).toBeVisible();
 }
 
@@ -118,6 +120,25 @@ export function gardenDto(seed: GardenDtoSeed) {
     createdAt: '2026-04-01 00:00:00',
     updatedAt: '2026-04-01 00:00:00',
   };
+}
+
+/**
+ * Serve a fixed set of plants for both reads the app makes: `GET /plants`
+ * (one request for every garden on the grid and the dashboard) and
+ * `GET /plants/garden/{id}` (the detail screen, or a single garden). Anything
+ * that is not a GET falls through to routes the test registers itself.
+ */
+export async function routePlants(
+  page: Page,
+  plants: readonly { gardenId: number }[],
+): Promise<void> {
+  await page.route('**/api/plants', (route) =>
+    route.request().method() === 'GET' ? route.fulfill({ json: plants }) : route.fallback(),
+  );
+  await page.route('**/api/plants/garden/*', (route) => {
+    const gardenId = Number(new URL(route.request().url()).pathname.split('/').pop());
+    return route.fulfill({ json: plants.filter((p) => p.gardenId === gardenId) });
+  });
 }
 
 export function plantDto(seed: { plantId: number; gardenId: number; name: string; area: number }) {

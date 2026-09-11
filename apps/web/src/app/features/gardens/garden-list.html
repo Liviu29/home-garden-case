@@ -67,6 +67,7 @@
       @for (garden of visibleGardens(); track garden.gardenId) {
         <article
           class="card lift-hover"
+          data-testid="garden-card"
           [class.is-new]="garden.gardenId === newGardenId()"
           [attr.data-garden-id]="garden.gardenId"
           [class.mutation-ghost]="isCardMutating(garden.gardenId)"

@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test';
-import { expectNoSpinner, gardenDto, plantDto, signIn } from '../support/helpers';
+import { expect, test } from '../support/fixtures';
+import { expectNoSpinner, gardenDto, plantDto, routePlants, signIn } from '../support/helpers';
 
 /**
  * Contract-driven resilience (API-INTEGRATION.md). Every scenario here mirrors a
@@ -25,12 +25,10 @@ test.describe('slow-API navigation safety', () => {
       await route.fulfill({ json: gardenOne });
     });
     await page.route('**/api/gardens/2', (route) => route.fulfill({ json: gardenTwo }));
-    await page.route('**/api/plants/garden/1', (route) =>
-      route.fulfill({ json: [plantDto({ plantId: 11, gardenId: 1, name: 'Slowpoke', area: 5 })] }),
-    );
-    await page.route('**/api/plants/garden/2', (route) =>
-      route.fulfill({ json: [plantDto({ plantId: 22, gardenId: 2, name: 'Speedy', area: 3 })] }),
-    );
+    await routePlants(page, [
+      plantDto({ plantId: 11, gardenId: 1, name: 'Slowpoke', area: 5 }),
+      plantDto({ plantId: 22, gardenId: 2, name: 'Speedy', area: 3 }),
+    ]);
 
     // The event that could corrupt this screen is the abandoned garden-1
     // response landing late. Arm the wait BEFORE navigating so we synchronize
@@ -41,13 +39,15 @@ test.describe('slow-API navigation safety', () => {
     // again before it resolves — the classic 200–2000 ms API pattern.
     await page.goto('/gardens');
     await page
-      .locator('article.card', { hasText: 'Slow Garden' })
+      .getByTestId('garden-card')
+      .filter({ hasText: 'Slow Garden' })
       .getByRole('link')
       .first()
       .click();
     await page.getByRole('link', { name: 'Gardens' }).first().click();
     await page
-      .locator('article.card', { hasText: 'Fast Garden' })
+      .getByTestId('garden-card')
+      .filter({ hasText: 'Fast Garden' })
       .getByRole('link')
       .first()
       .click();

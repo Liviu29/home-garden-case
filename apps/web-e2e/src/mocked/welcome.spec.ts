@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../support/fixtures';
 import { documentOverflow, expectNoSpinner } from '../support/helpers';
 
 /**
@@ -85,6 +85,7 @@ test.describe('welcome / profile selection', () => {
     page,
   }) => {
     await page.route('**/api/users', (r) => r.fulfill({ json: one }));
+    await page.route('**/api/users/1', (r) => r.fulfill({ json: one[0] })); // session revalidation
     await page.route('**/api/gardens', (r) => r.fulfill({ json: [] }));
     await page.goto('/welcome');
 
@@ -112,6 +113,7 @@ test.describe('welcome / profile selection', () => {
     await expect(page.getByRole('button', { name: /gardener@example.com/ })).toBeVisible();
 
     // Keyboard: tab reaches a profile card and Enter activates it
+    await page.route('**/api/users/1', (r) => r.fulfill({ json: one[0] })); // session revalidation
     await page.route('**/api/gardens', (r) => r.fulfill({ json: [] }));
     await page.getByRole('button', { name: /Liviu-Petrut Nita/ }).focus();
     await page.keyboard.press('Enter');
@@ -180,6 +182,9 @@ test.describe('welcome / profile selection', () => {
       await gate;
       return route.fulfill({ json: profile(9, 'new@example.com', 'New', 'Gardener') });
     });
+    await page.route('**/api/users/9', (r) =>
+      r.fulfill({ json: profile(9, 'new@example.com', 'New', 'Gardener') }),
+    );
     await page.route('**/api/gardens', (r) => r.fulfill({ json: [] }));
     await page.goto('/welcome');
 
