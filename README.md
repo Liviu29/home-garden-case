@@ -75,7 +75,7 @@ Angular (instead of the suggested React meta-framework) was agreed with the team
   [below](#the-garden-planner). The plan, the humidity profile and the portfolio map each save
   as a PNG, drawn in the browser.
 
-Light and dark themes; layouts from 375 to 1920 px.
+English and Dutch; light and dark themes; layouts from 375 to 1920 px.
 
 | Dashboard                                    | Add a plant                                                      | Skeleton-first loading                                         |
 | -------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------- |
@@ -234,9 +234,11 @@ Coverage follows risk: the most tests sit where a bug would hurt most.
 | Components                | what a user notices, through the real DOM: skeleton → data → empty or error, inline verdicts                                | Vitest + TestBed    |
 | Playwright, mocked        | what randomness cannot guarantee: exact delays, persistent 500s, failing mutations, planner interaction, layouts, axe scans | Playwright          |
 | Playwright, integration   | the core flows against the real slow, flaky API — retry layer included                                                      | Playwright          |
+| UI kit                    | every shared component in its states, each story scanned by axe in isolation                                                | Storybook + axe     |
 
-Supporting numbers: 815 web and 31 API Vitest tests; 74 mocked and 6 integration Playwright tests,
-plus a WebKit smoke run in CI; a 95% threshold on statements, branches, functions and lines.
+Supporting numbers: 933 web and 38 API Vitest tests; 77 mocked and 6 integration Playwright tests,
+plus a WebKit smoke run in CI; 34 Storybook stories scanned by axe; a 95% threshold on statements,
+branches, functions and lines.
 
 The e2e suite starts its own API and dev server with a fresh database per run, so it never writes
 into the database you develop against, and a shared fixture fails any mocked test that makes an API
@@ -266,8 +268,25 @@ a visible focus ring everywhere; Material CDK dialogs that trap and restore focu
 planner (every bed is a labelled button, arrow keys move a bed, each move is announced) with a text
 version of the plan; charts whose every point is a labelled, keyboard-reachable graphic; state never
 by colour alone; `prefers-reduced-motion` respected. Axe scans in both themes, charts and the plan
-list included, run in the Playwright suite and fail it on serious or critical issues.
+list included, run in the Playwright suite and fail it on serious or critical issues; every story of
+the shared UI kit is scanned the same way in Storybook.
 ([ACCESSIBILITY.md](docs/architecture/ACCESSIBILITY.md))
+
+## Dutch and English
+
+The whole interface is in English and Dutch, with Angular's own compile-time i18n
+([ADR-010](docs/adr/ADR-010-i18n.md)): the production build is one build per language, under `/en/`
+and `/nl/`, with the text inlined — no translation files to fetch and no flash of the wrong
+language. The EN | NL switch in the top bar opens the same page in the other language and remembers
+the choice; a first visit follows the browser's language. Numbers and dates follow the language
+too (`15,8 m²`). Garden and plant names stay as they were typed.
+
+- `npm run dev:web:nl` runs the app in Dutch; the development server serves one language at a time,
+  so the switch shows only on a production build (`node tools/serve-dist.mjs`).
+- New text is marked where it lives (`i18n` in templates, `` $localize`…` `` in code). Then
+  `npm run i18n:extract` updates `src/locale/messages.json`, and the Dutch goes in
+  `src/locale/messages.nl.json` under the same id. The production build fails on any text without
+  a Dutch translation.
 
 ## Project structure
 
@@ -282,12 +301,15 @@ apps/
 │       ├── features/   one folder per screen: onboarding, dashboard, gardens,
 │       │               garden-detail (with the planner), profile, not-found —
 │       │               the page at its root, every other unit in its own folder
-│       └── shared/ui/  presentational components, one folder each
+│       └── shared/ui/  presentational components, one folder each, with their stories
+│   ├── src/locale/     English and Dutch messages
+│   └── .storybook/     Storybook for the shared UI kit
 └── web-e2e/    Playwright: integration, mocked and WebKit projects
 .github/        CI (GitHub Actions)
 bruno/          API collection
 docs/           architecture notes, ADRs, design notes, screenshots, walkthrough deck
-tools/          Node version check, spinner check, production preview server
+tools/          Node version check, spinner check, production preview server, Storybook axe check,
+                demo seed and container start-up
 ```
 
 ## Getting started
@@ -325,11 +347,16 @@ it again.
 | `npm run check:no-spinners` | fails if a spinner appears anywhere in the app                      |
 | `npm run seed`              | adds the demo profiles and gardens (the API must be running)        |
 | `npm run seed:reset`        | removes the demo data, then adds it again                           |
+| `npm run dev:web:nl`        | the web app in Dutch (the dev server serves one language at a time) |
+| `npm run i18n:extract`      | re-extracts the English messages into `src/locale/messages.json`    |
+| `npm run storybook`         | Storybook for the shared UI kit, on http://localhost:6006           |
+| `npm run build-storybook`   | a static Storybook in `apps/web/dist/storybook`                     |
+| `npm run storybook:a11y`    | axe (WCAG 2.2 AA) on every story of the built Storybook             |
 
 ## Production build
 
 ```bash
-npm run build:web                      # → apps/web/dist/web/browser
+npm run build:web                      # → apps/web/dist/web/browser/en and …/nl
 node tools/serve-dist.mjs --port 4300  # preview the build the way a static host serves it
 ```
 
@@ -397,7 +424,7 @@ deploying needs a hosting account.
 | Planner interaction design                       | [INTERACTIVE-GARDEN-UX.md](docs/design/INTERACTIVE-GARDEN-UX.md)           |
 | Design system                                    | [DESIGN-SYSTEM.md](docs/design/DESIGN-SYSTEM.md)                           |
 | Build, hosting, dependencies                     | [PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md)                    |
-| Architecture decisions                           | [ADR-001 … ADR-008](docs/adr/)                                             |
+| Architecture decisions                           | [ADR-001 … ADR-010](docs/adr/)                                             |
 
 A walkthrough deck is in [docs/presentation/home-garden-demo.html](docs/presentation/home-garden-demo.html)
 (open it locally in a browser).

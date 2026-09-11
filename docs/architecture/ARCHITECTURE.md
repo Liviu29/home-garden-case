@@ -45,6 +45,7 @@ apps/web/src/
 │   │   ├── config/            # APP_CONFIG (API base URL, cache TTL, retry policy), ThemeStore
 │   │   ├── errors/            # ApiError taxonomy, global ErrorHandler, ToastStore
 │   │   ├── http/              # interceptors: base URL, retry with backoff + jitter
+│   │   ├── i18n/              # the EN/NL switch: each language is its own build (ADR-010)
 │   │   ├── layout/            # the shell: top bar, navigation, profile menu, page backdrop
 │   │   ├── logging/           # the Logger seam and its optional sink (sendBeacon)
 │   │   ├── telemetry/         # Core Web Vitals, measured with PerformanceObserver
@@ -82,10 +83,15 @@ apps/web/src/
 │                              # state, stat card, capacity bar, humidity gauge, confirm dialog,
 │                              # toasts, value presets, plant artwork and its resolver,
 │                              # <app-chart>: Highcharts, loaded on demand (ADR-008), and the
-│                              # PNG export of any on-screen SVG (drawn in the browser)
+│                              # PNG export of any on-screen SVG (drawn in the browser);
+│                              # each component's *.stories.ts sits next to it (Storybook)
 ├── environments/              # the one build-time switch: apiBaseUrl
+├── locale/                    # messages.json (English, extracted) and messages.nl.json (ADR-010)
 └── styles/                    # design tokens, motion presets, the skeleton engine
 ```
+
+`apps/web/.storybook/` configures Storybook for the shared UI kit: the app's global styles, the
+light and dark themes as a toolbar switch, and the a11y add-on.
 
 - **One folder per unit.** The files at the root of a feature folder are its routed page. Every
   other component, directive, store or domain module lives in its own folder, named after it,

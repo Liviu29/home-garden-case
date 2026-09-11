@@ -13,7 +13,7 @@ verified. Companion reading: [ARCHITECTURE.md](./architecture/ARCHITECTURE.md) �
 | Frontend   | Angular 22.1.x — standalone, zoneless, signals, strict + `strictTemplates`                                                                                                              |
 | Backend    | Fastify 5 + Kysely + better-sqlite3 (the case's own API, extended in small additive steps: [ADR-003](./adr/ADR-003-backend-extension.md), [ADR-009](./adr/ADR-009-garden-ownership.md)) |
 | Node       | 22.22.3+ or 24.15+, pinned to 24.21.0 in `.nvmrc`. `engine-strict` stops `npm ci` early on any other version; Node 26 is out because better-sqlite3 12.4 stops at 24                    |
-| TypeScript | 5.9 at the workspace root (Nx + API), 6.0 inside `apps/web` (Angular 22). Two pins on purpose — each project builds against the version its toolchain supports                          |
+| TypeScript | 6.0 across the workspace (Angular 22 requires it; typescript-eslint 8.70 supports it). Nx's own ESLint plugin keeps a private 5.9 copy                                                  |
 
 ## Development configuration
 
@@ -28,18 +28,18 @@ verified. Companion reading: [ARCHITECTURE.md](./architecture/ARCHITECTURE.md) �
 
 ## Production configuration
 
-`npm run build:web` → `apps/web/dist/web/browser` (`defaultConfiguration: production`).
+`npm run build:web` → `apps/web/dist/web/browser/en` and `…/browser/nl`: one build per language (`defaultConfiguration: production`, [ADR-010](./adr/ADR-010-i18n.md)).
 
-| Concern        | Setting                                                                              | Why                                                                                                    |
-| -------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| Optimization   | `optimization: true`                                                                 | explicit rather than inherited                                                                         |
-| AOT            | always on (Angular 22 application builder)                                           | —                                                                                                      |
-| Source maps    | `sourceMap: false`                                                                   | no `.map` files in the output. A monitoring setup would upload private maps instead of publishing them |
-| Output hashing | `outputHashing: "all"`                                                               | immutable asset caching                                                                                |
-| Named chunks   | `namedChunks: false`                                                                 | no source-path leakage in filenames                                                                    |
-| Licenses       | `extractLicenses: true` → `3rdpartylicenses.txt`                                     | attribution ships with the bundle                                                                      |
-| Environment    | `fileReplacements`: `environment.ts` → `environment.production.ts`                   | the one build-time switch                                                                              |
-| Budgets        | initial 500 kB warn / **600 kB error**; `anyComponentStyle` 12 kB warn / 16 kB error | a real gate: the build _fails_ on a regression, it does not merely warn                                |
+| Concern        | Setting                                                                              | Why                                                                                                                 |
+| -------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| Optimization   | `optimization: true`                                                                 | explicit rather than inherited                                                                                      |
+| AOT            | always on (Angular 22 application builder)                                           | —                                                                                                                   |
+| Source maps    | `sourceMap: false`                                                                   | no `.map` files in the output. A monitoring setup would upload private maps instead of publishing them              |
+| Output hashing | `outputHashing: "all"`                                                               | immutable asset caching                                                                                             |
+| Named chunks   | `namedChunks: false`                                                                 | no source-path leakage in filenames                                                                                 |
+| Licenses       | `extractLicenses: true` → `3rdpartylicenses.txt`                                     | attribution ships with the bundle                                                                                   |
+| Environment    | `fileReplacements`: `environment.ts` → `environment.production.ts`                   | the one build-time switch                                                                                           |
+| Budgets        | initial 520 kB warn / **600 kB error**; `anyComponentStyle` 12 kB warn / 16 kB error | a real gate: the build _fails_ on a regression. The warning moved from 500 to 520 kB for the i18n runtime (ADR-010) |
 
 The built output contains **no `localhost` string, no source maps, no spec or fixture
 files, no `.env` and no test reports.**
@@ -64,18 +64,22 @@ paint on an API that answers in 200–2000 ms.
 
 ## Hosting requirements
 
-The build is static files. A host must do exactly two things:
+The build is static files, one folder per language. A host must do three things:
 
-1. **SPA fallback** — serve `index.html` for unknown paths, or a hard refresh on
-   `/gardens/1` returns a file-server 404. Client-side routing is an architectural
-   choice ([ADR-001](./adr/ADR-001-angular-over-react.md)), and this is its hosting cost.
+1. **SPA fallback, per language** — serve `/en/index.html` for unknown paths under
+   `/en/` (and `/nl/index.html` under `/nl/`), or a hard refresh on `/nl/gardens/1`
+   returns a file-server 404. Client-side routing is an architectural choice
+   ([ADR-001](./adr/ADR-001-angular-over-react.md)), and this is its hosting cost.
 2. **Reverse-proxy `/api/*`** to the backend, stripping the `/api` prefix exactly as
    `proxy.conf.json` does in development.
+3. **Send everything else into a language** — `/` and paths outside `/en/` and
+   `/nl/` redirect (302, `Vary: Cookie, Accept-Language`) to the `lang` cookie's
+   language, else the browser's, else English ([ADR-010](./adr/ADR-010-i18n.md)).
 
 Caching: `index.html` must be served `no-cache`; every other file is content-hashed
 and can be `max-age=31536000, immutable`.
 
-`tools/serve-dist.mjs` implements all three rules in ~90 dependency-free lines and
+`tools/serve-dist.mjs` implements these rules and the caching in ~150 dependency-free lines and
 previews the production bundle locally (`node tools/serve-dist.mjs`). The
 `Dockerfile` reuses it for a **demo image**: the built API on loopback and this
 server on `$PORT`, started together by `tools/start-demo.mjs`, with the SQLite
