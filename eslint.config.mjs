@@ -6,7 +6,16 @@ export default [
   ...nx.configs['flat/typescript'],
   ...nx.configs['flat/javascript'],
   {
-    ignores: ['**/dist', '**/out-tsc', '**/.angular', '**/coverage'],
+    // Generated output. The Playwright report holds the trace viewer's
+    // minified bundles once a test retries, and linting those takes minutes.
+    ignores: [
+      '**/dist',
+      '**/out-tsc',
+      '**/.angular',
+      '**/coverage',
+      '**/playwright-report',
+      '**/test-results',
+    ],
   },
   {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
