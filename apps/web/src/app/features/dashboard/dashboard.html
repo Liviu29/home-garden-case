@@ -269,6 +269,32 @@
       </app-stat-card>
     </div>
 
+    <!-- ── Portfolio map: the attention rules, drawn (ADR-008) ── -->
+    <section class="section anim-fade-up" aria-labelledby="portfolio-heading">
+      <h2 id="portfolio-heading" class="section-title">Portfolio map</h2>
+      <p class="portfolio-sub">
+        Each planted garden by how full it is and how far its plants' humidity drifts from its
+        target. Bubble size is the garden's area; the shaded bands are the attention rules. Choose a
+        bubble to open the garden.
+      </p>
+      <div class="chart-card">
+        @if (!plantsSettled()) {
+          <app-skeleton class="skeleton-appear" variant="rect" w="100%" h="100%" />
+        } @else if (portfolio().length === 0) {
+          <p class="portfolio-note">Plant something in a garden to place it on the map.</p>
+        } @else {
+          @defer (on viewport; prefetch on idle) {
+            <app-chart
+              [options]="portfolioOptions()"
+              fallback="The portfolio map couldn't load. The cards below show the same information."
+            />
+          } @placeholder {
+            <app-skeleton variant="rect" w="100%" h="100%" />
+          }
+        }
+      </div>
+    </section>
+
     <div class="overview-grid">
       <!-- ── Attention Center ── -->
       <section class="section anim-fade-up" aria-labelledby="attention-heading">

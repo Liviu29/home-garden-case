@@ -1,9 +1,10 @@
 import { computed, inject, ChangeDetectionStrategy, Component, Injector } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { Garden, Plant } from '../../core/api/models';
 import { SessionStore } from '../../core/auth/session-store';
+import { ThemeStore } from '../../core/config/theme-store';
 import { CapacityBar } from '../../shared/ui/capacity-bar/capacity-bar';
 import { EmptyState } from '../../shared/ui/empty-state/empty-state';
 import { PlantArtworkDefs } from '../../shared/ui/plant-visuals/plant-artwork-defs';
@@ -25,6 +26,9 @@ import { PlantsIndexStore } from '../../state/plants-index-store/plants-index-st
 import { GardenMiniPreview } from './garden-mini-preview/garden-mini-preview';
 import { StatusBadge, StatusTone } from '../../shared/ui/status-badge/status-badge';
 import { CAPACITY_STATUS_TONE } from '../../shared/ui/capacity-status/capacity-status';
+import { Chart } from '../../shared/ui/chart/chart';
+import { readChartPalette } from '../../shared/ui/chart/chart-palette';
+import { PortfolioPoint, portfolioChartOptions } from './portfolio-chart/portfolio-chart-options';
 
 type AttentionKind = 'capacity' | 'humidity';
 
@@ -68,6 +72,7 @@ interface GardenInsight {
     GardenMiniPreview,
     PlantArtworkDefs,
     StatusBadge,
+    Chart,
   ],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
@@ -76,6 +81,8 @@ export class Dashboard {
   protected readonly session = inject(SessionStore);
   protected readonly gardens = inject(GardensStore);
   protected readonly plantsIndex = inject(PlantsIndexStore);
+  private readonly router = inject(Router);
+  private readonly theme = inject(ThemeStore);
 
   /** The source the plants index follows; the store owns the fan-out itself. */
   private readonly gardenIds = computed(() => this.gardens.gardens().map((g) => g.gardenId));
@@ -179,6 +186,32 @@ export class Dashboard {
   protected readonly utilizationPct = computed(() => {
     const total = this.totalArea();
     return total > 0 ? Math.round((this.usedArea() / total) * 100) : 0;
+  });
+
+  /** Every planted garden, placed for the portfolio map (ADR-008). */
+  protected readonly portfolio = computed<PortfolioPoint[]>(() =>
+    this.insights()
+      .filter((i) => i.plants !== undefined && i.plants.length > 0)
+      .map((i) => ({
+        gardenId: i.garden.gardenId,
+        name: i.garden.gardenName,
+        occupancyPct: i.occupancy * 100,
+        // A planted garden always has an average and a delta.
+        drift: i.delta as number,
+        area: i.garden.totalSurfaceArea,
+        used: i.used,
+        target: i.garden.targetHumidityLevel,
+        average: i.avgHumidity as number,
+        kind: i.needsAttention ? i.attentionKind : 'healthy',
+      })),
+  );
+
+  /** Rebuilt when the data or the theme changes: chart colours come from the tokens. */
+  protected readonly portfolioOptions = computed(() => {
+    this.theme.theme();
+    return portfolioChartOptions(this.portfolio(), readChartPalette(), (gardenId) => {
+      void this.router.navigate(['/gardens', gardenId]);
+    });
   });
 
   /**

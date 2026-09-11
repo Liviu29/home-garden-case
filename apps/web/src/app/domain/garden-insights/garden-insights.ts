@@ -107,8 +107,8 @@ export function capacityStatus(garden: Garden, plants: readonly Plant[]): Capaci
 }
 
 /** Attention thresholds used by the dashboard (DESIGN-SYSTEM §6). */
-const ATTENTION_OCCUPANCY_RATIO = 0.9;
-const ATTENTION_HUMIDITY_DRIFT = 15;
+export const ATTENTION_OCCUPANCY_RATIO = 0.9;
+export const ATTENTION_HUMIDITY_DRIFT = 15;
 
 interface GardenAttention {
   readonly nearCapacity: boolean;

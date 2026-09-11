@@ -49,6 +49,9 @@ test.describe('axe scans (serious/critical must be zero)', () => {
     await mockHappyData(page);
     await page.goto('/dashboard');
     await expect(page.locator('.health-card').first()).toBeVisible();
+    // Hydrate the deferred portfolio map so the scan covers the chart too.
+    await page.getByRole('heading', { name: 'Portfolio map' }).scrollIntoViewIfNeeded();
+    await expect(page.locator('app-chart .highcharts-root')).toBeVisible();
     await expectNoSeriousViolations(page, 'dashboard/light');
 
     await page.getByRole('button', { name: /Switch to dark theme/ }).click();
@@ -73,6 +76,9 @@ test.describe('axe scans (serious/critical must be zero)', () => {
     await expect(
       page.getByRole('region', { name: 'Garden plan' }).getByRole('button', { name: /Tomato/ }),
     ).toBeVisible();
+    // …and the humidity profile below it.
+    await page.getByRole('heading', { name: 'Humidity profile' }).scrollIntoViewIfNeeded();
+    await expect(page.locator('app-chart .highcharts-root')).toBeVisible();
     await expectNoSeriousViolations(page, 'garden-detail');
   });
 });

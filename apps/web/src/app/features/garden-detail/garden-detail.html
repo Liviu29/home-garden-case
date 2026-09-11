@@ -304,6 +304,35 @@
         }
       </section>
 
+      @if (humidityProfile(); as profile) {
+        <section class="panel anim-fade-up" aria-labelledby="humidity-heading">
+          <div class="panel-head humidity-head">
+            <div>
+              <h2 id="humidity-heading" class="panel-title">Humidity profile</h2>
+              <p class="panel-sub">
+                One column per plant: as wide as the space it takes, as tall as the humidity it
+                wants. Choose a column to find the plant on the plan.
+              </p>
+            </div>
+            <ul class="zone-key" aria-label="Watering zones">
+              <li><span class="zone-swatch dry" aria-hidden="true"></span>Dry &lt; 50%</li>
+              <li><span class="zone-swatch balanced" aria-hidden="true"></span>Balanced 50–69%</li>
+              <li><span class="zone-swatch humid" aria-hidden="true"></span>Humid ≥ 70%</li>
+            </ul>
+          </div>
+          <div class="chart-frame">
+            @defer (on viewport; prefetch on idle) {
+              <app-chart
+                [options]="profile"
+                fallback="The humidity profile couldn't load. The plants table below lists each plant's humidity."
+              />
+            } @placeholder {
+              <app-skeleton variant="rect" w="100%" h="100%" />
+            }
+          </div>
+        </section>
+      }
+
       <section class="panel anim-fade-up" aria-labelledby="plants-heading">
         <div class="panel-head">
           <h2 id="plants-heading" class="panel-title">Plants</h2>

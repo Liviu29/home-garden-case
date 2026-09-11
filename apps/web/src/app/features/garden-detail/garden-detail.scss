@@ -494,3 +494,55 @@
     box-shadow: var(--focus-ring);
   }
 }
+
+// ── Humidity profile (ADR-008) ───────────────────────────────────────────────
+.humidity-head {
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+
+.zone-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+  }
+}
+
+.zone-swatch {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: var(--radius-s);
+
+  &.dry {
+    background: var(--zone-dry);
+  }
+  &.balanced {
+    background: var(--zone-balanced);
+  }
+  &.humid {
+    background: var(--zone-humid);
+  }
+}
+
+.chart-frame {
+  height: 19rem;
+
+  > * {
+    display: block;
+    height: 100%;
+  }
+
+  @media (max-width: 560px) {
+    height: 17rem;
+  }
+}

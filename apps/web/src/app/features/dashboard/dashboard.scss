@@ -637,3 +637,37 @@
     height: 100%;
   }
 }
+
+// ── Portfolio map (ADR-008) ──────────────────────────────────────────────────
+.portfolio-sub {
+  margin: calc(-1 * var(--sp-2)) 0 var(--sp-3);
+  max-width: 62rem;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+
+.chart-card {
+  height: 24rem;
+  padding: var(--sp-3);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-l);
+  box-shadow: var(--shadow-1);
+
+  > * {
+    display: block;
+    height: 100%;
+  }
+
+  @media (max-width: 560px) {
+    height: 20rem;
+  }
+}
+
+.portfolio-note {
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+}

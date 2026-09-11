@@ -36,6 +36,10 @@ import {
 import { GardenMap } from './garden-map/garden-map';
 import { GardenMapSkeleton } from './garden-map/garden-map-skeleton/garden-map-skeleton';
 import { PlantFormDialog } from './plant-form-dialog/plant-form-dialog';
+import { ThemeStore } from '../../core/config/theme-store';
+import { Chart } from '../../shared/ui/chart/chart';
+import { readChartPalette } from '../../shared/ui/chart/chart-palette';
+import { humidityProfileOptions } from './humidity-profile/humidity-profile-options';
 
 type PlantSortKey = 'name' | 'planted' | 'area' | 'humidity';
 type SortDir = 'asc' | 'desc';
@@ -81,6 +85,7 @@ const DAY_MS = 86_400_000;
     GardenMapSkeleton,
     PlantArtworkDefs,
     PlantThumb,
+    Chart,
   ],
   templateUrl: './garden-detail.html',
   styleUrl: './garden-detail.scss',
@@ -92,6 +97,28 @@ export class GardenDetail {
 
   /** Shared map↔table selection — Garden Detail UI state, never global. */
   protected readonly selectedPlantId = signal<number | null>(null);
+
+  private readonly theme = inject(ThemeStore);
+
+  /**
+   * The humidity profile (ADR-008): one column per plant, rebuilt when the
+   * plants, the selection or the theme change. Null while there is nothing to draw.
+   */
+  protected readonly humidityProfile = computed(() => {
+    const garden = this.store.garden();
+    const plants = this.store.plants();
+    if (!garden || this.store.plantsStatus() !== 'ready' || plants.length === 0) {
+      return null;
+    }
+    this.theme.theme();
+    return humidityProfileOptions(
+      garden,
+      plants,
+      this.selectedPlantId(),
+      readChartPalette(),
+      (id) => this.findOnPlan(id),
+    );
+  });
 
   // ── Planner UI state: local to this screen.
   // Positions are browser-local VISUAL preferences (GardenLayoutRepository);
@@ -281,6 +308,15 @@ export class GardenDetail {
     return days < 730
       ? `${Math.round(days / 30)} months ago`
       : `${Math.round(days / 365)} years ago`;
+  }
+
+  /** Chart column → map selection, with the plan brought into view to show the bed. */
+  protected findOnPlan(plantId: number): void {
+    this.selectedPlantId.set(plantId);
+    const heading = document.getElementById('map-heading');
+    if (heading) {
+      heading.scrollIntoView({ block: 'start' });
+    }
   }
 
   /** Table row → map selection (the map centers it; two-way via model). */
