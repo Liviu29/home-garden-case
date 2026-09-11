@@ -1,7 +1,7 @@
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { GardensApi } from '../../core/api/gardens-api';
-import { gardenInputOf, plantInputOf } from '../../core/api/mappers';
+import { gardenInputOf, plantInputOf } from '../../core/api/write-payloads';
 import { PlantsApi } from '../../core/api/plants-api';
 import { SessionStore } from '../../core/auth/session-store';
 import { Garden, GardenInput, Plant } from '../../core/api/models';

@@ -1,10 +1,11 @@
 /**
- * DTO → domain mappers, and domain → write payload — pure functions.
+ * DTO → domain mappers — pure functions.
  * The seam where generated clients would plug in on a larger contract (ADR-006).
+ * The other direction, domain → write payload, lives in write-payloads.ts.
  */
 
 import { GardenDto, PlantDto, UserDto } from './dtos';
-import { Garden, GardenInput, Plant, PlantInput, UserProfile } from './models';
+import { Garden, Plant, UserProfile } from './models';
 
 export function mapToGarden(dto: GardenDto): Garden {
   return {
@@ -43,31 +44,5 @@ export function mapToUserProfile(dto: UserDto): UserProfile {
     firstName: dto.firstName ?? null,
     lastName: dto.lastName ?? null,
     age: dto.age ?? null,
-  };
-}
-
-// ── Domain → write payload (an undone delete writes the entity back) ─────────
-
-export function gardenInputOf(garden: Garden): GardenInput {
-  return {
-    gardenName: garden.gardenName,
-    totalSurfaceArea: garden.totalSurfaceArea,
-    targetHumidityLevel: garden.targetHumidityLevel,
-    locationDescription: garden.locationDescription,
-    latitude: garden.latitude,
-    longitude: garden.longitude,
-  };
-}
-
-/** `gardenId` moves the plant into another garden (a garden that was re-created). */
-export function plantInputOf(plant: Plant, gardenId: number = plant.gardenId): PlantInput {
-  return {
-    plantName: plant.plantName,
-    species: plant.species,
-    plantType: plant.plantType,
-    plantationDate: plant.plantationDate,
-    surfaceAreaRequired: plant.surfaceAreaRequired,
-    idealHumidityLevel: plant.idealHumidityLevel,
-    gardenId,
   };
 }
