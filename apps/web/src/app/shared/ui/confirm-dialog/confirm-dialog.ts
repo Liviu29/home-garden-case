@@ -30,7 +30,7 @@ interface ConfirmDialogData {
       <p class="message">{{ data.message }}</p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button matButton mat-dialog-close class="press-feedback">Cancel</button>
+      <button matButton mat-dialog-close class="press-feedback" i18n>Cancel</button>
       <button
         matButton="filled"
         class="press-feedback"
@@ -74,7 +74,7 @@ export class ConfirmService {
       data: {
         title: options.title,
         message: options.message,
-        confirmLabel: options.confirmLabel ?? 'Confirm',
+        confirmLabel: options.confirmLabel ?? $localize`Confirm`,
         destructive: options.destructive ?? false,
       } satisfies ConfirmDialogData,
       width: '26rem',

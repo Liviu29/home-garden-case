@@ -342,13 +342,12 @@ export class GardenMap {
   );
   protected readonly status = computed(() => capacityStatus(this.garden(), this.plants()));
 
-  protected readonly mapAria = computed(
-    () =>
-      `Map of ${this.garden().gardenName}: ${this.plants().length} plants, ` +
-      `${Math.round(this.utilizationPct())} percent of ${this.garden().totalSurfaceArea} square meters used, ` +
-      `target humidity ${this.garden().targetHumidityLevel} percent. ` +
-      `Pan with arrow keys, zoom with plus and minus. Focus a bed to move it with its arrow keys.`,
-  );
+  protected readonly mapAria = computed(() => {
+    const { gardenName, totalSurfaceArea, targetHumidityLevel } = this.garden();
+    const plantCount = this.plants().length;
+    const usedPct = Math.round(this.utilizationPct());
+    return $localize`Map of ${gardenName}:gardenName:: ${plantCount}:plantCount: plants, ${usedPct}:usedPct: percent of ${totalSurfaceArea}:surfaceArea: square meters used, target humidity ${targetHumidityLevel}:targetHumidity: percent. Pan with arrow keys, zoom with plus and minus. Focus a bed to move it with its arrow keys.`;
+  });
 
   // ── Camera ────────────────────────────────────────────────────────────────
   // Linked to the frame, never to the layout: moving a bed must not touch the
@@ -433,7 +432,9 @@ export class GardenMap {
         // against the bottom fence reads it just inside its top edge instead.
         y: at.y + plot.h + fs * 1.8 <= layout.height ? at.y + plot.h + fs * 0.9 : at.y + fs * 1.1,
         fs,
-        text: at.home ? 'Back to its auto spot' : `x ${metres(at.x)} m · y ${metres(at.y)} m`,
+        text: at.home
+          ? $localize`Back to its auto spot`
+          : $localize`x ${metres(at.x)}:x: m · y ${metres(at.y)}:y: m`,
       },
     };
   });
@@ -507,7 +508,7 @@ export class GardenMap {
     const next = arrangeByWateringZone(auto, auto.plots, (id) => humidity.get(id));
     if (!next) {
       this.arrangeBlocked.set(true);
-      this.announce('Not enough open ground to regroup these beds without overlaps.');
+      this.announce($localize`Not enough open ground to regroup these beds without overlaps.`);
       return;
     }
     this.arrangeBlocked.set(false);
@@ -515,17 +516,17 @@ export class GardenMap {
     this.showZones(); // the grouping only makes sense with the zones in view
     const summary = zoneBreakdown(this.plants())
       .filter((z) => z.plants > 0)
-      .map((z) => `${z.plants} ${z.label.toLowerCase()}`)
+      .map((z) => $localize`${z.plants}:count: ${z.label.toLowerCase()}:zone:`)
       .join(', ');
     this.announce(
-      `Beds regrouped by water needs, driest first: ${summary}. Undo restores your plan.`,
+      $localize`Beds regrouped by water needs, driest first: ${summary}:summary:. Undo restores your plan.`,
     );
   }
 
   protected returnHome(plantId: number): void {
     this.resetPosition.emit(plantId);
-    const name = this.plants().find((p) => p.plantId === plantId)?.plantName ?? 'The bed';
-    this.announce(`${name} returned to its automatic spot.`);
+    const name = this.plants().find((p) => p.plantId === plantId)?.plantName ?? $localize`The bed`;
+    this.announce($localize`${name}:plantName: returned to its automatic spot.`);
   }
 
   // ── The plan as a list ────────────────────────────────────────────────────
@@ -565,7 +566,7 @@ export class GardenMap {
     const open = !this.listOpen();
     this.listOpen.set(open);
     if (!open) {
-      this.announce('Showing the plan.');
+      this.announce($localize`Showing the plan.`);
       return;
     }
     this.layersOpen.set(false);
@@ -573,7 +574,8 @@ export class GardenMap {
       this.stopPlayback();
       this.timelineOpen.set(false);
     }
-    this.announce(`Showing the plan as a list of ${this.plants().length} beds.`);
+    const bedCount = this.plants().length;
+    this.announce($localize`Showing the plan as a list of ${bedCount}:bedCount: beds.`);
   }
 
   // ── Planting timeline ─────────────────────────────────────────────────────
@@ -632,8 +634,10 @@ export class GardenMap {
     this.layersOpen.set(false);
     this.listOpen.set(false); // the replay is drawn on the plan the list would cover
     this.dayIndex.set(0);
+    const dayCount = this.days().length;
+    const firstDay = this.days()[0];
     this.announce(
-      `Planting timeline: ${this.days().length} planting days. Showing the first, ${this.days()[0]}.`,
+      $localize`Planting timeline: ${dayCount}:dayCount: planting days. Showing the first, ${firstDay}:firstDay:.`,
     );
     // The replay is the point of opening it — unless the gardener asked for
     // stillness, in which case they scrub at their own pace.
@@ -645,7 +649,7 @@ export class GardenMap {
   private closeTimeline(): void {
     this.stopPlayback();
     this.timelineOpen.set(false);
-    this.announce('Timeline closed. Showing the garden today.');
+    this.announce($localize`Timeline closed. Showing the garden today.`);
   }
 
   protected togglePlayback(): void {
@@ -768,11 +772,13 @@ export class GardenMap {
     });
     this.selectedPlantId.set(plot.plantId);
     if (Math.abs(next.x - current.x) < 1e-9 && Math.abs(next.y - current.y) < 1e-9) {
-      this.announce(`${plot.fullLabel} is already against the fence.`);
+      this.announce($localize`${plot.fullLabel}:plantName: is already against the fence.`);
       return;
     }
     this.positionChange.emit({ plantId: plot.plantId, x: next.x, y: next.y });
-    this.announce(`${plot.fullLabel} moved to ${metres(next.x)} by ${metres(next.y)} metres.`);
+    this.announce(
+      $localize`${plot.fullLabel}:plantName: moved to ${metres(next.x)}:x: by ${metres(next.y)}:y: metres.`,
+    );
   }
 
   protected focusSelected(): void {

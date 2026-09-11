@@ -10,7 +10,7 @@ import {
   signal,
 } from '@angular/core';
 import { OutdoorConditions, OutdoorWeather } from '../../core/weather/weather';
-import { DatePipe, DecimalPipe, NgTemplateOutlet, TitleCasePipe } from '@angular/common';
+import { DatePipe, DecimalPipe, NgTemplateOutlet } from '@angular/common';
 import { Title } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -62,6 +62,18 @@ const SORT_VALUE: Readonly<Record<PlantSortKey, (p: Plant) => string | number>> 
 
 const DAY_MS = 86_400_000;
 
+/** A row's watering zone: as its tooltip, and as screen readers hear it after the humidity. */
+const ZONE_TITLE: Readonly<Record<WateringZone, string>> = {
+  dry: $localize`Dry watering zone`,
+  balanced: $localize`Balanced watering zone`,
+  humid: $localize`Humid watering zone`,
+};
+const ZONE_SPOKEN: Readonly<Record<WateringZone, string>> = {
+  dry: $localize`dry watering zone`,
+  balanced: $localize`balanced watering zone`,
+  humid: $localize`humid watering zone`,
+};
+
 /**
  * One garden in full: header with humidity gauge, the interactive Garden Map
  * (a deferred digital twin — ADR-007), and the plants table with per-plant
@@ -76,7 +88,6 @@ const DAY_MS = 86_400_000;
     DatePipe,
     DecimalPipe,
     NgTemplateOutlet,
-    TitleCasePipe,
     MatButtonModule,
     MatMenuModule,
     Skeleton,
@@ -274,9 +285,9 @@ export class GardenDetail {
 
   protected async removePlant(plant: Plant): Promise<void> {
     const confirmed = await this.confirm.confirm({
-      title: 'Remove plant?',
-      message: `“${plant.plantName}” will be removed from this garden.`,
-      confirmLabel: 'Remove',
+      title: $localize`Remove plant?`,
+      message: $localize`“${plant.plantName}:plantName:” will be removed from this garden.`,
+      confirmLabel: $localize`Remove`,
       destructive: true,
     });
     if (confirmed) {
@@ -292,16 +303,37 @@ export class GardenDetail {
     return wateringZone(plant.idealHumidityLevel);
   }
 
+  protected zoneTitle(plant: Plant): string {
+    return ZONE_TITLE[this.zoneOf(plant)];
+  }
+
+  protected zoneSpoken(plant: Plant): string {
+    return ZONE_SPOKEN[this.zoneOf(plant)];
+  }
+
+  protected showOnPlanLabel(plant: Plant): string {
+    return $localize`Show ${plant.plantName}:plantName: on the garden plan`;
+  }
+
+  /** Titles of the PNG exports. */
+  protected planTitle(gardenName: string): string {
+    return $localize`${gardenName}:gardenName: garden plan`;
+  }
+
+  protected profileTitle(gardenName: string): string {
+    return $localize`${gardenName}:gardenName: humidity profile`;
+  }
+
   // ── Plants table sorting: presentation only — the store order is untouched ─
   protected readonly sortColumns: readonly {
     readonly key: PlantSortKey;
     readonly label: string;
     readonly num: boolean;
   }[] = [
-    { key: 'name', label: 'Plant', num: false },
-    { key: 'planted', label: 'Planted', num: false },
-    { key: 'area', label: 'Area', num: true },
-    { key: 'humidity', label: 'Humidity', num: true },
+    { key: 'name', label: $localize`Plant`, num: false },
+    { key: 'planted', label: $localize`Planted`, num: false },
+    { key: 'area', label: $localize`Area`, num: true },
+    { key: 'humidity', label: $localize`Humidity`, num: true },
   ];
   protected readonly plantSort = signal<PlantSort | null>(null);
 
@@ -353,24 +385,25 @@ export class GardenDetail {
     const now = new Date();
     const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / DAY_MS;
     const days = today - Math.floor(planted / DAY_MS);
+    // Every count below is at least 2 — the singulars are the words themselves.
     if (days < 0) {
-      return days === -1 ? 'Tomorrow' : `In ${-days} days`;
+      return days === -1 ? $localize`Tomorrow` : $localize`In ${-days}:count: days`;
     }
     if (days === 0) {
-      return 'Today';
+      return $localize`Today`;
     }
     if (days === 1) {
-      return 'Yesterday';
+      return $localize`Yesterday`;
     }
     if (days < 14) {
-      return `${days} days ago`;
+      return $localize`${days}:count: days ago`;
     }
     if (days < 60) {
-      return `${Math.round(days / 7)} weeks ago`;
+      return $localize`${Math.round(days / 7)}:count: weeks ago`;
     }
     return days < 730
-      ? `${Math.round(days / 30)} months ago`
-      : `${Math.round(days / 365)} years ago`;
+      ? $localize`${Math.round(days / 30)}:count: months ago`
+      : $localize`${Math.round(days / 365)}:count: years ago`;
   }
 
   /** Chart column → map selection, with the plan brought into view to show the bed. */
@@ -461,9 +494,9 @@ export class GardenDetail {
       return;
     }
     const confirmed = await this.confirm.confirm({
-      title: 'Reset layout?',
-      message: 'Your custom plant positions will return to the automatic arrangement.',
-      confirmLabel: 'Reset layout',
+      title: $localize`Reset layout?`,
+      message: $localize`Your custom plant positions will return to the automatic arrangement.`,
+      confirmLabel: $localize`Reset layout`,
       destructive: false,
     });
     if (confirmed) {

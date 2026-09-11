@@ -1,18 +1,20 @@
 @if (rows().length === 0) {
-  <p class="plan-list-note">Nothing is planted yet — the whole garden is open soil.</p>
+  <p class="plan-list-note" i18n>Nothing is planted yet — the whole garden is open soil.</p>
 } @else {
-  <p class="plan-list-note">Positions are measured from the garden's top-left corner, in metres.</p>
+  <p class="plan-list-note" i18n>
+    Positions are measured from the garden's top-left corner, in metres.
+  </p>
   <table>
-    <caption class="visually-hidden">
+    <caption class="visually-hidden" i18n>
       Beds on the plan, top to bottom
     </caption>
     <thead>
       <tr>
-        <th scope="col">Bed</th>
-        <th scope="col">Position</th>
-        <th scope="col">Size</th>
-        <th scope="col">Watering</th>
-        <th scope="col">Next to</th>
+        <th scope="col" i18n>Bed</th>
+        <th scope="col" i18n>Position</th>
+        <th scope="col" i18n>Size</th>
+        <th scope="col" i18n>Watering</th>
+        <th scope="col" i18n>Next to</th>
       </tr>
     </thead>
     <tbody>
@@ -28,10 +30,10 @@
               {{ row.name }}
             </button>
             @if (row.placed) {
-              <span class="placed">placed by you</span>
+              <span class="placed" i18n>placed by you</span>
             }
           </th>
-          <td class="tabular">
+          <td class="tabular" i18n>
             {{ row.x | number: '1.0-2' }} m across, {{ row.y | number: '1.0-2' }} m down
           </td>
           <td class="tabular">
@@ -43,7 +45,7 @@
             @if (row.neighbours.length > 0) {
               {{ row.neighbours.join(', ') }}
             } @else {
-              <span class="none">no bed alongside</span>
+              <span class="none" i18n>no bed alongside</span>
             }
           </td>
         </tr>

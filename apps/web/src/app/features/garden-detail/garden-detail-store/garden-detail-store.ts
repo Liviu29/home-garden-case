@@ -231,17 +231,19 @@ export const GardenDetailStore = signalStore(
           layout.place(plant.gardenId, positions);
           patchState(store, { restored: { gardenId: plant.gardenId, positions } });
         }
-        toasts.success(`“${restored.plantName}” is back.`);
+        toasts.success($localize`“${restored.plantName}:plantName:” is back.`);
       } catch (err) {
         const error = toApiError(err);
         if (error.kind === 'technical') {
-          toasts.error(`Couldn't bring back “${plant.plantName}”.`, {
-            label: 'Try again',
+          toasts.error($localize`Couldn't bring back “${plant.plantName}:plantName:”.`, {
+            label: $localize`Try again`,
             run: () => void restorePlant(plant, spot),
           });
         } else {
           // e.g. its room went to another plant in the meantime (capacity 400)
-          toasts.error(`Couldn't bring back “${plant.plantName}”. ${error.message}`);
+          toasts.error(
+            $localize`Couldn't bring back “${plant.plantName}:plantName:”. ${error.message}:reason:`,
+          );
         }
         logger.warn('garden-detail:restorePlant', error.message);
       } finally {
@@ -285,7 +287,7 @@ export const GardenDetailStore = signalStore(
             created,
           ]);
           patchState(store, { lastCreatedPlantId: created.plantId });
-          toasts.success(`“${created.plantName}” planted.`);
+          toasts.success($localize`“${created.plantName}:plantName:” planted.`);
           return { ok: true };
         } catch (err) {
           return failPlantMutation(err, toasts);
@@ -305,7 +307,7 @@ export const GardenDetailStore = signalStore(
             input.gardenId,
             currentPlants().map((p) => (p.plantId === plantId ? updated : p)),
           );
-          toasts.success(`“${updated.plantName}” updated.`);
+          toasts.success($localize`“${updated.plantName}:plantName:” updated.`);
           return { ok: true };
         } catch (err) {
           return failPlantMutation(err, toasts);
@@ -336,15 +338,15 @@ export const GardenDetailStore = signalStore(
             plant.gardenId,
             currentPlants().filter((p) => p.plantId !== plant.plantId),
           );
-          toasts.success(`“${plant.plantName}” removed.`, {
-            label: 'Undo',
+          toasts.success($localize`“${plant.plantName}:plantName:” removed.`, {
+            label: $localize`Undo`,
             run: () => void restorePlant(plant, spot),
           });
         } catch (err) {
           // The ghost simply resolves back into the real plant — nothing to roll back.
           const retry = (): void => void this.removePlant(plant);
-          toasts.error(`Couldn't remove “${plant.plantName}”.`, {
-            label: 'Try again',
+          toasts.error($localize`Couldn't remove “${plant.plantName}:plantName:”.`, {
+            label: $localize`Try again`,
             run: retry,
           });
           logger.warn('garden-detail:removePlant', toApiError(err).message);

@@ -69,7 +69,17 @@ export class PlantFormDialog {
   protected readonly data = inject<PlantFormData>(MAT_DIALOG_DATA);
 
   protected readonly isEdit = this.data.plant !== null;
+  protected readonly heading = this.isEdit ? $localize`Edit plant` : $localize`Add a plant`;
+  protected readonly submitLabel = this.isEdit ? $localize`Save changes` : $localize`Add plant`;
+  /** Announced while the save is in flight. */
+  protected readonly pendingLabel = this.isEdit ? $localize`Saving plant` : $localize`Planting`;
   protected readonly plantTypes = PLANT_TYPES;
+  /** What the type select shows; the value sent stays the API's own. */
+  protected readonly plantTypeLabels: Readonly<Record<Plant['plantType'], string>> = {
+    vegetable: $localize`vegetable`,
+    fruit: $localize`fruit`,
+    flower: $localize`flower`,
+  };
   protected readonly serverError = signal<string | null>(null);
 
   // Rules mirror apps/api/src/app/schemas/plant.schema.ts — change together.
@@ -142,15 +152,15 @@ export class PlantFormDialog {
 
   protected fitBadge(rec: PlantRecommendation): string {
     if (!rec.fitsAvailableArea) {
-      return `Needs ${rec.preset.suggestedArea} m²`;
+      return $localize`Needs ${rec.preset.suggestedArea}:area: m²`;
     }
     if (rec.humidityMatch === 'excellent') {
-      return 'Excellent fit';
+      return $localize`Excellent fit`;
     }
     if (rec.humidityMatch === 'good') {
-      return 'Good fit';
+      return $localize`Good fit`;
     }
-    return `Prefers ${rec.preset.suggestedHumidity}% humidity`;
+    return $localize`Prefers ${rec.preset.suggestedHumidity}:humidity:% humidity`;
   }
 
   // ── Live preview: always derived from the ACTUAL form values, so custom
@@ -167,7 +177,7 @@ export class PlantFormDialog {
 
   protected readonly previewPlant = computed(() => ({
     plantId: 0,
-    plantName: this.nameValue() || 'New plant',
+    plantName: this.nameValue() || $localize`New plant`,
     species: this.speciesValue() || '',
     plantType: this.typeValue(),
   }));

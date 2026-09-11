@@ -37,7 +37,7 @@ import { Skeleton } from '../skeleton/skeleton';
         <span
           class="strip"
           role="progressbar"
-          [attr.aria-label]="label() + ' progress'"
+          [attr.aria-label]="progressLabel()"
           [attr.aria-valuenow]="progressPct()"
           aria-valuemin="0"
           aria-valuemax="100"
@@ -164,4 +164,6 @@ export class StatCard {
   protected readonly progressPct = computed(() =>
     Math.round(Math.min(1, Math.max(0, this.progress() ?? 0)) * 100),
   );
+
+  protected readonly progressLabel = computed(() => $localize`${this.label()}:label: progress`);
 }

@@ -54,12 +54,12 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
           }
         </text>
         <text x="100" y="106" text-anchor="middle" class="caption">
-          {{ hasValue() ? 'avg humidity' : 'no plants yet' }}
+          {{ caption() }}
         </text>
       </svg>
       <figcaption class="target-line">
         <span class="dot" aria-hidden="true"></span>
-        target {{ target() }}%
+        <ng-container i18n>target {{ target() }}%</ng-container>
       </figcaption>
     </figure>
   `,
@@ -120,6 +120,10 @@ export class HumidityGauge {
 
   protected readonly hasValue = computed(() => this.value() !== null);
 
+  protected readonly caption = computed(() =>
+    this.hasValue() ? $localize`avg humidity` : $localize`no plants yet`,
+  );
+
   protected readonly rounded = computed(() => {
     const value = this.value();
     return value === null ? null : Math.round(value);
@@ -151,7 +155,7 @@ export class HumidityGauge {
 
   protected readonly ariaLabel = computed(() =>
     this.hasValue()
-      ? `Average humidity ${this.rounded()} percent, target ${this.target()} percent`
-      : `No measured humidity yet, target ${this.target()} percent`,
+      ? $localize`Average humidity ${this.rounded()}:value: percent, target ${this.target()}:target: percent`
+      : $localize`No measured humidity yet, target ${this.target()}:target: percent`,
   );
 }

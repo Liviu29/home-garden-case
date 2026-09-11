@@ -16,6 +16,12 @@
       "root": "",
       "sourceRoot": "src",
       "prefix": "app",
+      "i18n": {
+        "sourceLocale": { "code": "en", "subPath": "en" },
+        "locales": {
+          "nl": { "translation": "src/locale/messages.nl.json", "subPath": "nl" }
+        }
+      },
       "architect": {
         "build": {
           "builder": "@angular/build:application",
@@ -36,7 +42,7 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kB",
+                  "maximumWarning": "520kB",
                   "maximumError": "600kB"
                 },
                 {
@@ -50,6 +56,8 @@
               "sourceMap": false,
               "extractLicenses": true,
               "namedChunks": false,
+              "localize": true,
+              "i18nMissingTranslation": "error",
               "fileReplacements": [
                 {
                   "replace": "src/environments/environment.ts",
@@ -58,10 +66,14 @@
               ]
             },
             "development": {
+              "polyfills": ["@angular/localize/init"],
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true,
               "namedChunks": true
+            },
+            "nl": {
+              "localize": ["nl"]
             }
           },
           "defaultConfiguration": "production"
@@ -77,9 +89,20 @@
             },
             "development": {
               "buildTarget": "web:build:development"
+            },
+            "nl": {
+              "buildTarget": "web:build:development,nl"
             }
           },
           "defaultConfiguration": "development"
+        },
+        "extract-i18n": {
+          "builder": "@angular/build:extract-i18n",
+          "options": {
+            "buildTarget": "web:build:development",
+            "format": "json",
+            "outputPath": "src/locale"
+          }
         },
         "test": {
           "builder": "@angular/build:unit-test",

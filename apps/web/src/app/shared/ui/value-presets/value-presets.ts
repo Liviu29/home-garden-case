@@ -32,7 +32,7 @@ export interface ValuePresetOption {
           <span class="preset-label">
             {{ option.label }}
             @if (option.recommended) {
-              <span class="recommended-badge">Recommended</span>
+              <span class="recommended-badge" i18n>Recommended</span>
             }
           </span>
           @if (option.description) {

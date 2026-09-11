@@ -54,6 +54,12 @@ export class GardenFormDialog {
   private readonly plantsIndex = inject(PlantsIndexStore);
 
   protected readonly isEdit = this.data.garden !== null;
+  protected readonly title = this.isEdit ? $localize`Edit garden` : $localize`New garden`;
+  protected readonly submitLabel = this.isEdit ? $localize`Save changes` : $localize`Create garden`;
+  /** Announced (visually hidden) while the create/update is in flight. */
+  protected readonly pendingLabel = this.isEdit
+    ? $localize`Updating garden`
+    : $localize`Creating garden`;
   protected readonly serverError = signal<string | null>(null);
 
   constructor() {

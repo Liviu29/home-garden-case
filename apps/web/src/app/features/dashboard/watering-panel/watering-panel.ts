@@ -21,6 +21,6 @@ export class WateringPanel {
   readonly settled = input.required<boolean>();
 
   protected when(days: number | null): string {
-    return days === 1 ? 'tomorrow' : `in ${days} days`;
+    return days === 1 ? $localize`tomorrow` : $localize`in ${days}:days: days`;
   }
 }

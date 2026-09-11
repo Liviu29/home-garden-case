@@ -29,10 +29,13 @@ export interface PlanRow {
   imports: [DecimalPipe],
   templateUrl: './map-plan-list.html',
   styleUrl: './map-plan-list.scss',
-  host: { class: 'plan-list', role: 'region', 'aria-label': 'Plan as a list' },
+  // Host attributes cannot carry i18n, so the label is bound from a $localize string.
+  host: { class: 'plan-list', role: 'region', '[attr.aria-label]': 'hostLabel' },
 })
 export class MapPlanList {
   readonly rows = input.required<readonly PlanRow[]>();
   readonly selectedPlantId = input<number | null>(null);
   readonly select = output<number>();
+
+  protected readonly hostLabel = $localize`Plan as a list`;
 }

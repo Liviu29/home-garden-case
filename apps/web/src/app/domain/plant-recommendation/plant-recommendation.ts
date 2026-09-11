@@ -53,22 +53,22 @@ export function calculatePlantRecommendation(
   const reasons: string[] = [];
   if (humidityMatch === 'excellent') {
     reasons.push(
-      `Close humidity match (${preset.suggestedHumidity}% vs ${garden.targetHumidityLevel}% target)`,
+      $localize`Close humidity match (${preset.suggestedHumidity}:humidity:% vs ${garden.targetHumidityLevel}:target:% target)`,
     );
   } else if (humidityMatch === 'good') {
-    reasons.push(`Reasonable humidity match (±${humidityDelta}%)`);
+    reasons.push($localize`Reasonable humidity match (±${humidityDelta}:delta:%)`);
   } else {
     reasons.push(
-      `Prefers ${preset.suggestedHumidity}% humidity — ${humidityDelta}% off your target`,
+      $localize`Prefers ${preset.suggestedHumidity}:humidity:% humidity — ${humidityDelta}:delta:% off your target`,
     );
   }
   reasons.push(
     fitsAvailableArea
-      ? `Fits the ${round1(availableArea)} m² still free`
-      : `Needs ${preset.suggestedArea} m² — only ${round1(availableArea)} m² free`,
+      ? $localize`Fits the ${round1(availableArea)}:available: m² still free`
+      : $localize`Needs ${preset.suggestedArea}:area: m² — only ${round1(availableArea)}:available: m² free`,
   );
   if (alreadyPlanted) {
-    reasons.push('Already growing in this garden');
+    reasons.push($localize`Already growing in this garden`);
   }
 
   return {

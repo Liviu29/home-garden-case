@@ -26,7 +26,7 @@ type CapacityLevel = 'ok' | 'warn' | 'full';
         [attr.aria-valuenow]="usedRounded()"
         [attr.aria-valuemin]="0"
         [attr.aria-valuemax]="total()"
-        [attr.aria-label]="'Surface used: ' + usedRounded() + ' of ' + total() + ' square meters'"
+        [attr.aria-label]="surfaceLabel()"
       >
         <div class="fill" [class]="level()" [style.transform]="'scaleX(' + clamped() + ')'"></div>
       </div>
@@ -100,6 +100,11 @@ export class CapacityBar {
    * announced goes through two decimals — the same precision as the forms.
    */
   protected readonly usedRounded = computed(() => Math.round(this.used() * 100) / 100);
+
+  protected readonly surfaceLabel = computed(
+    () =>
+      $localize`Surface used: ${this.usedRounded()}:used: of ${this.total()}:total: square meters`,
+  );
 
   protected readonly level = computed<CapacityLevel>(() => {
     const r = this.ratio();

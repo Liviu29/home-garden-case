@@ -22,9 +22,9 @@ export interface ProfilePlant {
 }
 
 const ZONE_LABEL: Readonly<Record<WateringZone, string>> = {
-  dry: 'Dry',
-  balanced: 'Balanced',
-  humid: 'Humid',
+  dry: $localize`Dry`,
+  balanced: $localize`Balanced`,
+  humid: $localize`Humid`,
 };
 
 const round = (value: number, digits = 0): number => Number(value.toFixed(digits));
@@ -38,14 +38,14 @@ const plantOf = (point: Point): ProfilePlant => point.options.custom as ProfileP
 /** One sentence per plant, shared by the tooltip and by screen readers. */
 export function describePlant(p: ProfilePlant): string {
   const delta = round(p.delta);
+  const points = Math.abs(delta);
   const relation =
     delta === 0
-      ? `right on the ${p.target}% target`
-      : `${Math.abs(delta)} points ${delta > 0 ? 'above' : 'below'} the ${p.target}% target`;
-  return (
-    `${p.name}: wants ${p.humidity}% humidity, ${relation}; ` +
-    `${p.area} m², ${round(p.share)}% of the garden; ${ZONE_LABEL[p.zone]} watering zone.`
-  );
+      ? $localize`right on the ${p.target}:target:% target`
+      : delta > 0
+        ? $localize`${points}:points: points above the ${p.target}:target:% target`
+        : $localize`${points}:points: points below the ${p.target}:target:% target`;
+  return $localize`${p.name}:plantName:: wants ${p.humidity}:humidity:% humidity, ${relation}:relation:; ${p.area}:area: m², ${round(p.share)}:share:% of the garden; ${ZONE_LABEL[p.zone]}:zone: watering zone.`;
 }
 
 /**
@@ -113,20 +113,17 @@ export function humidityProfileOptions(
     credits: { enabled: false },
     legend: { enabled: false },
     accessibility: {
-      description:
-        `Variwide column chart of the ${plants.length} plants in ${garden.gardenName}. Column ` +
-        `height: the humidity each plant wants. Column width: the surface it takes. A line marks ` +
-        `the garden's ${target}% target and a band the ±${tolerance} point tolerance.`,
+      description: $localize`Variwide column chart of the ${plants.length}:count: plants in ${garden.gardenName}:gardenName:. Column height: the humidity each plant wants. Column width: the surface it takes. A line marks the garden's ${target}:target:% target and a band the ±${tolerance}:tolerance: point tolerance.`,
       point: {
         descriptionFormatter: (point) =>
-          `${describePlant(plantOf(point))} Selecting it finds the plant on the plan.`,
+          $localize`${describePlant(plantOf(point))}:description: Selecting it finds the plant on the plan.`,
       },
     },
     xAxis: {
       type: 'category',
       lineColor: palette.grid,
       tickColor: palette.grid,
-      title: { text: 'Column width = space the plant takes', style: axisText },
+      title: { text: $localize`Column width = space the plant takes`, style: axisText },
       labels: { rotation: -35, style: { ...axisText, textOverflow: 'ellipsis' } },
     },
     yAxis: {
@@ -134,7 +131,7 @@ export function humidityProfileOptions(
       max: 100,
       tickInterval: 25,
       gridLineColor: palette.grid,
-      title: { text: 'Ideal humidity', style: axisText },
+      title: { text: $localize`Ideal humidity`, style: axisText },
       labels: { format: '{value}%', style: axisText },
       plotBands: [
         {
@@ -142,7 +139,7 @@ export function humidityProfileOptions(
           to: Math.min(100, target + tolerance),
           color: withAlpha(palette.brand, 0.09),
           label: {
-            text: `Within ±${tolerance} of target`,
+            text: $localize`Within ±${tolerance}:tolerance: of target`,
             align: 'right',
             x: -6,
             style: { color: palette.faint, fontSize: '11px', fontWeight: '600' },
@@ -157,7 +154,7 @@ export function humidityProfileOptions(
           dashStyle: 'Dash',
           zIndex: 5,
           label: {
-            text: `Garden target ${target}%`,
+            text: $localize`Garden target ${target}:target:%`,
             align: 'left',
             x: 4,
             y: -6,
@@ -175,9 +172,11 @@ export function humidityProfileOptions(
         const p = plantOf(this);
         return (
           `<b>${escapeLabel(p.name)}</b><br/>` +
-          `Wants ${p.humidity}% · ${signed(p.delta)} vs the ${p.target}% target<br/>` +
-          `${p.area} m² · ${round(p.share)}% of the garden<br/>` +
-          `${ZONE_LABEL[p.zone]} watering zone`
+          $localize`Wants ${p.humidity}:humidity:% · ${signed(p.delta)}:delta: vs the ${p.target}:target:% target` +
+          '<br/>' +
+          $localize`${p.area}:area: m² · ${round(p.share)}:share:% of the garden` +
+          '<br/>' +
+          $localize`${ZONE_LABEL[p.zone]}:zone: watering zone`
         );
       },
     },
@@ -194,6 +193,6 @@ export function humidityProfileOptions(
         },
       },
     },
-    series: [{ type: 'variwide', name: 'Plants', data }],
+    series: [{ type: 'variwide', name: $localize`Plants`, data }],
   };
 }

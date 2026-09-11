@@ -5,8 +5,9 @@ import {
   ChangeDetectionStrategy,
   Component,
   Injector,
+  LOCALE_ID,
 } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
+import { DecimalPipe, formatNumber } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { Garden, Plant } from '../../core/api/models';
@@ -97,6 +98,7 @@ export class Dashboard {
   protected readonly plantsIndex = inject(PlantsIndexStore);
   private readonly router = inject(Router);
   private readonly theme = inject(ThemeStore);
+  private readonly locale = inject(LOCALE_ID);
 
   /** The source the plants index follows; the store owns the loading itself. */
   private readonly gardenIds = computed(() => this.gardens.gardens().map((g) => g.gardenId));
@@ -113,8 +115,13 @@ export class Dashboard {
   protected readonly greeting = computed(() => {
     const hour = new Date().getHours();
     const name = this.session.profile()?.firstName;
-    const salute = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-    return name ? `${salute}, ${name}` : salute;
+    const salute =
+      hour < 12
+        ? $localize`Good morning`
+        : hour < 18
+          ? $localize`Good afternoon`
+          : $localize`Good evening`;
+    return name ? $localize`${salute}:greeting:, ${name}:name:` : salute;
   });
 
   protected readonly insights = computed<GardenInsight[]>(() =>
@@ -139,12 +146,12 @@ export class Dashboard {
         statusLabel:
           plants === undefined
             ? this.plantsIndex.failed()[garden.gardenId]
-              ? 'Unavailable'
+              ? $localize`Unavailable`
               : '' // still loading: the template shows a badge-sized ghost
             : known.length === 0
-              ? 'No plants yet'
+              ? $localize`No plants yet`
               : attention.humidityDrift && !attention.nearCapacity
-                ? 'Humidity attention'
+                ? $localize`Humidity attention`
                 : CAPACITY_STATUS_LABEL[status],
         statusTone:
           plants === undefined || known.length === 0
@@ -158,7 +165,7 @@ export class Dashboard {
         // not "almost".
         attentionReason: attention.nearCapacity
           ? CAPACITY_STATUS_LABEL[status]
-          : 'Humidity drifting from target',
+          : $localize`Humidity drifting from target`,
         // UI-only ordering (documented in DESIGN-SYSTEM §6): full → near-full
         // → humidity drift by distance. Not a business rule.
         severity:
@@ -209,6 +216,37 @@ export class Dashboard {
     const total = this.totalArea();
     return total > 0 ? Math.round((this.usedArea() / total) * 100) : 0;
   });
+
+  /** The KPI tiles' context lines; empty while plant-derived numbers are still arriving. */
+  protected readonly gardensContext = computed(() => {
+    if (!this.plantsSettled()) {
+      return '';
+    }
+    const healthy = this.healthyCount();
+    const attention = this.attention().length;
+    return attention === 1
+      ? $localize`${healthy}:healthy: healthy · ${attention}:attention: needs attention`
+      : $localize`${healthy}:healthy: healthy · ${attention}:attention: need attention`;
+  });
+
+  protected readonly plantsContext = computed(() => {
+    const count = this.gardens.count();
+    return count === 1
+      ? $localize`across ${count}:count: garden`
+      : $localize`across ${count}:count: gardens`;
+  });
+
+  protected readonly usedContext = computed(() =>
+    this.plantsSettled()
+      ? $localize`${formatNumber(this.usedArea(), this.locale, '1.0-1')}:area: m² currently used`
+      : '',
+  );
+
+  protected readonly freeContext = computed(() =>
+    this.plantsSettled()
+      ? $localize`${formatNumber(this.freeArea(), this.locale, '1.0-1')}:area: m² still available`
+      : '',
+  );
 
   /**
    * Today's watering round across the gardens on screen (domain/watering-plan).

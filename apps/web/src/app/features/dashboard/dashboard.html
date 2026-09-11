@@ -24,9 +24,16 @@
       @if (gardens.isLoading()) {
         <app-skeleton class="hero-ghost skeleton-appear" variant="line" w="18rem" />
       } @else if (gardens.count() > 0) {
-        {{ gardens.count() }} {{ gardens.count() === 1 ? 'garden' : 'gardens' }} ·
+        <ng-container i18n>{gardens.count(), plural,
+          =1 {1 garden}
+          other {{{ gardens.count() }} gardens}
+        }</ng-container>
+        ·
         @if (plantsSettled()) {
-          {{ totalPlants() }} {{ totalPlants() === 1 ? 'plant' : 'plants' }}
+          <ng-container i18n>{totalPlants(), plural,
+            =1 {1 plant}
+            other {{{ totalPlants() }} plants}
+          }</ng-container>
         } @else {
           <!-- The count is still arriving garden by garden: a word-sized
                ghost, never a partial number that later jumps -->
@@ -37,9 +44,10 @@
             h="0.75em"
           />
         }
-        · {{ totalArea() | number: '1.0-2' }} m² under management
+        ·
+        <ng-container i18n>{{ totalArea() | number: '1.0-2' }} m² under management</ng-container>
       } @else {
-        Your green empire starts with a single bed.
+        <ng-container i18n>Your green empire starts with a single bed.</ng-container>
       }
     </p>
     @if (gardens.isLoading() || (gardens.count() > 0 && !plantsSettled())) {
@@ -65,7 +73,7 @@
               stroke-linecap="round"
             />
           </svg>
-          {{ healthyCount() }} healthy
+          <ng-container i18n>{{ healthyCount() }} healthy</ng-container>
         </span>
         @if (attention().length > 0) {
           <span class="status-chip warn">
@@ -78,7 +86,10 @@
                 stroke-linecap="round"
               />
             </svg>
-            {{ attention().length }} {{ attention().length === 1 ? 'needs' : 'need' }} attention
+            <ng-container i18n>{attention().length, plural,
+              =1 {1 needs attention}
+              other {{{ attention().length }} need attention}
+            }</ng-container>
           </span>
         }
         @if (watering().plantsDue > 0) {
@@ -92,19 +103,22 @@
                 stroke-linejoin="round"
               />
             </svg>
-            {{ watering().plantsDue }} to water today
+            <ng-container i18n>{{ watering().plantsDue }} to water today</ng-container>
           </span>
         }
       </p>
     }
   </div>
   <div class="hero-actions hero-step-3">
-    <a matButton="filled" routerLink="/gardens" class="hero-cta press-feedback">Manage gardens</a>
+    <a matButton="filled" routerLink="/gardens" class="hero-cta press-feedback" i18n
+      >Manage gardens</a
+    >
     @if (mostUrgent(); as urgent) {
       <a
         matButton
         [routerLink]="['/gardens', urgent.garden.gardenId]"
         class="hero-cta-secondary press-feedback"
+        i18n
       >
         View {{ urgent.garden.gardenName }} →
       </a>
@@ -112,7 +126,7 @@
   </div>
 </section>
 
-<app-skeleton-group [loading]="gardens.isLoading()" label="Loading your gardens">
+<app-skeleton-group [loading]="gardens.isLoading()" label="Loading your gardens" i18n-label>
   <!-- Content-shaped dashboard skeleton: mirrors the real layout -->
   <div ghost class="dash-skeleton">
     <div class="stats-grid">
@@ -176,17 +190,23 @@
     <app-empty-state
       [headingLevel]="2"
       title="Couldn't load the overview"
+      i18n-title
       message="The greenhouse network is acting up. Give it another try."
+      i18n-message
     >
-      <button matButton="filled" class="press-feedback" (click)="gardens.load()">Try again</button>
+      <button matButton="filled" class="press-feedback" (click)="gardens.load()" i18n>
+        Try again
+      </button>
     </app-empty-state>
   } @else if (gardens.isEmpty()) {
     <app-empty-state
       [headingLevel]="2"
       title="No gardens yet"
+      i18n-title
       message="Create your first garden to unlock the dashboard insights."
+      i18n-message
     >
-      <a matButton="filled" routerLink="/gardens" class="press-feedback">Create a garden</a>
+      <a matButton="filled" routerLink="/gardens" class="press-feedback" i18n>Create a garden</a>
     </app-empty-state>
   } @else {
     <!-- KPI tiles: value + secondary context + quiet visual accent -->
@@ -194,15 +214,9 @@
       <app-stat-card
         [value]="gardens.count()"
         label="Gardens"
+        i18n-label
         [pending]="!plantsSettled()"
-        [context]="
-          plantsSettled()
-            ? healthyCount() +
-              ' healthy · ' +
-              attention().length +
-              (attention().length === 1 ? ' needs attention' : ' need attention')
-            : ''
-        "
+        [context]="gardensContext()"
       >
         <svg
           icon
@@ -221,7 +235,8 @@
         [value]="totalPlants()"
         [valuePending]="!plantsSettled()"
         label="Plants growing"
-        [context]="'across ' + gardens.count() + (gardens.count() === 1 ? ' garden' : ' gardens')"
+        i18n-label
+        [context]="plantsContext()"
       >
         <svg
           icon
@@ -241,8 +256,9 @@
       <app-stat-card
         [value]="totalArea()"
         label="m² of growing space"
+        i18n-label
         [pending]="!plantsSettled()"
-        [context]="plantsSettled() ? (usedArea() | number: '1.0-1') + ' m² currently used' : ''"
+        [context]="usedContext()"
       >
         <svg
           icon
@@ -263,8 +279,9 @@
         [valuePending]="!plantsSettled()"
         suffix="%"
         label="Utilization"
+        i18n-label
         [pending]="!plantsSettled()"
-        [context]="plantsSettled() ? (freeArea() | number: '1.0-1') + ' m² still available' : ''"
+        [context]="freeContext()"
         [progress]="plantsSettled() ? utilizationPct() / 100 : 0"
         [progressWarn]="utilizationPct() >= 90"
       >
@@ -286,16 +303,17 @@
     <!-- ── Portfolio map: the attention rules, drawn (ADR-008) ── -->
     <section class="section anim-fade-up" aria-labelledby="portfolio-heading">
       <div class="section-head">
-        <h2 id="portfolio-heading" class="section-title">Portfolio map</h2>
+        <h2 id="portfolio-heading" class="section-title" i18n>Portfolio map</h2>
         @if (plantsSettled() && portfolio().length > 0) {
           <app-export-png-button
             [target]="portfolioCard"
             selector="svg.highcharts-root"
             title="Portfolio map"
+            i18n-title
           />
         }
       </div>
-      <p class="portfolio-sub">
+      <p class="portfolio-sub" i18n>
         Each planted garden by how full it is and how far its plants' humidity drifts from its
         target. Bubble size is the garden's area; the shaded bands are the attention rules. Choose a
         bubble to open the garden.
@@ -304,12 +322,13 @@
         @if (!plantsSettled()) {
           <app-skeleton class="skeleton-appear" variant="rect" w="100%" h="100%" />
         } @else if (portfolio().length === 0) {
-          <p class="portfolio-note">Plant something in a garden to place it on the map.</p>
+          <p class="portfolio-note" i18n>Plant something in a garden to place it on the map.</p>
         } @else {
           @defer (on viewport; prefetch on idle) {
             <app-chart
               [options]="portfolioOptions()"
               fallback="The portfolio map couldn't load. The cards below show the same information."
+              i18n-fallback
             />
           } @placeholder {
             <app-skeleton variant="rect" w="100%" h="100%" />
@@ -321,7 +340,7 @@
     <div class="overview-grid">
       <!-- ── Attention Center ── -->
       <section class="section anim-fade-up" aria-labelledby="attention-heading">
-        <h2 id="attention-heading" class="section-title">Needs attention</h2>
+        <h2 id="attention-heading" class="section-title" i18n>Needs attention</h2>
         @if (attention().length > 0) {
           <div class="attention-list stagger-children">
             @for (insight of attention(); track insight.garden.gardenId) {
@@ -352,7 +371,9 @@
                     <span class="attention-name">{{ insight.garden.gardenName }}</span>
                     <span class="attention-badge tabular">
                       @if (insight.attentionKind === 'capacity') {
-                        {{ insight.occupancy * 100 | number: '1.0-0' }}% capacity
+                        <ng-container i18n
+                          >{{ insight.occupancy * 100 | number: '1.0-0' }}% capacity</ng-container
+                        >
                       } @else {
                         {{ insight.delta! > 0 ? '+' : '' }}{{ insight.delta | number: '1.0-0' }}%
                       }
@@ -360,7 +381,7 @@
                   </span>
                   <span class="attention-reason">{{ insight.attentionReason }}</span>
                   @if (insight.attentionKind === 'capacity') {
-                    <span class="attention-metric tabular">
+                    <span class="attention-metric tabular" i18n>
                       {{ insight.used | number: '1.0-1' }} / {{ insight.garden.totalSurfaceArea }}
                       m² used
                     </span>
@@ -370,7 +391,7 @@
                       [showLabel]="false"
                     />
                   } @else {
-                    <span class="attention-metric tabular">
+                    <span class="attention-metric tabular" i18n>
                       Average {{ insight.avgHumidity | number: '1.0-0' }}% · Target
                       {{ insight.garden.targetHumidityLevel }}%
                     </span>
@@ -383,14 +404,14 @@
                       <span class="scale-mark actual" [style.left.%]="insight.avgHumidity"></span>
                     </span>
                   }
-                  <span class="attention-cta">View garden →</span>
+                  <span class="attention-cta" i18n>View garden →</span>
                 </span>
               </a>
             }
           </div>
         } @else if (plantsSettled() && plantsFailed()) {
           <!-- Never claim "healthy" for gardens whose plants never arrived -->
-          <p class="attention-note">
+          <p class="attention-note" i18n>
             Plant data for some gardens couldn't load, so their health can't be checked right now.
           </p>
         } @else if (plantsSettled()) {
@@ -402,8 +423,10 @@
               </svg>
             </span>
             <div>
-              <p class="healthy-title">Everything looks healthy</p>
-              <p class="healthy-sub">No garden is near capacity or drifting from its target.</p>
+              <p class="healthy-title" i18n>Everything looks healthy</p>
+              <p class="healthy-sub" i18n>
+                No garden is near capacity or drifting from its target.
+              </p>
             </div>
           </div>
         } @else {
@@ -423,7 +446,7 @@
 
       <!-- ── Garden Health: the compact portfolio ── -->
       <section class="section anim-fade-up" aria-labelledby="health-heading">
-        <h2 id="health-heading" class="section-title">Garden health</h2>
+        <h2 id="health-heading" class="section-title" i18n>Garden health</h2>
         <div class="health-grid stagger-children">
           @for (insight of insights(); track insight.garden.gardenId) {
             <a
@@ -454,9 +477,12 @@
               </span>
               @if (insight.plants; as plants) {
                 <span class="health-meta tabular" data-testid="health-meta">
-                  {{ plants.length }} {{ plants.length === 1 ? 'plant' : 'plants' }} ·
-                  {{ insight.used | number: '1.0-1' }} / {{ insight.garden.totalSurfaceArea }} m² ·
-                  {{ insight.occupancy * 100 | number: '1.0-0' }}%
+                  <ng-container i18n>{plants.length, plural,
+                    =1 {1 plant}
+                    other {{{ plants.length }} plants}
+                  }</ng-container>
+                  · {{ insight.used | number: '1.0-1' }} / {{ insight.garden.totalSurfaceArea }} m²
+                  · {{ insight.occupancy * 100 | number: '1.0-0' }}%
                 </span>
                 <app-capacity-bar
                   [used]="insight.used"
@@ -464,24 +490,25 @@
                   [showLabel]="false"
                 />
                 <span class="health-humidity">
-                  <span>Target {{ insight.garden.targetHumidityLevel }}%</span>
+                  <span i18n>Target {{ insight.garden.targetHumidityLevel }}%</span>
                   @if (insight.delta !== null) {
                     <span
                       class="delta tabular"
                       [class.above]="insight.delta > 5"
                       [class.below]="insight.delta < -5"
+                      i18n
                     >
                       avg {{ insight.avgHumidity | number: '1.0-0' }}% ·
                       {{ insight.delta > 0 ? '+' : '' }}{{ insight.delta | number: '1.0-0' }} vs
                       target
                     </span>
                   } @else {
-                    <span class="delta">no plants</span>
+                    <span class="delta" i18n>no plants</span>
                   }
                 </span>
-                <span class="health-cta">View garden →</span>
+                <span class="health-cta" i18n>View garden →</span>
               } @else if (plantsFailedFor(insight.garden.gardenId)) {
-                <span class="health-meta">Plant details unavailable</span>
+                <span class="health-meta" i18n>Plant details unavailable</span>
               } @else {
                 <!-- Plants loading: the four data rows' exact line boxes -->
                 <app-skeleton
@@ -510,8 +537,8 @@
 
     <!-- ── Watering plan: today's round (domain/watering-plan) ── -->
     <section class="section anim-fade-up" aria-labelledby="water-heading">
-      <h2 id="water-heading" class="section-title">Water today</h2>
-      <p class="portfolio-sub">
+      <h2 id="water-heading" class="section-title" i18n>Water today</h2>
+      <p class="portfolio-sub" i18n>
         A rule of thumb from each plant's watering zone and planting date: humid beds every day,
         balanced every 2 days, dry every 4, and anything planted in the last two weeks daily while
         it settles in.

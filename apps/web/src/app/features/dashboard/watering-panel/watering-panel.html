@@ -22,8 +22,11 @@
         <span class="top">
           <span class="name">{{ row.garden.gardenName }}</span>
           <span class="total tabular">
-            {{ row.plan.plantsDue }} {{ row.plan.plantsDue === 1 ? 'plant' : 'plants' }} ·
-            {{ row.plan.areaDue | number: '1.0-1' }} m²
+            <ng-container i18n>{row.plan.plantsDue, plural,
+              =1 {1 plant}
+              other {{{ row.plan.plantsDue }} plants}
+            }</ng-container>
+            · {{ row.plan.areaDue | number: '1.0-1' }} m²
           </span>
         </span>
         <span class="zones">
@@ -34,7 +37,7 @@
           }
         </span>
         @if (row.plan.establishing > 0) {
-          <span class="note">
+          <span class="note" i18n>
             {{ row.plan.establishing }} newly planted, watered daily for now
           </span>
         }
@@ -43,7 +46,7 @@
   </div>
   @if (round().later.length > 0) {
     <p class="later" data-testid="water-later">
-      Not today:
+      <ng-container i18n>Not today:</ng-container>
       @for (row of round().later; track row.garden.gardenId; let last = $last) {
         {{ row.garden.gardenName }} ({{ when(row.plan.nextInDays) }}){{ last ? '' : ',' }}
       }
@@ -60,12 +63,14 @@
       </svg>
     </span>
     <div>
-      <p class="rest-title">Nothing needs water today</p>
+      <p class="rest-title" i18n>Nothing needs water today</p>
       <p class="rest-sub">
         @if (round().later[0]; as next) {
-          Next: {{ next.garden.gardenName }}, {{ when(next.plan.nextInDays) }}.
+          <ng-container i18n
+            >Next: {{ next.garden.gardenName }}, {{ when(next.plan.nextInDays) }}.</ng-container
+          >
         } @else {
-          Plant something to get a watering plan.
+          <ng-container i18n>Plant something to get a watering plan.</ng-container>
         }
       </p>
     </div>

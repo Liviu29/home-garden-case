@@ -86,10 +86,10 @@ export function wouldShrinkBelowUsed(plants: readonly Plant[], newTotalArea: num
 export type CapacityStatus = 'healthy' | 'approaching' | 'almost-full' | 'full';
 
 export const CAPACITY_STATUS_LABEL: Readonly<Record<CapacityStatus, string>> = {
-  healthy: 'Healthy capacity',
-  approaching: 'Approaching capacity',
-  'almost-full': 'Almost full',
-  full: 'Full',
+  healthy: $localize`Healthy capacity`,
+  approaching: $localize`Approaching capacity`,
+  'almost-full': $localize`Almost full`,
+  full: $localize`Full`,
 };
 
 export function capacityStatus(garden: Garden, plants: readonly Plant[]): CapacityStatus {

@@ -1,6 +1,6 @@
 <div class="hud-stat">
   <span class="hud-value tabular">{{ utilizationPct() | number: '1.0-0' }}%</span>
-  <span class="hud-label">used</span>
+  <span class="hud-label" i18n>used</span>
   <span class="hud-bar" aria-hidden="true">
     <span
       class="hud-bar-fill"
@@ -13,7 +13,7 @@
 <span class="hud-divider" aria-hidden="true"></span>
 <div class="hud-stat">
   <span class="hud-value tabular">{{ freeArea() | number: '1.0-1' }} m²</span>
-  <span class="hud-label">free</span>
+  <span class="hud-label" i18n>free</span>
 </div>
 <span class="hud-divider" aria-hidden="true"></span>
 <div class="hud-stat humidity">
@@ -24,7 +24,7 @@
     />
   </svg>
   <span class="hud-value tabular">{{ targetHumidity() }}%</span>
-  <span class="hud-label">target</span>
+  <span class="hud-label" i18n>target</span>
 </div>
 @if (status() === 'full') {
   <span class="hud-divider" aria-hidden="true"></span>

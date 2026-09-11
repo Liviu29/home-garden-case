@@ -205,9 +205,7 @@ export function buildPlotViews(
       },
       fontSize,
       showLabel,
-      aria:
-        `${p.label}, ${p.requiredArea} square meters, ${Math.round(p.share * 100)} percent of the garden. ` +
-        'Drag or use the arrow keys to move it; Home returns it to its automatic spot.',
+      aria: $localize`${p.label}:plantName:, ${p.requiredArea}:area: square meters, ${Math.round(p.share * 100)}:sharePct: percent of the garden. Drag or use the arrow keys to move it; Home returns it to its automatic spot.`,
       humidityDelta,
       zone: wateringZone(plant?.idealHumidityLevel ?? garden.targetHumidityLevel),
       visual,

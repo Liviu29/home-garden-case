@@ -1,43 +1,45 @@
-<h2 mat-dialog-title>{{ isEdit ? 'Edit garden' : 'New garden' }}</h2>
+<h2 mat-dialog-title>{{ title }}</h2>
 
 <mat-dialog-content>
   <form class="form" [formGroup]="form" (ngSubmit)="submit()" id="garden-form">
     <mat-form-field appearance="outline">
-      <mat-label>Garden name</mat-label>
+      <mat-label i18n>Garden name</mat-label>
       <input
         matInput
         formControlName="gardenName"
         placeholder="e.g. Backyard beds"
+        i18n-placeholder
         maxlength="80"
       />
       @if (
         form.controls.gardenName.hasError('required') ||
         form.controls.gardenName.hasError('whitespace')
       ) {
-        <mat-error>Garden name is required</mat-error>
+        <mat-error i18n>Garden name is required</mat-error>
       }
     </mat-form-field>
 
     <mat-form-field appearance="outline">
-      <mat-label>Total surface area (m²)</mat-label>
+      <mat-label i18n>Total surface area (m²)</mat-label>
       <input matInput type="number" formControlName="totalSurfaceArea" min="0" step="0.5" />
       @if (form.controls.totalSurfaceArea.hasError('min')) {
-        <mat-error>Surface area can't be negative</mat-error>
+        <mat-error i18n>Surface area can't be negative</mat-error>
       }
       @if (form.controls.totalSurfaceArea.hasError('required')) {
-        <mat-error>Surface area is required</mat-error>
+        <mat-error i18n>Surface area is required</mat-error>
       }
     </mat-form-field>
 
     <app-value-presets
       label="Garden size presets"
+      i18n-label
       [options]="sizePresets"
       [value]="currentArea()"
       (selectedChange)="applyAreaPreset($event)"
     />
 
     @if (shrinksBelowUsed()) {
-      <p class="form-warning" role="alert">
+      <p class="form-warning" role="alert" i18n>
         Plants currently use {{ usedArea() | number: '1.0-2' }} m² of this garden. Setting the total
         below that leaves the garden over capacity.
       </p>
@@ -45,7 +47,7 @@
 
     <div class="humidity-block">
       <div class="humidity-label">
-        <span id="humidity-slider-label">Target humidity level</span>
+        <span id="humidity-slider-label" i18n>Target humidity level</span>
         <span class="humidity-value tabular">{{ form.controls.targetHumidityLevel.value }}%</span>
       </div>
       <mat-slider min="0" max="100" step="1" discrete aria-labelledby="humidity-slider-label">
@@ -53,6 +55,7 @@
       </mat-slider>
       <app-value-presets
         label="Target humidity presets"
+        i18n-label
         [options]="humidityPresets"
         [value]="currentHumidity()"
         (selectedChange)="applyHumidityPreset($event)"
@@ -60,13 +63,18 @@
     </div>
 
     <mat-form-field appearance="outline">
-      <mat-label>Location description</mat-label>
-      <input matInput formControlName="locationDescription" placeholder="e.g. South-facing patio" />
+      <mat-label i18n>Location description</mat-label>
+      <input
+        matInput
+        formControlName="locationDescription"
+        placeholder="e.g. South-facing patio"
+        i18n-placeholder
+      />
     </mat-form-field>
 
     <div class="coords">
       <mat-form-field appearance="outline">
-        <mat-label>Latitude</mat-label>
+        <mat-label i18n>Latitude</mat-label>
         <input
           matInput
           type="number"
@@ -76,12 +84,12 @@
           step="0.000001"
         />
         @if (form.controls.latitude.hasError('min') || form.controls.latitude.hasError('max')) {
-          <mat-error>Between −90 and 90</mat-error>
+          <mat-error i18n>Between −90 and 90</mat-error>
         }
       </mat-form-field>
 
       <mat-form-field appearance="outline">
-        <mat-label>Longitude</mat-label>
+        <mat-label i18n>Longitude</mat-label>
         <input
           matInput
           type="number"
@@ -91,7 +99,7 @@
           step="0.000001"
         />
         @if (form.controls.longitude.hasError('min') || form.controls.longitude.hasError('max')) {
-          <mat-error>Between −180 and 180</mat-error>
+          <mat-error i18n>Between −180 and 180</mat-error>
         }
       </mat-form-field>
     </div>
@@ -100,7 +108,7 @@
       form.hasError('coordinatesTogether') &&
       (form.controls.latitude.touched || form.controls.longitude.touched)
     ) {
-      <p class="form-error" role="alert">
+      <p class="form-error" role="alert" i18n>
         Provide both latitude and longitude, or leave both empty.
       </p>
     }
@@ -112,7 +120,7 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button matButton type="button" mat-dialog-close class="press-feedback">Cancel</button>
+  <button matButton type="button" mat-dialog-close class="press-feedback" i18n>Cancel</button>
   <button
     matButton="filled"
     type="submit"
@@ -122,10 +130,10 @@
     [disabled]="(form.invalid && form.touched) || store.saving()"
   >
     <span class="btn-stack" [class.is-pending]="store.saving()">
-      <span class="btn-label">{{ isEdit ? 'Save changes' : 'Create garden' }}</span>
+      <span class="btn-label">{{ submitLabel }}</span>
       @if (store.saving()) {
         <span class="btn-ghost" aria-hidden="true"></span>
-        <span class="visually-hidden">{{ isEdit ? 'Updating garden' : 'Creating garden' }}</span>
+        <span class="visually-hidden">{{ pendingLabel }}</span>
       }
     </span>
   </button>

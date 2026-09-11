@@ -1,5 +1,12 @@
-<app-page-header title="Gardens" subtitle="Every plot linked to your account, at a glance.">
-  <button matButton="filled" class="press-feedback" (click)="openCreate()">＋ New garden</button>
+<app-page-header
+  title="Gardens"
+  i18n-title
+  subtitle="Every plot linked to your account, at a glance."
+  i18n-subtitle
+>
+  <button matButton="filled" class="press-feedback" (click)="openCreate()" i18n>
+    ＋ New garden
+  </button>
 </app-page-header>
 
 @if (!store.isEmpty() && !store.hasFailed()) {
@@ -9,7 +16,9 @@
         matInput
         type="search"
         placeholder="Search gardens…"
+        i18n-placeholder
         aria-label="Search gardens by name or location"
+        i18n-aria-label
         [ngModel]="store.query()"
         (ngModelChange)="store.setQuery($event)"
       />
@@ -17,6 +26,7 @@
     <mat-form-field appearance="outline" class="sort" subscriptSizing="dynamic">
       <mat-select
         aria-label="Sort gardens"
+        i18n-aria-label
         [ngModel]="store.sort()"
         (ngModelChange)="store.setSort($event)"
       >
@@ -28,7 +38,7 @@
   </div>
 }
 
-<app-skeleton-group [loading]="store.isLoading()" label="Loading your gardens">
+<app-skeleton-group [loading]="store.isLoading()" label="Loading your gardens" i18n-label>
   <!-- Ghosts mirror the final card grid — zero layout shift -->
   <div ghost class="grid">
     @for (i of [1, 2, 3]; track i) {
@@ -40,17 +50,21 @@
     <app-empty-state
       [headingLevel]="2"
       title="Couldn't load your gardens"
+      i18n-title
       message="The greenhouse network is acting up. Give it another try."
+      i18n-message
     >
-      <button matButton="filled" class="press-feedback" (click)="retry()">Try again</button>
+      <button matButton="filled" class="press-feedback" (click)="retry()" i18n>Try again</button>
     </app-empty-state>
   } @else if (store.isEmpty() && !store.creating()) {
     <app-empty-state
       [headingLevel]="2"
       title="No gardens yet"
+      i18n-title
       message="Create your first garden to start planning beds, plants and humidity targets."
+      i18n-message
     >
-      <button matButton="filled" class="press-feedback" (click)="openCreate()">
+      <button matButton="filled" class="press-feedback" (click)="openCreate()" i18n>
         Create your first garden
       </button>
     </app-empty-state>
@@ -58,9 +72,13 @@
     <app-empty-state
       [headingLevel]="2"
       title="No gardens match"
+      i18n-title
       message="Nothing matches your search — try a different name or clear the filter."
+      i18n-message
     >
-      <button matButton class="press-feedback" (click)="store.setQuery('')">Clear search</button>
+      <button matButton class="press-feedback" (click)="store.setQuery('')" i18n>
+        Clear search
+      </button>
     </app-empty-state>
   } @else {
     <div class="grid stagger-children">
@@ -79,9 +97,11 @@
             <div class="card-top">
               <h2 class="name">{{ garden.gardenName }}</h2>
               @if (garden.ownerId === null) {
-                <span class="chip shared" title="Shared with every profile">Shared</span>
+                <span class="chip shared" title="Shared with every profile" i18n-title i18n
+                  >Shared</span
+                >
               }
-              <span class="chip humidity" title="Target humidity">
+              <span class="chip humidity" title="Target humidity" i18n-title>
                 💧 {{ garden.targetHumidityLevel }}%
               </span>
             </div>
@@ -93,13 +113,15 @@
               <app-capacity-bar [used]="usedArea(plants)" [total]="garden.totalSurfaceArea" />
               <p class="meta">
                 <app-capacity-status [garden]="garden" [plants]="plants" />
-                <span>
-                  {{ plants.length }} {{ plants.length === 1 ? 'plant' : 'plants' }} ·
+                <span i18n>
+                  {plants.length, plural, =1 {1 plant} other {{{ plants.length }} plants}} ·
                   {{ garden.totalSurfaceArea }} m² total
                 </span>
               </p>
             } @else if (plantsFailed(garden)) {
-              <p class="meta">Plant details unavailable · {{ garden.totalSurfaceArea }} m² total</p>
+              <p class="meta" i18n>
+                Plant details unavailable · {{ garden.totalSurfaceArea }} m² total
+              </p>
             } @else {
               <!-- Plants loading: row for row what lands — the capacity bar's
                    caption and track, then the status chip beside the total -->
@@ -121,7 +143,7 @@
                     w="3rem"
                     h="0.7rem"
                   />
-                  · {{ garden.totalSurfaceArea }} m² total
+                  <ng-container i18n>· {{ garden.totalSurfaceArea }} m² total</ng-container>
                 </span>
               </p>
             }
@@ -132,19 +154,26 @@
             class="kebab"
             [matMenuTriggerFor]="cardMenu"
             aria-label="Garden actions"
+            i18n-aria-label
             type="button"
           >
             ⋮
           </button>
           <mat-menu #cardMenu="matMenu" xPosition="before">
-            <button mat-menu-item (click)="openEdit(garden)">Edit</button>
-            <button mat-menu-item (click)="remove(garden)">Delete</button>
+            <button mat-menu-item (click)="openEdit(garden)" i18n>Edit</button>
+            <button mat-menu-item (click)="remove(garden)" i18n>Delete</button>
           </mat-menu>
         </article>
       }
       @if (store.creating()) {
         <!-- Creation ghost card: the garden being created (ASYNC-UX) -->
-        <div class="creating-ghost" aria-busy="true" role="status" aria-label="Creating garden">
+        <div
+          class="creating-ghost"
+          aria-busy="true"
+          role="status"
+          aria-label="Creating garden"
+          i18n-aria-label
+        >
           <app-skeleton-garden-card />
         </div>
       }

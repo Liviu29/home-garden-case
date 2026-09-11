@@ -2,7 +2,9 @@
   class="tool-btn press-feedback"
   type="button"
   aria-label="Zoom out"
+  i18n-aria-label
   title="Zoom out"
+  i18n-title
   [disabled]="zoom() <= minZoom"
   (click)="zoomOut.emit()"
 >
@@ -15,7 +17,9 @@
   class="tool-btn press-feedback"
   type="button"
   aria-label="Zoom in"
+  i18n-aria-label
   title="Zoom in"
+  i18n-title
   [disabled]="zoom() >= maxZoom"
   (click)="zoomIn.emit()"
 >
@@ -28,7 +32,9 @@
   class="tool-btn press-feedback"
   type="button"
   aria-label="Fit garden"
+  i18n-aria-label
   title="Fit garden"
+  i18n-title
   (click)="fit.emit()"
 >
   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -42,7 +48,9 @@
   class="tool-btn press-feedback tool-secondary"
   type="button"
   aria-label="Reset view and selection"
+  i18n-aria-label
   title="Reset view and selection"
+  i18n-title
   (click)="resetView.emit()"
 >
   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -54,7 +62,9 @@
   class="tool-btn press-feedback"
   type="button"
   aria-label="Undo layout move"
+  i18n-aria-label
   title="Undo layout move"
+  i18n-title
   [disabled]="!canUndo()"
   (click)="undo.emit()"
 >
@@ -69,7 +79,9 @@
   class="tool-btn press-feedback"
   type="button"
   aria-label="Redo layout move"
+  i18n-aria-label
   title="Redo layout move"
+  i18n-title
   [disabled]="!canRedo()"
   (click)="redo.emit()"
 >
@@ -84,7 +96,9 @@
   class="tool-btn press-feedback"
   type="button"
   aria-label="Reset layout to automatic arrangement"
+  i18n-aria-label
   title="Reset layout to automatic arrangement"
+  i18n-title
   [disabled]="!hasCustomLayout()"
   (click)="resetLayout.emit()"
 >
@@ -116,7 +130,9 @@
   class="tool-btn press-feedback"
   type="button"
   aria-label="Toggle layers menu"
+  i18n-aria-label
   title="Toggle layers menu"
+  i18n-title
   [attr.aria-expanded]="layersOpen()"
   (click)="toggleLayers.emit()"
 >
@@ -131,7 +147,9 @@
   class="tool-btn press-feedback"
   type="button"
   aria-label="Show the plan as a list"
+  i18n-aria-label
   title="Show the plan as a list"
+  i18n-title
   [attr.aria-pressed]="listOpen()"
   (click)="toggleList.emit()"
 >
@@ -145,8 +163,8 @@
 <button
   class="tool-btn press-feedback"
   type="button"
-  [attr.aria-label]="isFullscreen() ? 'Exit fullscreen planner' : 'Expand planner'"
-  [attr.title]="isFullscreen() ? 'Exit fullscreen planner' : 'Expand planner'"
+  [attr.aria-label]="fullscreenLabel()"
+  [attr.title]="fullscreenLabel()"
   (click)="toggleFullscreen.emit()"
 >
   @if (isFullscreen()) {

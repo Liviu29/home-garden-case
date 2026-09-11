@@ -19,10 +19,11 @@ import { Skeleton } from '../../../../shared/ui/skeleton/skeleton';
   host: {
     class: 'skeleton-appear',
     role: 'status',
-    'aria-label': 'Loading garden map',
+    // Host attributes cannot carry i18n, so the label is bound from a $localize string.
+    '[attr.aria-label]': 'hostLabel',
   },
   template: `
-    <span class="visually-hidden">Loading garden map…</span>
+    <span class="visually-hidden" i18n>Loading garden map…</span>
     <div class="ghost-shell" aria-hidden="true">
       <div class="ghost-stage">
         <div class="ghost-frame">
@@ -146,4 +147,6 @@ import { Skeleton } from '../../../../shared/ui/skeleton/skeleton';
     }
   `,
 })
-export class GardenMapSkeleton {}
+export class GardenMapSkeleton {
+  protected readonly hostLabel = $localize`Loading garden map`;
+}

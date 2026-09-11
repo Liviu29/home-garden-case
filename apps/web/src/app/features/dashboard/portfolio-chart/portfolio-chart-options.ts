@@ -23,9 +23,9 @@ export interface PortfolioPoint {
 }
 
 const SERIES_NAME: Readonly<Record<PortfolioKind, string>> = {
-  capacity: 'Near capacity',
-  humidity: 'Humidity drift',
-  healthy: 'Healthy',
+  capacity: $localize`Near capacity`,
+  humidity: $localize`Humidity drift`,
+  healthy: $localize`Healthy`,
 };
 
 /** Marker radius range in px — the smallest garden stays clickable, the largest never swamps. */
@@ -67,12 +67,11 @@ export function describeGarden(p: PortfolioPoint): string {
   const drift = round(p.drift);
   const humidity =
     drift === 0
-      ? `right on the ${p.target}% target`
-      : `${Math.abs(drift)} points ${drift > 0 ? 'above' : 'below'} the ${p.target}% target`;
-  return (
-    `${p.name}: ${round(p.occupancyPct)}% full, ${round(p.used, 1)} of ${p.area} m². ` +
-    `Plants want ${round(p.average)}% humidity, ${humidity}.`
-  );
+      ? $localize`right on the ${p.target}:target:% target`
+      : drift > 0
+        ? $localize`${Math.abs(drift)}:points: points above the ${p.target}:target:% target`
+        : $localize`${Math.abs(drift)}:points: points below the ${p.target}:target:% target`;
+  return $localize`${p.name}:name:: ${round(p.occupancyPct)}:occupancy:% full, ${round(p.used, 1)}:used: of ${p.area}:area: m². Plants want ${round(p.average)}:average:% humidity, ${humidity}:humidity:.`;
 }
 
 /**
@@ -168,13 +167,10 @@ export function portfolioChartOptions(
     title: { text: undefined },
     credits: { enabled: false },
     accessibility: {
-      description:
-        `Bubble chart of ${points.length} planted gardens. Horizontal: share of the surface in ` +
-        `use. Vertical: how far the plants' average ideal humidity is from the garden's target. ` +
-        `Bubble size: garden area. Gardens at least ${nearPct}% full, or more than ${tolerance} ` +
-        `points from their target, need attention.`,
+      description: $localize`Bubble chart of ${points.length}:count: planted gardens. Horizontal: share of the surface in use. Vertical: how far the plants' average ideal humidity is from the garden's target. Bubble size: garden area. Gardens at least ${nearPct}:nearPct:% full, or more than ${tolerance}:tolerance: points from their target, need attention.`,
       point: {
-        descriptionFormatter: (point) => `${describeGarden(pointOf(point))} Opens the garden.`,
+        descriptionFormatter: (point) =>
+          $localize`${describeGarden(pointOf(point))}:description: Opens the garden.`,
       },
     },
     legend: {
@@ -192,7 +188,7 @@ export function portfolioChartOptions(
       gridLineColor: palette.grid,
       lineColor: palette.grid,
       tickColor: palette.grid,
-      title: { text: 'Capacity used', style: axisText },
+      title: { text: $localize`Capacity used`, style: axisText },
       labels: { format: '{value}%', style: axisText },
       plotBands: [
         {
@@ -202,7 +198,7 @@ export function portfolioChartOptions(
           // Short and anchored at the band's left edge, clear of the 100% line
           // (the legend already says "Near capacity").
           label: {
-            text: `≥ ${nearPct}% full`,
+            text: $localize`≥ ${nearPct}:percent:% full`,
             rotation: 0,
             align: 'left',
             verticalAlign: 'top',
@@ -223,21 +219,27 @@ export function portfolioChartOptions(
       startOnTick: false,
       endOnTick: false,
       gridLineColor: palette.grid,
-      title: { text: 'Humidity drift vs target', style: axisText },
+      title: { text: $localize`Humidity drift vs target`, style: axisText },
       labels: { formatter: (ctx) => signed(Number(ctx.value)), style: axisText },
       plotBands: [
         {
           from: tolerance,
           to: yMax,
           color: withAlpha(palette.humid, 0.1),
-          label: { text: 'Plants want more humidity', align: 'left', x: 8, y: 16, style: bandText },
+          label: {
+            text: $localize`Plants want more humidity`,
+            align: 'left',
+            x: 8,
+            y: 16,
+            style: bandText,
+          },
         },
         {
           from: -yMax,
           to: -tolerance,
           color: withAlpha(palette.dry, 0.14),
           label: {
-            text: 'Plants want less humidity',
+            text: $localize`Plants want less humidity`,
             align: 'left',
             verticalAlign: 'bottom',
             x: 8,
@@ -264,8 +266,9 @@ export function portfolioChartOptions(
         const p = pointOf(this);
         return (
           `<b>${escapeLabel(p.name)}</b><br/>` +
-          `${round(p.occupancyPct)}% full · ${round(p.used, 1)} of ${p.area} m²<br/>` +
-          `Plants want ${round(p.average)}% · target ${p.target}% (${signed(p.drift)})`
+          $localize`${round(p.occupancyPct)}:occupancy:% full · ${round(p.used, 1)}:used: of ${p.area}:area: m²` +
+          '<br/>' +
+          $localize`Plants want ${round(p.average)}:average:% · target ${p.target}:target:% (${signed(p.drift)}:drift:)`
         );
       },
     },

@@ -1,6 +1,7 @@
 <aside
   class="map-inspector"
   aria-label="Plant inspector"
+  i18n-aria-label
   [attr.aria-busy]="plant() && mutating() ? true : null"
 >
   @if (plant(); as plant) {
@@ -18,7 +19,7 @@
         <app-skeleton variant="line" w="92%" />
       </div>
       <span class="visually-hidden">
-        {{ deleting() ? 'Removing' : 'Saving changes to' }} {{ plant.plantName }}
+        {{ busyLabel() }}
       </span>
     } @else {
       <header class="inspector-head">
@@ -31,6 +32,7 @@
           class="tool-btn press-feedback"
           type="button"
           aria-label="Clear selection"
+          i18n-aria-label
           (click)="clear.emit()"
         >
           ✕
@@ -41,15 +43,16 @@
         @if (zone(); as z) {
           <span class="zone-chip" [attr.data-zone]="z.zone">
             <span class="zone-dot" aria-hidden="true"></span>
-            {{ z.label }} zone
+            <ng-container i18n>{{ z.label }} zone</ng-container>
           </span>
         }
-        <span class="place-chip">{{ customPosition() ? 'Placed by you' : 'Auto-placed' }}</span>
+        <span class="place-chip">{{ placeLabel() }}</span>
         @if (customPosition()) {
           <button
             class="chip-action press-feedback"
             type="button"
             (click)="returnHome.emit(plant.plantId)"
+            i18n
           >
             Return to auto spot
           </button>
@@ -58,20 +61,21 @@
 
       <dl class="inspector-facts">
         <div class="fact">
-          <dt>Required surface</dt>
+          <dt i18n>Required surface</dt>
           <dd class="tabular">
             {{ plant.surfaceAreaRequired }} m²
-            <span class="fact-sub">{{ share() | number: '1.0-0' }}% of garden</span>
+            <span class="fact-sub" i18n>{{ share() | number: '1.0-0' }}% of garden</span>
           </dd>
         </div>
         <div class="fact">
-          <dt>Ideal humidity</dt>
+          <dt i18n>Ideal humidity</dt>
           <dd class="tabular">
             {{ plant.idealHumidityLevel }}%
             <span
               class="fact-sub"
               [class.above]="humidityDelta() > 5"
               [class.below]="humidityDelta() < -5"
+              i18n
             >
               {{ humidityDelta() > 0 ? '+' : '' }}{{ humidityDelta() }} vs
               {{ garden().targetHumidityLevel }}% target
@@ -79,17 +83,17 @@
           </dd>
         </div>
         <div class="fact">
-          <dt>Planted</dt>
+          <dt i18n>Planted</dt>
           <dd>{{ plant.plantationDate | date: 'MMM d, y' : 'UTC' }}</dd>
         </div>
         <div class="fact">
-          <dt>Type</dt>
+          <dt i18n>Type</dt>
           <dd class="type-name">{{ plant.plantType }}</dd>
         </div>
       </dl>
 
       <div class="contribution">
-        <span class="contribution-label">Capacity contribution</span>
+        <span class="contribution-label" i18n>Capacity contribution</span>
         <span class="contribution-bar" aria-hidden="true">
           <span class="contribution-fill" [style.transform]="'scaleX(' + shareRatio() + ')'"></span>
         </span>
@@ -100,9 +104,9 @@
         <div class="clash-note" role="note">
           <span class="clash-icon" aria-hidden="true">≠</span>
           <div class="clash-text">
-            <p class="clash-title">Watering clash</p>
+            <p class="clash-title" i18n>Watering clash</p>
             @for (n of neighbours(); track n.plantId) {
-              <p class="clash-line">
+              <p class="clash-line" i18n>
                 {{ n.name }}, right next to it, prefers {{ n.humidity }}% — {{ n.delta }} points
                 apart.
               </p>
@@ -111,14 +115,16 @@
         </div>
       }
 
-      <p class="drag-hint">Drag its bed, or use the arrow keys, to reposition it.</p>
+      <p class="drag-hint" i18n>Drag its bed, or use the arrow keys, to reposition it.</p>
       <div class="inspector-actions">
         <button
           matButton="outlined"
           class="press-feedback"
           type="button"
           aria-label="Focus this plant on the plan"
+          i18n-aria-label
           (click)="focusPlant.emit()"
+          i18n
         >
           Focus
         </button>
@@ -127,6 +133,7 @@
           class="press-feedback"
           type="button"
           (click)="editPlant.emit(plant)"
+          i18n
         >
           Edit
         </button>
@@ -135,6 +142,7 @@
           class="press-feedback danger"
           type="button"
           (click)="removePlant.emit(plant)"
+          i18n
         >
           Remove
         </button>
@@ -142,27 +150,32 @@
     }
   } @else {
     <div class="inspector-idle">
-      <p class="inspector-hint">Select a plant on the map to inspect it.</p>
+      <p class="inspector-hint" i18n>Select a plant on the map to inspect it.</p>
       <dl class="inspector-facts">
         <div class="fact">
-          <dt>Plants</dt>
+          <dt i18n>Plants</dt>
           <dd class="tabular">{{ plants().length }}</dd>
         </div>
         <div class="fact">
-          <dt>Space used</dt>
+          <dt i18n>Space used</dt>
           <dd class="tabular">{{ utilizationPct() | number: '1.0-0' }}%</dd>
         </div>
         <div class="fact">
-          <dt>Room to grow</dt>
+          <dt i18n>Room to grow</dt>
           <dd class="tabular">{{ freeArea() | number: '1.0-1' }} m²</dd>
         </div>
       </dl>
 
       @if (plants().length > 0) {
-        <section class="zones-card" aria-label="Watering zones">
+        <section class="zones-card" aria-label="Watering zones" i18n-aria-label>
           <div class="zones-head">
-            <h4 class="zones-title">Watering zones</h4>
-            <button class="chip-action press-feedback" type="button" (click)="showZones.emit()">
+            <h4 class="zones-title" i18n>Watering zones</h4>
+            <button
+              class="chip-action press-feedback"
+              type="button"
+              (click)="showZones.emit()"
+              i18n
+            >
               Show on plan
             </button>
           </div>
@@ -180,13 +193,14 @@
               </li>
             }
           </ul>
-          <p class="zones-clashes" [class.clear]="conflicts().length === 0">
-            @if (conflicts().length === 0) {
-              No watering clashes between neighbours.
+          <p class="zones-clashes" [class.clear]="clashCount() === 0">
+            @if (clashCount() === 0) {
+              <ng-container i18n>No watering clashes between neighbours.</ng-container>
             } @else {
-              {{ conflicts().length }}
-              {{ conflicts().length === 1 ? 'watering clash' : 'watering clashes' }} between
-              neighbouring beds.
+              <ng-container i18n>{clashCount(), plural,
+                =1 {1 watering clash between neighbouring beds.}
+                other {{{ clashCount() }} watering clashes between neighbouring beds.}
+              }</ng-container>
             }
           </p>
         </section>
@@ -197,11 +211,12 @@
           type="button"
           [disabled]="!canArrange()"
           (click)="arrange.emit()"
+          i18n
         >
           Group by water needs
         </button>
         @if (arrangeBlocked()) {
-          <p class="arrange-note" role="status">
+          <p class="arrange-note" role="status" i18n>
             Not enough open ground to regroup these beds without overlaps.
           </p>
         }

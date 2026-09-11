@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -42,6 +42,10 @@ export class Onboarding {
   private readonly router = inject(Router);
   private readonly fb = inject(NonNullableFormBuilder);
   protected readonly theme = inject(ThemeStore);
+
+  protected readonly themeLabel = computed(() =>
+    this.theme.isDark() ? $localize`Switch to light theme` : $localize`Switch to dark theme`,
+  );
 
   protected readonly profiles = signal<readonly UserProfile[]>([]);
   protected readonly status = signal<Status>('loading');
@@ -129,7 +133,7 @@ export class Onboarding {
       const error = toApiError(err);
       if (error.status === 409) {
         this.duplicateEmail.set(emailAddress);
-        this.serverError.set('A profile already uses that email address.');
+        this.serverError.set($localize`A profile already uses that email address.`);
       } else {
         this.serverError.set(error.message);
       }
@@ -151,7 +155,7 @@ export class Onboarding {
       const error = toApiError(err);
       this.serverError.set(
         error.kind === 'not-found'
-          ? 'That profile could not be opened. Try picking it from the list.'
+          ? $localize`That profile could not be opened. Try picking it from the list.`
           : error.message,
       );
     } finally {

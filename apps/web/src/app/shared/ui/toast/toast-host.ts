@@ -43,6 +43,7 @@ import { ToastStore } from '../../../core/errors/toast-store';
             class="close"
             type="button"
             aria-label="Dismiss"
+            i18n-aria-label
             (click)="store.dismiss(toast.id)"
           >
             ×

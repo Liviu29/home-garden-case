@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 
 /**
@@ -12,9 +12,12 @@ import { DatePipe, DecimalPipe } from '@angular/common';
   imports: [DatePipe, DecimalPipe],
   templateUrl: './map-timeline.html',
   styleUrl: './map-timeline.scss',
-  host: { class: 'map-timeline', role: 'group', 'aria-label': 'Planting timeline' },
+  // Host attributes cannot carry i18n, so the label is bound from a $localize string.
+  host: { class: 'map-timeline', role: 'group', '[attr.aria-label]': 'hostLabel' },
 })
 export class MapTimeline {
+  protected readonly hostLabel = $localize`Planting timeline`;
+
   readonly dayCount = input.required<number>();
   readonly dayIndex = input.required<number>();
   /** The day on show as a UTC instant, for the date pipe. */
@@ -28,6 +31,10 @@ export class MapTimeline {
   readonly togglePlayback = output<void>();
   readonly scrub = output<number>();
   readonly close = output<void>();
+
+  protected readonly playbackLabel = computed(() =>
+    this.playing() ? $localize`Pause timeline` : $localize`Play timeline`,
+  );
 
   protected onInput(event: Event): void {
     this.scrub.emit(Number((event.target as HTMLInputElement).value));

@@ -109,9 +109,9 @@ export const WATERING_ZONES: readonly {
   readonly label: string;
   readonly range: string;
 }[] = [
-  { zone: 'dry', label: 'Dry', range: 'under 50%' },
-  { zone: 'balanced', label: 'Balanced', range: '50–69%' },
-  { zone: 'humid', label: 'Humid', range: '70% and up' },
+  { zone: 'dry', label: $localize`Dry`, range: $localize`under 50%` },
+  { zone: 'balanced', label: $localize`Balanced`, range: $localize`50–69%` },
+  { zone: 'humid', label: $localize`Humid`, range: $localize`70% and up` },
 ];
 
 export function wateringZone(idealHumidity: number): WateringZone {

@@ -47,5 +47,5 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 export class SkeletonGroup {
   readonly loading = input.required<boolean>();
   /** What is loading — the screen-reader announcement. */
-  readonly label = input('Loading…');
+  readonly label = input($localize`Loading…`);
 }

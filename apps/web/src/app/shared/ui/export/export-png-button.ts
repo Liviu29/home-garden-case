@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { ToastStore } from '../../../core/errors/toast-store';
 import { Logger } from '../../../core/logging/logger';
@@ -18,7 +18,7 @@ import { SvgExporter } from './svg-export';
       type="button"
       class="export press-feedback"
       [disabled]="busy()"
-      [attr.aria-label]="'Save ' + title() + ' as PNG'"
+      [attr.aria-label]="saveLabel()"
       (click)="save()"
     >
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -62,18 +62,19 @@ export class ExportPngButton {
   private readonly toasts = inject(ToastStore);
   private readonly logger = inject(Logger);
   protected readonly busy = signal(false);
+  protected readonly saveLabel = computed(() => $localize`Save ${this.title()}:title: as PNG`);
 
   protected async save(): Promise<void> {
     const svg = this.target().querySelector<SVGSVGElement>(this.selector());
     if (!svg) {
-      this.toasts.info('Nothing to save yet — wait for it to finish drawing.');
+      this.toasts.info($localize`Nothing to save yet — wait for it to finish drawing.`);
       return;
     }
     this.busy.set(true);
     try {
       await this.exporter.downloadPng(svg, this.title());
     } catch (err) {
-      this.toasts.error(`Couldn't save “${this.title()}” as an image.`);
+      this.toasts.error($localize`Couldn't save “${this.title()}:title:” as an image.`);
       this.logger.warn('export:png', err instanceof Error ? err.message : String(err));
     } finally {
       this.busy.set(false);

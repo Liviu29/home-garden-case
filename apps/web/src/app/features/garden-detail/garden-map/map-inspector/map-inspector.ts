@@ -58,6 +58,20 @@ export class MapInspector {
   readonly arrange = output<void>();
   readonly showZones = output<void>();
 
+  /** Screen-reader status while the selected plant's PUT or DELETE is in flight. */
+  protected readonly busyLabel = computed(() => {
+    const plantName = this.plant()?.plantName ?? '';
+    return this.deleting()
+      ? $localize`Removing ${plantName}:plantName:`
+      : $localize`Saving changes to ${plantName}:plantName:`;
+  });
+
+  protected readonly placeLabel = computed(() =>
+    this.customPosition() ? $localize`Placed by you` : $localize`Auto-placed`,
+  );
+
+  protected readonly clashCount = computed(() => this.conflicts().length);
+
   protected readonly share = computed(() => {
     const plant = this.plant();
     const total = this.garden().totalSurfaceArea;

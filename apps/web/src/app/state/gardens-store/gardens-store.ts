@@ -160,18 +160,21 @@ export const GardensStore = signalStore(
         }
         const lost = plants.length - replanted.length;
         if (lost === 0) {
-          toasts.success(`Garden “${restored.gardenName}” is back.`);
+          toasts.success($localize`Garden “${restored.gardenName}:name:” is back.`);
         } else {
           toasts.error(
-            `Garden “${restored.gardenName}” is back, but ${lost} of its ${plants.length} plants could not be replanted.`,
+            $localize`Garden “${restored.gardenName}:name:” is back, but ${lost}:lost: of its ${plants.length}:total: plants could not be replanted.`,
           );
         }
       } catch (err) {
         const error = toApiError(err);
         toasts.error(
-          `Couldn't bring back “${garden.gardenName}”.`,
+          $localize`Couldn't bring back “${garden.gardenName}:name:”.`,
           error.kind === 'technical'
-            ? { label: 'Try again', run: () => void restoreGarden(garden, plants, layoutBefore) }
+            ? {
+                label: $localize`Try again`,
+                run: () => void restoreGarden(garden, plants, layoutBefore),
+              }
             : undefined,
         );
         logger.warn('gardens:restore', error.message);
@@ -218,7 +221,7 @@ export const GardensStore = signalStore(
         } catch (err) {
           if (cached) {
             // Stale data on screen beats an error screen; note it quietly.
-            toasts.info('Showing cached gardens — refresh failed.');
+            toasts.info($localize`Showing cached gardens — refresh failed.`);
           } else {
             patchState(store, { status: 'error' });
           }
@@ -242,7 +245,7 @@ export const GardensStore = signalStore(
           // (a slow-API race) — a blind append would render
           // the card twice.
           addToList(created);
-          toasts.success(`Garden “${created.gardenName}” created.`);
+          toasts.success($localize`Garden “${created.gardenName}:name:” created.`);
           return { ok: true };
         } catch (err) {
           return failMutation(err, toasts);
@@ -265,7 +268,7 @@ export const GardensStore = signalStore(
           // Write-through (not invalidate): the detail screen re-reads this
           // key on reload and must see the update instantly, with no refetch.
           cache.set(cacheKeys.garden(gardenId), updated);
-          toasts.success(`Garden “${updated.gardenName}” updated.`);
+          toasts.success($localize`Garden “${updated.gardenName}:name:” updated.`);
           return { ok: true };
         } catch (err) {
           return failMutation(err, toasts);
@@ -303,17 +306,20 @@ export const GardensStore = signalStore(
           cache.invalidate(cacheKeys.plantsOfGarden(garden.gardenId));
           layout.reset(garden.gardenId);
           toasts.success(
-            `Garden “${garden.gardenName}” deleted.`,
+            $localize`Garden “${garden.gardenName}:name:” deleted.`,
             // Without its plants an undo would quietly bring back less than was deleted.
             plants
-              ? { label: 'Undo', run: () => void restoreGarden(garden, plants, layoutBefore) }
+              ? {
+                  label: $localize`Undo`,
+                  run: () => void restoreGarden(garden, plants, layoutBefore),
+                }
               : undefined,
           );
         } catch (err) {
           // The ghost resolves back into the real card — nothing was removed yet.
           const retry = (): void => void this.remove(garden);
-          toasts.error(`Couldn't delete “${garden.gardenName}”.`, {
-            label: 'Try again',
+          toasts.error($localize`Couldn't delete “${garden.gardenName}:name:”.`, {
+            label: $localize`Try again`,
             run: retry,
           });
           logger.warn('gardens:delete', toApiError(err).message);

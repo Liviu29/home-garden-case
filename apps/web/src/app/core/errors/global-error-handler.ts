@@ -28,7 +28,7 @@ export class GlobalErrorHandler implements ErrorHandler {
     }
 
     this.logger.error('app', 'unhandled error', unwrapped);
-    this.toasts.error('Something unexpected happened. Please try again.');
+    this.toasts.error($localize`Something unexpected happened. Please try again.`);
   }
 }
 

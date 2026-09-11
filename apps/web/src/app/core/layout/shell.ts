@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, Injector, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  Injector,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatMenuModule } from '@angular/material/menu';
 import { UsersApi } from '../api/users-api';
@@ -6,6 +13,7 @@ import { SessionStore } from '../auth/session-store';
 import { ThemeStore } from '../config/theme-store';
 import { toApiError } from '../errors/api-error';
 import { ToastStore } from '../errors/toast-store';
+import { Locales } from '../i18n/locales';
 import { QueryCache, cacheKeys } from '../resilience/query-cache';
 import { ToastHost } from '../../shared/ui/toast/toast-host';
 
@@ -16,9 +24,9 @@ import { ToastHost } from '../../shared/ui/toast/toast-host';
   imports: [RouterOutlet, RouterLink, RouterLinkActive, MatMenuModule, ToastHost],
   template: `
     <div class="shell">
-      <a class="skip-link" href="#main-content">Skip to content</a>
+      <a class="skip-link" href="#main-content" i18n>Skip to content</a>
       <header class="topbar">
-        <a routerLink="/" class="brand" aria-label="ItpHomeGarden home">
+        <a routerLink="/" class="brand" aria-label="ItpHomeGarden home" i18n-aria-label>
           <span class="mark" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="18" height="18">
               <path
@@ -33,16 +41,33 @@ import { ToastHost } from '../../shared/ui/toast/toast-host';
           <span class="name">HomeGarden</span>
         </a>
 
-        <nav class="nav" aria-label="Primary">
-          <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
-          <a routerLink="/gardens" routerLinkActive="active">Gardens</a>
+        <nav class="nav" aria-label="Primary" i18n-aria-label>
+          <a routerLink="/dashboard" routerLinkActive="active" i18n>Dashboard</a>
+          <a routerLink="/gardens" routerLinkActive="active" i18n>Gardens</a>
         </nav>
+
+        <!-- Each language is its own build (/en/, /nl/); a dev server has one -->
+        @if (locales.localized) {
+          <nav class="lang" aria-label="Language" i18n-aria-label>
+            @for (locale of locales.all; track locale.code) {
+              <a
+                [href]="locales.hrefFor(locale.code)"
+                [attr.hreflang]="locale.code"
+                [attr.lang]="locale.code"
+                [attr.aria-label]="locale.name"
+                [attr.aria-current]="locale.code === locales.current ? 'true' : null"
+                (click)="switchLanguage($event, locale.code)"
+                >{{ locale.label }}</a
+              >
+            }
+          </nav>
+        }
 
         <button
           class="theme-toggle press-feedback"
           type="button"
           (click)="theme.toggle()"
-          [attr.aria-label]="theme.isDark() ? 'Switch to light theme' : 'Switch to dark theme'"
+          [attr.aria-label]="themeLabel()"
         >
           @if (theme.isDark()) {
             <svg
@@ -89,18 +114,21 @@ import { ToastHost } from '../../shared/ui/toast/toast-host';
           <span class="avatar" aria-hidden="true">{{ session.initials() }}</span>
           <span class="profile-name">{{ session.displayName() }}</span>
         </button>
-        <span class="visually-hidden" role="status">{{
-          deleting() ? 'Deleting profile…' : ''
-        }}</span>
+        <span class="visually-hidden" role="status">
+          @if (deleting()) {
+            <ng-container i18n>Deleting profile…</ng-container>
+          }
+        </span>
         <mat-menu #profileMenu="matMenu" xPosition="before">
-          <button mat-menu-item (click)="editProfile()">Edit profile</button>
-          <button mat-menu-item (click)="switchProfile()">Switch profile</button>
-          <button mat-menu-item (click)="signOut()">Sign out</button>
+          <button mat-menu-item (click)="editProfile()" i18n>Edit profile</button>
+          <button mat-menu-item (click)="switchProfile()" i18n>Switch profile</button>
+          <button mat-menu-item (click)="signOut()" i18n>Sign out</button>
           <button
             mat-menu-item
             class="danger-item"
             [disabled]="deleting()"
             (click)="deleteProfile()"
+            i18n
           >
             Delete profile
           </button>
@@ -267,6 +295,34 @@ import { ToastHost } from '../../shared/ui/toast/toast-host';
       }
     }
 
+    // EN | NL: the current language solid, the other a quiet link
+    .lang {
+      display: flex;
+      gap: 2px;
+      padding: 2px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-pill);
+      background: var(--surface-1);
+
+      a {
+        padding: 0.2rem 0.55rem;
+        border-radius: var(--radius-pill);
+        font-size: var(--fs-caption);
+        font-weight: 650;
+        color: var(--text-2);
+        text-decoration: none;
+
+        &:hover {
+          color: var(--text-1);
+        }
+
+        &[aria-current='true'] {
+          background: var(--surface-inverse);
+          color: var(--text-on-inverse);
+        }
+      }
+    }
+
     .theme-toggle {
       display: grid;
       place-items: center;
@@ -352,6 +408,7 @@ import { ToastHost } from '../../shared/ui/toast/toast-host';
 export class Shell {
   protected readonly session = inject(SessionStore);
   protected readonly theme = inject(ThemeStore);
+  protected readonly locales = inject(Locales);
   private readonly router = inject(Router);
   private readonly injector = inject(Injector);
   private readonly usersApi = inject(UsersApi);
@@ -360,15 +417,25 @@ export class Shell {
 
   protected readonly deleting = signal(false);
 
+  protected readonly themeLabel = computed(() =>
+    this.theme.isDark() ? $localize`Switch to light theme` : $localize`Switch to dark theme`,
+  );
+
   constructor() {
     // The persisted session can outlive the profile it points at (deleted
     // elsewhere, or db.sqlite reset). A 404 signs out; a random 500 does not.
     void this.session.revalidate().then((valid) => {
       if (!valid) {
-        this.toasts.error('That profile no longer exists. Please choose another.');
+        this.toasts.error($localize`That profile no longer exists. Please choose another.`);
         void this.router.navigate(['/welcome']);
       }
     });
+  }
+
+  /** The switcher's links work without script too; with it, the route is kept. */
+  protected switchLanguage(event: Event, code: 'en' | 'nl'): void {
+    event.preventDefault();
+    this.locales.switchTo(code);
   }
 
   /**
@@ -395,12 +462,11 @@ export class Shell {
       return;
     }
     const { ConfirmService } = await import('../../shared/ui/confirm-dialog/confirm-dialog');
+    const name = this.session.displayName();
     const confirmed = await this.injector.get(ConfirmService).confirm({
-      title: 'Delete profile?',
-      message:
-        `“${this.session.displayName()}” will be permanently deleted. ` +
-        'Its gardens and plants stay, shared with every profile.',
-      confirmLabel: 'Delete',
+      title: $localize`Delete profile?`,
+      message: $localize`“${name}:name:” will be permanently deleted. Its gardens and plants stay, shared with every profile.`,
+      confirmLabel: $localize`Delete`,
       destructive: true,
     });
     if (!confirmed) {
@@ -411,7 +477,7 @@ export class Shell {
       await this.usersApi.delete(profile.userId);
       this.cache.invalidate(cacheKeys.users);
       this.session.signOut();
-      this.toasts.success('Profile deleted.');
+      this.toasts.success($localize`Profile deleted.`);
       void this.router.navigate(['/welcome']);
     } catch (err) {
       const error = toApiError(err);
@@ -422,7 +488,7 @@ export class Shell {
         void this.router.navigate(['/welcome']);
         return;
       }
-      this.toasts.error(`Couldn't delete the profile. ${error.message}`);
+      this.toasts.error($localize`Couldn't delete the profile. ${error.message}:reason:`);
     } finally {
       this.deleting.set(false);
     }

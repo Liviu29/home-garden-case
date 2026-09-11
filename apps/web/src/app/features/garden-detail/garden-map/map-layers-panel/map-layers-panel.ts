@@ -19,11 +19,14 @@ export type LayerKey = keyof LayerToggles;
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './map-layers-panel.html',
   styleUrl: './map-layers-panel.scss',
-  host: { class: 'layers-panel', role: 'group', 'aria-label': 'Map layers' },
+  // Host attributes cannot carry i18n, so the label is bound from a $localize string.
+  host: { class: 'layers-panel', role: 'group', '[attr.aria-label]': 'hostLabel' },
 })
 export class MapLayersPanel {
   readonly layers = input.required<LayerToggles>();
   readonly toggle = output<LayerKey>();
+
+  protected readonly hostLabel = $localize`Map layers`;
 
   protected readonly zoneLegend = WATERING_ZONES;
 }

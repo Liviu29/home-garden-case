@@ -182,6 +182,7 @@
                     ? 'rotate(-90 ' + hint.cx + ' ' + hint.cy + ')'
                     : null
                 "
+                i18n
               >
                 Available · {{ freeArea() | number: '1.0-1' }} m²
               </text>
@@ -423,6 +424,7 @@
               [attr.font-size]="drop.readout.fs"
               text-anchor="middle"
               dominant-baseline="central"
+              i18n
             >
               Auto spot
             </text>
@@ -493,7 +495,7 @@
     <!-- A bare wheel scrolls the page; this says how to zoom instead -->
     @if (wheelHint()) {
       <div class="wheel-hint" aria-hidden="true">
-        <span>Hold {{ zoomModifier }} and scroll to zoom</span>
+        <span i18n>Hold {{ zoomModifier }} and scroll to zoom</span>
       </div>
     }
 
@@ -561,11 +563,17 @@
     <!-- Designed empty state: the surface is an invitation, not a blank -->
     @if (plants().length === 0 && pendingCreateArea() === null) {
       <div class="map-empty-overlay">
-        <p class="empty-title">Your garden has space to grow.</p>
-        <p class="empty-sub">
+        <p class="empty-title" i18n>Your garden has space to grow.</p>
+        <p class="empty-sub" i18n>
           {{ garden().totalSurfaceArea }} m² of open soil, ready when you are.
         </p>
-        <button matButton="filled" class="press-feedback" type="button" (click)="addPlant.emit()">
+        <button
+          matButton="filled"
+          class="press-feedback"
+          type="button"
+          (click)="addPlant.emit()"
+          i18n
+        >
           Plant your garden
         </button>
       </div>
@@ -575,8 +583,8 @@
     @if (tooltip(); as tip) {
       <div class="map-tooltip" aria-hidden="true" [style.left.px]="tip.x" [style.top.px]="tip.y">
         <span class="tip-name">{{ tip.label }}</span>
-        <span class="tip-meta">{{ tip.area }} m² · {{ tip.sharePct }}% of garden</span>
-        <span class="tip-hint">Click for details · drag to move</span>
+        <span class="tip-meta" i18n>{{ tip.area }} m² · {{ tip.sharePct }}% of garden</span>
+        <span class="tip-hint" i18n>Click for details · drag to move</span>
       </div>
     }
   </div>

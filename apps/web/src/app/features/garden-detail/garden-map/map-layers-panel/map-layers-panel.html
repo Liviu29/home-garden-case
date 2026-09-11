@@ -1,26 +1,26 @@
 <label class="layer-toggle">
   <input type="checkbox" [checked]="layers().labels" (change)="toggle.emit('labels')" />
-  Plant labels
+  <ng-container i18n>Plant labels</ng-container>
 </label>
 <label class="layer-toggle">
   <input type="checkbox" [checked]="layers().footprints" (change)="toggle.emit('footprints')" />
-  Footprints
+  <ng-container i18n>Footprints</ng-container>
 </label>
 <label class="layer-toggle">
   <input type="checkbox" [checked]="layers().grid" (change)="toggle.emit('grid')" />
-  Grid
+  <ng-container i18n>Grid</ng-container>
 </label>
 <label class="layer-toggle">
   <input type="checkbox" [checked]="layers().humidity" (change)="toggle.emit('humidity')" />
-  Humidity preference
+  <ng-container i18n>Humidity preference</ng-container>
 </label>
 <label class="layer-toggle">
   <input type="checkbox" [checked]="layers().zones" (change)="toggle.emit('zones')" />
-  Watering zones
+  <ng-container i18n>Watering zones</ng-container>
 </label>
 <label class="layer-toggle">
   <input type="checkbox" [checked]="layers().freeSpace" (change)="toggle.emit('freeSpace')" />
-  Available space
+  <ng-container i18n>Available space</ng-container>
 </label>
 @if (layers().zones) {
   <ul class="zone-legend">
@@ -31,10 +31,11 @@
       </li>
     }
     <li class="zone-clash-key">
-      <span class="clash-swatch" aria-hidden="true">≠</span> Neighbours that need different watering
+      <span class="clash-swatch" aria-hidden="true">≠</span>
+      <ng-container i18n>Neighbours that need different watering</ng-container>
     </li>
   </ul>
 }
 @if (layers().humidity || layers().zones) {
-  <p class="layers-note">Preference vs target — not a measurement</p>
+  <p class="layers-note" i18n>Preference vs target — not a measurement</p>
 }

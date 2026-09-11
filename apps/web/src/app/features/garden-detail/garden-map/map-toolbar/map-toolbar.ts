@@ -11,9 +11,12 @@ import { MAX_ZOOM, MIN_ZOOM } from '../map-camera/map-camera';
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './map-toolbar.html',
   styleUrl: './map-toolbar.scss',
-  host: { class: 'map-toolbar', role: 'toolbar', 'aria-label': 'Map view controls' },
+  // Host attributes cannot carry i18n, so the label is bound from a $localize string.
+  host: { class: 'map-toolbar', role: 'toolbar', '[attr.aria-label]': 'hostLabel' },
 })
 export class MapToolbar {
+  protected readonly hostLabel = $localize`Map view controls`;
+
   readonly zoom = input.required<number>();
   readonly canUndo = input(false);
   readonly canRedo = input(false);
@@ -41,6 +44,11 @@ export class MapToolbar {
   protected readonly maxZoom = MAX_ZOOM;
   protected readonly zoomPercent = computed(() => Math.round(this.zoom() * 100));
   protected readonly timelineLabel = computed(() =>
-    this.canReplay() ? 'Planting timeline' : 'Planting timeline — needs plants from different days',
+    this.canReplay()
+      ? $localize`Planting timeline`
+      : $localize`Planting timeline — needs plants from different days`,
+  );
+  protected readonly fullscreenLabel = computed(() =>
+    this.isFullscreen() ? $localize`Exit fullscreen planner` : $localize`Expand planner`,
   );
 }

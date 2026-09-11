@@ -62,7 +62,7 @@ type ChartState = 'loading' | 'ready' | 'failed';
 export class Chart {
   readonly options = input.required<Options>();
   /** Shown instead of the chart if the library cannot be loaded. */
-  readonly fallback = input('This chart could not be loaded.');
+  readonly fallback = input($localize`This chart could not be loaded.`);
 
   private readonly loader = inject(HighchartsLoader);
   private readonly logger = inject(Logger);

@@ -34,15 +34,15 @@
   </div>
 </ng-template>
 
-<nav class="breadcrumb anim-fade-in" aria-label="Breadcrumb">
-  <a routerLink="/gardens">Gardens</a>
+<nav class="breadcrumb anim-fade-in" aria-label="Breadcrumb" i18n-aria-label>
+  <a routerLink="/gardens" i18n>Gardens</a>
   <span aria-hidden="true">/</span>
   @if (store.garden(); as current) {
     <span>{{ current.gardenName }}</span>
   } @else if (store.gardenMissing()) {
-    <span>Not found</span>
+    <span i18n>Not found</span>
   } @else if (store.gardenFailed()) {
-    <span>Garden</span>
+    <span i18n>Garden</span>
   } @else {
     <!-- The name is loading: a ghost of its size, never a "…" -->
     <app-skeleton class="skeleton-appear" variant="line" w="7rem" h="0.75rem" />
@@ -54,21 +54,27 @@
   <app-empty-state
     [headingLevel]="1"
     title="Garden not found"
+    i18n-title
     message="It may have been deleted, or the link is out of date."
+    i18n-message
   >
-    <a matButton="filled" routerLink="/gardens" class="press-feedback">Back to gardens</a>
+    <a matButton="filled" routerLink="/gardens" class="press-feedback" i18n>Back to gardens</a>
   </app-empty-state>
 } @else if (store.gardenFailed()) {
   <!-- 5xx / network: the garden probably exists — offer a retry, not a lie -->
   <app-empty-state
     [headingLevel]="1"
     title="Couldn't load this garden"
+    i18n-title
     message="The greenhouse network is acting up. Your garden is still there."
+    i18n-message
   >
-    <button matButton="filled" class="press-feedback" (click)="retryGarden()">Try again</button>
+    <button matButton="filled" class="press-feedback" (click)="retryGarden()" i18n>
+      Try again
+    </button>
   </app-empty-state>
 } @else {
-  <app-skeleton-group [loading]="store.isGardenLoading()" label="Loading garden">
+  <app-skeleton-group [loading]="store.isGardenLoading()" label="Loading garden" i18n-label>
     <div ghost>
       <!-- Content-shaped cold-load skeleton, built on the REAL header, panel
            and table classes, so every ghost holds its content's exact
@@ -138,12 +144,13 @@
               matIconButton
               [matMenuTriggerFor]="gardenMenu"
               aria-label="Garden actions"
+              i18n-aria-label
               type="button"
             >
               ⋮
             </button>
             <mat-menu #gardenMenu="matMenu">
-              <button mat-menu-item (click)="openEditGarden(garden)">Edit garden</button>
+              <button mat-menu-item (click)="openEditGarden(garden)" i18n>Edit garden</button>
             </mat-menu>
           </div>
           @if (garden.locationDescription) {
@@ -154,7 +161,7 @@
                   fill="currentColor"
                 />
               </svg>
-              <span class="visually-hidden">Location:</span>
+              <span class="visually-hidden" i18n>Location:</span>
               {{ garden.locationDescription }}
             </p>
           }
@@ -170,7 +177,7 @@
               } @else {
                 <span class="stat-value tabular">{{ store.usedArea() | number: '1.0-1' }}</span>
               }
-              <span class="stat-label">m² used</span>
+              <span class="stat-label" i18n>m² used</span>
             </div>
             <div class="header-stat">
               @if (plantsPending) {
@@ -183,7 +190,7 @@
               } @else {
                 <span class="stat-value tabular">{{ store.freeArea() | number: '1.0-1' }}</span>
               }
-              <span class="stat-label">m² free</span>
+              <span class="stat-label" i18n>m² free</span>
             </div>
             <div class="header-stat">
               @if (plantsPending) {
@@ -196,7 +203,7 @@
               } @else {
                 <span class="stat-value tabular">{{ store.plants().length }}</span>
               }
-              <span class="stat-label">plants</span>
+              <span class="stat-label" i18n>plants</span>
             </div>
           </div>
           @if (plantsPending) {
@@ -221,7 +228,7 @@
             />
           }
           @if (store.humidityDrift(); as drift) {
-            <p class="drift" [class.above]="drift > 0" [class.below]="drift < 0">
+            <p class="drift" [class.above]="drift > 0" [class.below]="drift < 0" i18n>
               {{ drift > 0 ? '▲' : '▼' }} {{ drift > 0 ? '+' : '' }}{{ drift | number: '1.0-0' }}
               vs target
             </p>
@@ -230,14 +237,14 @@
           @if (outdoor().status !== 'idle') {
             <p class="outdoor" data-testid="outdoor">
               @if (outdoor().reading; as now) {
-                <span>
+                <span i18n>
                   Outdoors now
                   <strong class="tabular">{{ now.humidity | number: '1.0-0' }}%</strong>
                   · {{ now.temperature | number: '1.0-0' }} °C
                 </span>
                 <span class="outdoor-source">{{ weatherSource }}</span>
               } @else if (outdoor().status === 'error') {
-                <span>Outdoor humidity is unavailable right now</span>
+                <span i18n>Outdoor humidity is unavailable right now</span>
               } @else {
                 <app-skeleton class="skeleton-appear" variant="line" w="10rem" h="0.8rem" />
               }
@@ -254,26 +261,30 @@
       >
         <div class="panel-head">
           <div>
-            <h2 id="map-heading" class="panel-title">Garden plan</h2>
-            <p class="panel-sub">Explore plants, capacity and open space — drag beds to arrange.</p>
+            <h2 id="map-heading" class="panel-title" i18n>Garden plan</h2>
+            <p class="panel-sub" i18n>
+              Explore plants, capacity and open space — drag beds to arrange.
+            </p>
           </div>
           @if (plannerFullscreen()) {
             <input
               class="planner-search"
               type="search"
               placeholder="Find a plant…"
+              i18n-placeholder
               aria-label="Find a plant on the plan"
+              i18n-aria-label
               [value]="plannerQuery()"
               (input)="onPlannerQueryInput($event)"
               (keydown.enter)="focusSearchMatch()"
             />
           } @else {
             <div class="panel-actions">
-              <p class="panel-hint">Drag to pan · Ctrl/⌘ + scroll to zoom</p>
+              <p class="panel-hint" i18n>Drag to pan · Ctrl/⌘ + scroll to zoom</p>
               <app-export-png-button
                 [target]="mapPanel"
                 selector="svg.map-svg"
-                [title]="garden.gardenName + ' garden plan'"
+                [title]="planTitle(garden.gardenName)"
               />
             </div>
           }
@@ -318,9 +329,11 @@
           <app-empty-state
             [headingLevel]="3"
             title="Couldn't load the plan"
+            i18n-title
             message="The plan is drawn from this garden's plants, and they didn't arrive."
+            i18n-message
           >
-            <button matButton="filled" class="press-feedback" (click)="retryGarden()">
+            <button matButton="filled" class="press-feedback" (click)="retryGarden()" i18n>
               Try again
             </button>
           </app-empty-state>
@@ -333,24 +346,31 @@
         <section class="panel anim-fade-up" aria-labelledby="humidity-heading">
           <div class="panel-head humidity-head">
             <div>
-              <h2 id="humidity-heading" class="panel-title">Humidity profile</h2>
-              <p class="panel-sub">
+              <h2 id="humidity-heading" class="panel-title" i18n>Humidity profile</h2>
+              <p class="panel-sub" i18n>
                 One column per plant: as wide as the space it takes, as tall as the humidity it
                 wants. Choose a column to find the plant on the plan.
               </p>
             </div>
             <div class="panel-actions">
-              <ul class="zone-key" aria-label="Watering zones">
-                <li><span class="zone-swatch dry" aria-hidden="true"></span>Dry &lt; 50%</li>
+              <ul class="zone-key" aria-label="Watering zones" i18n-aria-label>
                 <li>
-                  <span class="zone-swatch balanced" aria-hidden="true"></span>Balanced 50–69%
+                  <span class="zone-swatch dry" aria-hidden="true"></span
+                  ><ng-container i18n>Dry &lt; 50%</ng-container>
                 </li>
-                <li><span class="zone-swatch humid" aria-hidden="true"></span>Humid ≥ 70%</li>
+                <li>
+                  <span class="zone-swatch balanced" aria-hidden="true"></span
+                  ><ng-container i18n>Balanced 50–69%</ng-container>
+                </li>
+                <li>
+                  <span class="zone-swatch humid" aria-hidden="true"></span
+                  ><ng-container i18n>Humid ≥ 70%</ng-container>
+                </li>
               </ul>
               <app-export-png-button
                 [target]="profileFrame"
                 selector="svg.highcharts-root"
-                [title]="garden.gardenName + ' humidity profile'"
+                [title]="profileTitle(garden.gardenName)"
               />
             </div>
           </div>
@@ -359,6 +379,7 @@
               <app-chart
                 [options]="profile"
                 fallback="The humidity profile couldn't load. The plants table below lists each plant's humidity."
+                i18n-fallback
               />
             } @placeholder {
               <app-skeleton variant="rect" w="100%" h="100%" />
@@ -369,13 +390,13 @@
 
       <section class="panel anim-fade-up" aria-labelledby="plants-heading">
         <div class="panel-head">
-          <h2 id="plants-heading" class="panel-title">Plants</h2>
-          <button matButton="filled" class="press-feedback" (click)="openPlantForm(null)">
+          <h2 id="plants-heading" class="panel-title" i18n>Plants</h2>
+          <button matButton="filled" class="press-feedback" (click)="openPlantForm(null)" i18n>
             ＋ Add plant
           </button>
         </div>
 
-        <app-skeleton-group [loading]="store.arePlantsLoading()" label="Loading plants">
+        <app-skeleton-group [loading]="store.arePlantsLoading()" label="Loading plants" i18n-label>
           <div ghost>
             <ng-container [ngTemplateOutlet]="tableGhost" />
           </div>
@@ -384,18 +405,22 @@
             <app-empty-state
               [headingLevel]="3"
               title="Couldn't load the plants"
+              i18n-title
               message="The greenhouse network is acting up. Your plants are still there."
+              i18n-message
             >
-              <button matButton="filled" class="press-feedback" (click)="retryGarden()">
+              <button matButton="filled" class="press-feedback" (click)="retryGarden()" i18n>
                 Try again
               </button>
             </app-empty-state>
           } @else if (store.plantsEmpty()) {
             <app-empty-state
               title="Nothing planted yet"
+              i18n-title
               message="Add your first plant and watch the bed layout fill up."
+              i18n-message
             >
-              <button matButton="filled" class="press-feedback" (click)="openPlantForm(null)">
+              <button matButton="filled" class="press-feedback" (click)="openPlantForm(null)" i18n>
                 Add your first plant
               </button>
             </app-empty-state>
@@ -426,7 +451,7 @@
                       </th>
                     }
                     <th scope="col" class="actions-col">
-                      <span class="visually-hidden">Actions</span>
+                      <span class="visually-hidden" i18n>Actions</span>
                     </th>
                   </tr>
                 </thead>
@@ -437,12 +462,11 @@
                       <tr class="ghost-row" aria-busy="true">
                         <td colspan="5">
                           <span class="visually-hidden">
-                            {{
-                              store.pendingDeletes().includes(plant.plantId)
-                                ? 'Removing'
-                                : 'Updating'
-                            }}
-                            {{ plant.plantName }}
+                            @if (store.pendingDeletes().includes(plant.plantId)) {
+                              <ng-container i18n>Removing {{ plant.plantName }}</ng-container>
+                            } @else {
+                              <ng-container i18n>Updating {{ plant.plantName }}</ng-container>
+                            }
                           </span>
                           <app-skeleton variant="rect" h="2.4rem" />
                         </td>
@@ -453,7 +477,7 @@
                           <button
                             class="plant-name-btn"
                             type="button"
-                            [attr.aria-label]="'Show ' + plant.plantName + ' on the garden plan'"
+                            [attr.aria-label]="showOnPlanLabel(plant)"
                             [attr.aria-pressed]="selectedPlantId() === plant.plantId"
                             (click)="selectOnMap(plant)"
                           >
@@ -476,11 +500,11 @@
                             class="humidity-cell tabular"
                             [class.above]="humidityDeltaOf(plant, garden) > 5"
                             [class.below]="humidityDeltaOf(plant, garden) < -5"
-                            [attr.title]="(zoneOf(plant) | titlecase) + ' watering zone'"
+                            [attr.title]="zoneTitle(plant)"
                           >
                             <span class="zone-dot" [attr.data-zone]="zoneOf(plant)"></span>
                             {{ plant.idealHumidityLevel }}%
-                            <span class="visually-hidden">, {{ zoneOf(plant) }} watering zone</span>
+                            <span class="visually-hidden">, {{ zoneSpoken(plant) }}</span>
                           </span>
                         </td>
                         <td class="actions-col">
@@ -488,13 +512,14 @@
                             matIconButton
                             [matMenuTriggerFor]="rowMenu"
                             aria-label="Plant actions"
+                            i18n-aria-label
                             type="button"
                           >
                             ⋮
                           </button>
                           <mat-menu #rowMenu="matMenu" xPosition="before">
-                            <button mat-menu-item (click)="openPlantForm(plant)">Edit</button>
-                            <button mat-menu-item (click)="removePlant(plant)">Remove</button>
+                            <button mat-menu-item (click)="openPlantForm(plant)" i18n>Edit</button>
+                            <button mat-menu-item (click)="removePlant(plant)" i18n>Remove</button>
                           </mat-menu>
                         </td>
                       </tr>
@@ -504,7 +529,7 @@
                     <!-- Creation ghost row: the plant being planted (ASYNC-UX) -->
                     <tr class="ghost-row" aria-busy="true">
                       <td colspan="5">
-                        <span class="visually-hidden">Planting…</span>
+                        <span class="visually-hidden" i18n>Planting…</span>
                         <app-skeleton variant="rect" h="2.4rem" />
                       </td>
                     </tr>

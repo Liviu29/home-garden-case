@@ -30,37 +30,37 @@ import { ToastStore } from '../../core/errors/toast-store';
     MatButtonModule,
   ],
   template: `
-    <h2 mat-dialog-title>Edit profile</h2>
+    <h2 mat-dialog-title i18n>Edit profile</h2>
     <mat-dialog-content>
       <form class="form" [formGroup]="form" id="profile-form" (ngSubmit)="submit()">
         <div class="row">
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>First name</mat-label>
+            <mat-label i18n>First name</mat-label>
             <input matInput formControlName="firstName" autocomplete="given-name" />
           </mat-form-field>
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Last name</mat-label>
+            <mat-label i18n>Last name</mat-label>
             <input matInput formControlName="lastName" autocomplete="family-name" />
           </mat-form-field>
         </div>
 
         <mat-form-field appearance="outline">
-          <mat-label>Email address</mat-label>
+          <mat-label i18n>Email address</mat-label>
           <input matInput type="email" formControlName="emailAddress" autocomplete="email" />
           @if (form.controls.emailAddress.hasError('required')) {
-            <mat-error>Email address is required</mat-error>
+            <mat-error i18n>Email address is required</mat-error>
           }
           @if (form.controls.emailAddress.hasError('email')) {
-            <mat-error>That doesn't look like an email address</mat-error>
+            <mat-error i18n>That doesn't look like an email address</mat-error>
           }
         </mat-form-field>
 
         <mat-form-field appearance="outline">
-          <mat-label>Age</mat-label>
+          <mat-label i18n>Age</mat-label>
           <input matInput type="number" formControlName="age" min="1" step="1" />
-          <mat-hint>Optional</mat-hint>
+          <mat-hint i18n>Optional</mat-hint>
           @if (form.controls.age.hasError('min')) {
-            <mat-error>Age must be a positive whole number</mat-error>
+            <mat-error i18n>Age must be a positive whole number</mat-error>
           }
         </mat-form-field>
 
@@ -70,7 +70,14 @@ import { ToastStore } from '../../core/errors/toast-store';
       </form>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button matButton type="button" mat-dialog-close class="press-feedback" [disabled]="saving()">
+      <button
+        matButton
+        type="button"
+        mat-dialog-close
+        class="press-feedback"
+        [disabled]="saving()"
+        i18n
+      >
         Cancel
       </button>
       <button
@@ -82,10 +89,10 @@ import { ToastStore } from '../../core/errors/toast-store';
         [attr.aria-busy]="saving() ? true : null"
       >
         <span class="btn-stack" [class.is-pending]="saving()">
-          <span class="btn-label">Save changes</span>
+          <span class="btn-label" i18n>Save changes</span>
           @if (saving()) {
             <span class="btn-ghost" aria-hidden="true"></span>
-            <span class="visually-hidden">Saving profile</span>
+            <span class="visually-hidden" i18n>Saving profile</span>
           }
         </span>
       </button>
@@ -160,12 +167,14 @@ export class ProfileDialog {
       // Server response is authoritative — adopt it rather than the form values.
       this.session.signIn(updated);
       this.cache.invalidate(cacheKeys.users);
-      this.toasts.success('Profile updated.');
+      this.toasts.success($localize`Profile updated.`);
       this.ref.close(true);
     } catch (err) {
       const error = toApiError(err);
       this.serverError.set(
-        error.status === 409 ? 'Another profile already uses that email address.' : error.message,
+        error.status === 409
+          ? $localize`Another profile already uses that email address.`
+          : error.message,
       );
     } finally {
       this.saving.set(false);

@@ -28,7 +28,7 @@ export class ApiError extends Error {
   }
 }
 
-const GENERIC_TECHNICAL_MESSAGE = 'Something went wrong on our side. Please try again.';
+const GENERIC_TECHNICAL_MESSAGE = $localize`Something went wrong on our side. Please try again.`;
 
 /** Single place where raw HTTP failures become typed ApiErrors. */
 export function toApiError(err: unknown): ApiError {
@@ -41,12 +41,12 @@ export function toApiError(err: unknown): ApiError {
     const serverMessage = extractServerMessage(err.error);
 
     if (status === 404) {
-      return new ApiError('not-found', serverMessage ?? 'Not found', status, err);
+      return new ApiError('not-found', serverMessage ?? $localize`Not found`, status, err);
     }
     if (status >= 400 && status < 500) {
       return new ApiError(
         'functional',
-        serverMessage ?? 'The request was not accepted. Please review your input.',
+        serverMessage ?? $localize`The request was not accepted. Please review your input.`,
         status,
         err,
       );

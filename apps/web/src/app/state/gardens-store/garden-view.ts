@@ -9,9 +9,9 @@ import { occupancyRatio } from '../../domain/garden-insights/garden-insights';
 export type GardenSort = 'name' | 'size' | 'utilization';
 
 export const GARDEN_SORT_LABEL: Readonly<Record<GardenSort, string>> = {
-  name: 'Name',
-  size: 'Total size',
-  utilization: 'Utilization',
+  name: $localize`Name`,
+  size: $localize`Total size`,
+  utilization: $localize`Utilization`,
 };
 
 export function filterAndSortGardens(

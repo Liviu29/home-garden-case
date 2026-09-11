@@ -13,9 +13,11 @@ import { EmptyState } from '../../shared/ui/empty-state/empty-state';
       <app-empty-state
         [headingLevel]="1"
         title="This patch is empty"
+        i18n-title
         message="The page you're looking for doesn't exist — it may have been moved or deleted."
+        i18n-message
       >
-        <a matButton="filled" routerLink="/" class="press-feedback">Back to the garden</a>
+        <a matButton="filled" routerLink="/" class="press-feedback" i18n>Back to the garden</a>
       </app-empty-state>
     </div>
   `,
