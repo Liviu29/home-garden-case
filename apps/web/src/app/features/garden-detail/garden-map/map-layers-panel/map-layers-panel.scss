@@ -1,0 +1,87 @@
+@use '../map-controls' as controls;
+
+// Drops down under the toolbar.
+:host {
+  position: absolute;
+  top: calc(var(--sp-3) + 2.6rem);
+  right: var(--sp-3);
+  z-index: 3;
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-radius: var(--radius-m);
+  @include controls.glass-panel;
+}
+
+.layer-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-caption);
+  color: var(--text-1);
+  cursor: pointer;
+
+  input {
+    accent-color: var(--brand-500);
+  }
+}
+
+.zone-legend {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: var(--sp-2) 0 0;
+  border-top: 1px solid var(--border);
+  list-style: none;
+  font-size: 0.6875rem;
+  color: var(--text-1);
+  max-width: 12rem;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .zone-range {
+    color: var(--text-3);
+  }
+}
+
+.zone-swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 0.2rem;
+  background: var(--zone-balanced);
+  flex: none;
+
+  &[data-zone='dry'] {
+    background: var(--zone-dry);
+  }
+
+  &[data-zone='humid'] {
+    background: var(--zone-humid);
+  }
+}
+
+.clash-swatch {
+  width: 0.7rem;
+  flex: none;
+  font-weight: 800;
+  text-align: center;
+  color: var(--accent-amber);
+}
+
+.layers-note {
+  margin: 0;
+  font-size: 0.6563rem;
+  color: var(--text-3);
+  max-width: 11rem;
+}
+
+@container map-stage (max-width: 34rem) {
+  :host {
+    top: calc(var(--sp-2) + 2.5rem);
+    right: var(--sp-2);
+  }
+}

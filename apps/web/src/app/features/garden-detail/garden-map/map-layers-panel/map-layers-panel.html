@@ -1,0 +1,40 @@
+<label class="layer-toggle">
+  <input type="checkbox" [checked]="layers().labels" (change)="toggle.emit('labels')" />
+  Plant labels
+</label>
+<label class="layer-toggle">
+  <input type="checkbox" [checked]="layers().footprints" (change)="toggle.emit('footprints')" />
+  Footprints
+</label>
+<label class="layer-toggle">
+  <input type="checkbox" [checked]="layers().grid" (change)="toggle.emit('grid')" />
+  Grid
+</label>
+<label class="layer-toggle">
+  <input type="checkbox" [checked]="layers().humidity" (change)="toggle.emit('humidity')" />
+  Humidity preference
+</label>
+<label class="layer-toggle">
+  <input type="checkbox" [checked]="layers().zones" (change)="toggle.emit('zones')" />
+  Watering zones
+</label>
+<label class="layer-toggle">
+  <input type="checkbox" [checked]="layers().freeSpace" (change)="toggle.emit('freeSpace')" />
+  Available space
+</label>
+@if (layers().zones) {
+  <ul class="zone-legend">
+    @for (z of zoneLegend; track z.zone) {
+      <li>
+        <span class="zone-swatch" [attr.data-zone]="z.zone" aria-hidden="true"></span>
+        {{ z.label }} <span class="zone-range">{{ z.range }}</span>
+      </li>
+    }
+    <li class="zone-clash-key">
+      <span class="clash-swatch" aria-hidden="true">≠</span> Neighbours that need different watering
+    </li>
+  </ul>
+}
+@if (layers().humidity || layers().zones) {
+  <p class="layers-note">Preference vs target — not a measurement</p>
+}

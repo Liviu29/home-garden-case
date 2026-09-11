@@ -112,7 +112,7 @@ plants get the same treatment as catalog picks.
   every move is narrated in a polite live region ("Basil moved to 1.25 by 0
   metres"), and a bed at the fence says so instead of silently not moving.
   Arrow keys on the stage itself still pan. Escape cascade: layers panel →
-  timeline → fullscreen → selection; `f` fits; the inspector's Focus button
+  timeline → plan list → fullscreen → selection; `f` fits; the inspector's Focus button
   zooms to the selected bed. Delete never deletes directly — removal always
   goes through the confirm dialog.
 
@@ -161,6 +161,16 @@ The pure logic lives in `domain/garden-planner/garden-planner.ts` (unit-tested).
   "Placed by you" (with **Return to auto spot**), and its clashes; nothing
   selected, it summarises the garden with the zones card and offers "Group by
   water needs".
+- **The plan as a list.** A toolbar toggle shows the same plan as a table
+  between the toolbar and the HUD: every bed in reading order (top to bottom,
+  then left to right) with its position in metres from the top-left corner,
+  its width × depth and m², its watering zone, whether the gardener placed it,
+  and the beds next to it — the same 0.3 m the clash check uses
+  (`findNeighbours`). A bed's name is a button that selects it on the plan and
+  in the inspector. It is the text equivalent of the drawing for screen-reader
+  users, and useful to anyone who wants numbers rather than a picture.
+  Opening it closes the layers panel and the timeline; opening the timeline
+  closes it; Escape closes it.
 
 ## 5. Layout persistence
 
@@ -250,6 +260,9 @@ auto-playing).
   corruption/pruning, camera math.
 - Mocked e2e (`garden-planner.spec.ts`): the 1440×900 no-scroll contract,
   prefill-from-catalog, drag → persist across reload → reset, undo, fullscreen
-  with layers, the humidity note and the Escape cascade.
+  with layers, the humidity note, the Escape cascade, and the plan as a list
+  (rows, choosing a bed, an axe scan of the table, Escape).
+- Unit (`garden-map-planner.spec.ts`, `garden-planner.spec.ts`): the list's
+  rows, reading order, neighbours and selection, and `findNeighbours`.
 - Integration e2e: the real-API flows exercise the dialog (catalog autofocus is
   part of the settle contract in `awaitDialogSettled`).

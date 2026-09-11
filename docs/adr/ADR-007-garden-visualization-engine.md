@@ -79,12 +79,14 @@ clamped viewBox arithmetic.
   application state (selection, camera, layout) — never per animation frame.
 - **Theme**: map colors are `--map-*` tokens consumed via CSS; dark mode costs
   nothing.
-- **Style budget**: the scene stylesheet (soil, plots, HUD, inspector, toolbar,
-  layers, planner chrome, tooltip, motion gates) is the largest component style
-  in the app, ~13 kB — above the 12 kB `anyComponentStyle` warning, below the
-  16 kB error. Accepted: the map is the one scene-like component, and minifying
-  its source for a byte target would cost the maintainability the budget exists
-  to protect.
+- **Style budget**: the scene used to be one component whose stylesheet (~13 kB)
+  sat above the 12 kB `anyComponentStyle` warning. The controls around the scene
+  are now their own presentational components — `MapToolbar`, `MapHud`,
+  `MapLayersPanel`, `MapTimeline`, `MapPlanList`, next to the existing
+  `MapInspector` — sharing one glass/button partial (`_map-controls.scss`), and
+  the pure view builders live in `garden-map-view.ts`. Every stylesheet is under
+  the warning again, and `GardenMap` keeps only the scene, the camera, the
+  gestures and the planner state.
 
 ## Layout: a squarified treemap
 

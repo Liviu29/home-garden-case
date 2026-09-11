@@ -1,0 +1,41 @@
+<button
+  class="tool-btn press-feedback"
+  type="button"
+  [attr.aria-label]="playing() ? 'Pause timeline' : 'Play timeline'"
+  (click)="togglePlayback.emit()"
+>
+  @if (playing()) {
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor" />
+    </svg>
+  } @else {
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8 5v14l11-7L8 5Z" fill="currentColor" />
+    </svg>
+  }
+</button>
+<input
+  class="timeline-range"
+  type="range"
+  min="0"
+  step="1"
+  [max]="dayCount() - 1"
+  [value]="dayIndex()"
+  aria-label="Planting day"
+  [attr.aria-valuetext]="date() | date: 'MMMM d, y' : 'UTC'"
+  (input)="onInput($event)"
+/>
+<span class="timeline-readout">
+  <strong class="tabular">{{ date() | date: 'MMM d, y' : 'UTC' }}</strong>
+  <span class="tabular">
+    {{ planted() }} of {{ total() }} plants · {{ usedPct() | number: '1.0-0' }}% used
+  </span>
+</span>
+<button
+  class="tool-btn press-feedback"
+  type="button"
+  aria-label="Close timeline"
+  (click)="close.emit()"
+>
+  ✕
+</button>

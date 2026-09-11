@@ -1,0 +1,64 @@
+@use '../map-controls' as controls;
+
+// Floats over the stage's top band, which the Fit view keeps clear of beds.
+:host {
+  position: absolute;
+  top: var(--sp-3);
+  right: var(--sp-3);
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: var(--sp-1);
+  border-radius: var(--radius-pill);
+  @include controls.glass-panel(8px, var(--shadow-1));
+}
+
+.tool-btn {
+  @include controls.tool-button;
+}
+
+.zoom-level {
+  min-width: 2.7rem;
+  text-align: center;
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 1.1rem;
+  background: var(--border-strong);
+  margin: 0 var(--sp-1);
+}
+
+// Narrow stages: span the stage instead of floating in a corner, shed the
+// dividers and shrink a notch, so no button is clipped.
+@container map-stage (max-width: 34rem) {
+  :host {
+    top: var(--sp-2);
+    left: var(--sp-2);
+    right: var(--sp-2);
+    justify-content: space-between;
+  }
+
+  .toolbar-divider {
+    display: none;
+  }
+
+  .tool-btn {
+    @include controls.tool-button-compact;
+  }
+
+  .zoom-level {
+    min-width: 2.4rem;
+  }
+}
+
+// Phone-narrow: drop what has another route (Fit + Escape reset the view;
+// the zoom level is announced to AT and implied by the picture).
+@container map-stage (max-width: 24rem) {
+  .tool-secondary,
+  .zoom-level {
+    display: none;
+  }
+}

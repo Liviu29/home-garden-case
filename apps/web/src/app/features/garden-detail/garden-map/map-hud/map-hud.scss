@@ -1,0 +1,107 @@
+@use '../map-controls' as controls;
+
+:host {
+  position: absolute;
+  left: var(--sp-3);
+  bottom: var(--sp-3);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-m);
+  max-width: calc(100% - var(--sp-6));
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out);
+  @include controls.glass-panel;
+}
+
+// While a bed is dragged the HUD steps aside — it must never hide the drop
+// zone (it already lets pointer events through; this is for the eye).
+:host(.hud-muted) {
+  opacity: 0.15;
+}
+
+.hud-stat {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+  white-space: nowrap; // "5.4 m² free" must never break mid-stat
+
+  .hud-value {
+    font-size: var(--fs-emphasis);
+    font-weight: 700;
+    color: var(--text-1);
+  }
+
+  .hud-label {
+    font-size: var(--fs-caption);
+    color: var(--text-3);
+  }
+
+  &.humidity .drop-icon {
+    width: 0.8rem;
+    height: 0.8rem;
+    color: var(--map-humidity);
+    align-self: center;
+  }
+
+  &.full-badge {
+    font-size: var(--fs-caption);
+    font-weight: 650;
+    color: var(--accent-amber);
+  }
+}
+
+.hud-divider {
+  width: 1px;
+  height: 1.4rem;
+  background: var(--border);
+}
+
+.hud-bar {
+  width: 3.4rem;
+  height: 0.3rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+  align-self: center;
+  margin-left: var(--sp-1);
+
+  // transform, not width: the fill settles without re-laying out the HUD.
+  .hud-bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: var(--radius-pill);
+    background: var(--gradient-brand);
+    transform-origin: left center;
+    transition: transform var(--dur-slow) var(--ease-out);
+
+    &.warn {
+      background: var(--accent-amber);
+    }
+
+    &.full {
+      background: var(--danger);
+    }
+  }
+}
+
+@container map-stage (max-width: 34rem) {
+  :host {
+    left: var(--sp-2);
+    right: var(--sp-2);
+    bottom: var(--sp-2);
+    max-width: none;
+    justify-content: space-between;
+    gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+  }
+
+  .hud-bar {
+    display: none;
+  }
+
+  .hud-stat .hud-value {
+    font-size: var(--fs-body);
+  }
+}

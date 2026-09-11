@@ -205,6 +205,35 @@ export function findWateringConflicts(
 }
 
 /**
+ * Every bed's neighbours — the beds close enough to share its watering pass
+ * (the same distance the clash check uses) — nearest first, then by id, so a
+ * list built from it reads the same on every visit.
+ */
+export function findNeighbours(
+  plots: readonly PlotBox[],
+  gap = NEIGHBOUR_GAP,
+): ReadonlyMap<number, readonly number[]> {
+  const near = new Map<number, { id: number; distance: number }[]>(
+    plots.map((p) => [p.plantId, []]),
+  );
+  for (let i = 0; i < plots.length; i++) {
+    for (let j = i + 1; j < plots.length; j++) {
+      const distance = boxGap(plots[i], plots[j]);
+      if (distance <= gap + EPS) {
+        near.get(plots[i].plantId)?.push({ id: plots[j].plantId, distance });
+        near.get(plots[j].plantId)?.push({ id: plots[i].plantId, distance });
+      }
+    }
+  }
+  return new Map(
+    [...near].map(([id, list]) => [
+      id,
+      list.sort((a, b) => a.distance - b.distance || a.id - b.id).map((n) => n.id),
+    ]),
+  );
+}
+
+/**
  * Where two nearby boxes meet. Per axis: the stretch they share if they
  * overlap along it, else the middle of the gap between them — so side-by-side
  * beds get their shared edge, stacked beds their shared top/bottom edge.

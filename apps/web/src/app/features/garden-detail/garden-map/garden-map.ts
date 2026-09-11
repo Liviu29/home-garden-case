@@ -13,15 +13,13 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { Garden, Plant } from '../../../core/api/models';
 import {
-  CAPACITY_STATUS_LABEL,
   capacityStatus,
   freeSurfaceArea,
   occupancyRatio,
-  plantHumidityDelta,
   usedSurfaceArea,
 } from '../../../domain/garden-insights/garden-insights';
 import {
@@ -36,6 +34,7 @@ import {
   WATERING_ZONES,
   WateringZone,
   arrangeByWateringZone,
+  findNeighbours,
   findWateringConflicts,
   largestFreeRect,
   plantedBy,
@@ -44,16 +43,22 @@ import {
   zoneBreakdown,
 } from '../../../domain/garden-planner/garden-planner';
 import { LayoutPositions } from './garden-layout-repository/garden-layout-repository';
-import { MapInspector } from './map-inspector/map-inspector';
 import {
-  PlantVisual,
-  computeVegetation,
-  resolvePlantVisual,
-} from '../../../shared/ui/plant-visuals/plant-visual-resolver';
+  FreeHint,
+  MapBox,
+  PlotView,
+  StageSize,
+  buildPlotViews,
+  dimensionsFor,
+  emptyZonesFor,
+  frameContent,
+  freeHintFor,
+  ghostBedFor,
+  sameBox,
+  sameSize,
+} from './garden-map-view';
 import {
   CameraState,
-  MAX_ZOOM,
-  MIN_ZOOM,
   ZOOM_STEP,
   clampCamera,
   fitCamera,
@@ -63,64 +68,12 @@ import {
   viewBoxOf,
   zoomBy,
 } from './map-camera/map-camera';
-
-interface VegView {
-  /** Top-left corner + size of the <use>, absolute map units. */
-  readonly ax: number;
-  readonly ay: number;
-  readonly size: number;
-  readonly cx: number;
-  readonly cy: number;
-  readonly rotation: number;
-}
-
-interface SoilView {
-  readonly x: number;
-  readonly y: number;
-  readonly w: number;
-  readonly h: number;
-  readonly rx: number;
-}
-
-interface PlotView {
-  readonly plantId: number;
-  readonly label: string;
-  /** Untruncated name — for the tooltip and aria. */
-  readonly fullLabel: string;
-  readonly plantType: Plant['plantType'];
-  readonly requiredArea: number;
-  readonly share: number;
-  readonly x: number;
-  readonly y: number;
-  readonly w: number;
-  readonly h: number;
-  readonly cx: number;
-  readonly cy: number;
-  readonly rx: number;
-  /** The planting soil inside the raised bed's wooden frame. */
-  readonly soil: SoilView;
-  readonly fontSize: number;
-  readonly showLabel: boolean;
-  readonly aria: string;
-  readonly humidityDelta: number;
-  readonly zone: WateringZone;
-  /** Presentational artwork (ADR-007 visual layer) — never domain data. */
-  readonly visual: PlantVisual;
-  readonly paletteStyle: string;
-  readonly veg: readonly VegView[];
-  readonly labelW: number;
-  readonly labelH: number;
-  readonly labelY: number;
-}
-
-interface LayerToggles {
-  readonly labels: boolean;
-  readonly footprints: boolean;
-  readonly grid: boolean;
-  readonly humidity: boolean;
-  readonly zones: boolean;
-  readonly freeSpace: boolean;
-}
+import { MapHud } from './map-hud/map-hud';
+import { MapInspector } from './map-inspector/map-inspector';
+import { LayerKey, LayerToggles, MapLayersPanel } from './map-layers-panel/map-layers-panel';
+import { MapPlanList, PlanRow } from './map-plan-list/map-plan-list';
+import { MapTimeline } from './map-timeline/map-timeline';
+import { MapToolbar } from './map-toolbar/map-toolbar';
 
 interface TooltipView {
   readonly x: number;
@@ -129,29 +82,6 @@ interface TooltipView {
   readonly area: number;
   readonly sharePct: number;
 }
-
-/** A box in map units — the camera's world at zoom 1. */
-interface MapBox {
-  readonly width: number;
-  readonly height: number;
-  readonly x: number;
-  readonly y: number;
-}
-
-interface StageSize {
-  readonly width: number;
-  readonly height: number;
-}
-
-/**
- * Screen room (px) the Fit view keeps clear around the garden. The toolbar
- * floats over the top band and the capacity HUD over the bottom one, so at
- * Fit neither ever covers a bed or its name plate. Each band is capped at a
- * share of the stage, so a small phone stage still gives the garden most of
- * its height.
- */
-const FRAME = { top: 60, bottom: 64, side: 24 } as const;
-const FRAME_MAX_SHARE = { vertical: 0.17, side: 0.05 } as const;
 
 /** Within this many screen px, a dropped bed's edge snaps to a fence, a bed edge or home. */
 const EDGE_SNAP_PX = 12;
@@ -169,6 +99,10 @@ const TIMELINE_STEP_MS = 900;
 
 const NO_IDS: ReadonlySet<number> = new Set();
 
+const ZONE_LABEL = Object.fromEntries(WATERING_ZONES.map((z) => [z.zone, z.label])) as Readonly<
+  Record<WateringZone, string>
+>;
+
 const snapToGrid = (value: number): number => Math.round(value / PLANNER_SNAP) * PLANNER_SNAP;
 
 /** "1.25" — for spoken positions. */
@@ -176,12 +110,6 @@ const metres = (value: number): string => String(Math.round(value * 100) / 100);
 
 const prefersReducedMotion = (): boolean =>
   globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-
-const sameSize = (a: { width: number; height: number } | null, b: typeof a): boolean =>
-  a === b || (!!a && !!b && a.width === b.width && a.height === b.height);
-
-const sameBox = (a: MapBox, b: MapBox): boolean =>
-  a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
 
 /**
  * Interactive Garden Map — a lightweight digital twin of one garden (ADR-007).
@@ -194,8 +122,13 @@ const sameBox = (a: MapBox, b: MapBox): boolean =>
  * Planner tools (INTERACTIVE-GARDEN-UX.md): beds move by drag or arrow keys,
  * magnetise to the fence, to neighbours (with smart guides) and to their own
  * automatic spot; the free soil is whatever ground no bed covers; watering
- * zones, neighbour clashes, "Group by water needs" and a planting timeline
- * are all derived from the plants' real preferences and dates.
+ * zones, neighbour clashes, "Group by water needs", a planting timeline and a
+ * text version of the plan are all derived from the plants' real data.
+ *
+ * This component owns the scene, the camera, the gestures and the planner
+ * state. The controls around it are presentational children — toolbar, HUD,
+ * layers panel, timeline, plan list and inspector — and the geometry they
+ * draw comes from the pure builders in `garden-map-view.ts`.
  *
  * Interaction state (camera, selection, hover, timeline) is component-local
  * signals; renderer-only animation is pure CSS gated by
@@ -204,7 +137,16 @@ const sameBox = (a: MapBox, b: MapBox): boolean =>
 @Component({
   selector: 'app-garden-map',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, DecimalPipe, MatButtonModule, MapInspector],
+  imports: [
+    DecimalPipe,
+    MatButtonModule,
+    MapHud,
+    MapInspector,
+    MapLayersPanel,
+    MapPlanList,
+    MapTimeline,
+    MapToolbar,
+  ],
   templateUrl: './garden-map.html',
   styleUrl: './garden-map.scss',
   // The component styles its own fullscreen stretch — no ::ng-deep from the
@@ -246,10 +188,15 @@ export class GardenMap {
     freeSpace: true,
   });
   protected readonly layersOpen = signal(false);
-  protected readonly zoneLegend = WATERING_ZONES;
+  /** The plan as a list — the same beds as text, over the stage. */
+  protected readonly listOpen = signal(false);
 
-  protected toggleLayer(key: keyof LayerToggles): void {
+  protected toggleLayer(key: LayerKey): void {
     this.layers.set({ ...this.layers(), [key]: !this.layers()[key] });
+  }
+
+  protected toggleLayers(): void {
+    this.layersOpen.set(!this.layersOpen());
   }
 
   protected showZones(): void {
@@ -333,33 +280,9 @@ export class GardenMap {
     { equal: sameSize },
   );
 
-  /**
-   * The camera's world box — what zoom 1 ("Fit") shows. It has the STAGE's
-   * shape, so `preserveAspectRatio="meet"` never letterboxes, and it places
-   * the garden centred in the stage area left clear of the toolbar and HUD
-   * bands (FRAME), so at Fit the controls float over lawn, never over beds.
-   * Until the stage is measured it is the garden itself.
-   */
+  /** The camera's world box — what zoom 1 ("Fit") shows (see `frameContent`). */
   protected readonly content = computed<MapBox>(
-    () => {
-      const { width, height } = this.world();
-      const stage = this.stageSize();
-      if (!stage) {
-        return { width, height, x: 0, y: 0 };
-      }
-      const top = Math.min(FRAME.top, stage.height * FRAME_MAX_SHARE.vertical);
-      const bottom = Math.min(FRAME.bottom, stage.height * FRAME_MAX_SHARE.vertical);
-      const side = Math.min(FRAME.side, stage.width * FRAME_MAX_SHARE.side);
-      const availW = Math.max(stage.width - 2 * side, 1);
-      const availH = Math.max(stage.height - top - bottom, 1);
-      const scale = Math.min(availW / width, availH / height); // px per map unit at Fit
-      return {
-        width: stage.width / scale,
-        height: stage.height / scale,
-        x: -(side + (availW - width * scale) / 2) / scale,
-        y: -(top + (availH - height * scale) / 2) / scale,
-      };
-    },
+    () => frameContent(this.world(), this.stageSize()),
     { equal: sameBox },
   );
 
@@ -368,94 +291,9 @@ export class GardenMap {
   /** The fence runs just OUTSIDE the planting surface, so edge beds sit inside it. */
   protected readonly fenceGap = computed(() => this.layout().width * 0.014);
 
-  protected readonly plotViews = computed<readonly PlotView[]>(() => {
-    const layout = this.layout();
-    const plants = this.plants();
-    const base = layout.width;
-    const minVeg = base * 0.09;
-    return layout.plots.map((p) => {
-      const fontSize = Math.min(p.h * 0.16, base * 0.019);
-      // Name-plate fitting (~0.68 em/glyph at weight 650): the pill NEVER
-      // exceeds its bed; long names truncate. Area lives in the tooltip,
-      // inspector and table — the map stays imagery-first.
-      const pad = fontSize * 1.4;
-      const fits = (text: string): boolean => text.length * fontSize * 0.68 + pad <= p.w * 0.92;
-      let labelText = p.label;
-      if (!fits(labelText)) {
-        const maxChars = Math.max(1, Math.floor((p.w * 0.92 - pad) / (fontSize * 0.68)) - 1);
-        labelText = `${p.label.slice(0, maxChars).trimEnd()}…`;
-      }
-      const label = labelText;
-
-      const plant = plants.find((pl) => pl.plantId === p.plantId);
-      const humidityDelta = plant ? plantHumidityDelta(this.garden(), plant) : 0;
-      const visual = resolvePlantVisual(
-        plant ?? {
-          plantId: p.plantId,
-          plantName: p.label,
-          species: '',
-          plantType: p.plantType,
-        },
-      );
-      const labelH = fontSize * 1.7;
-      // Vegetation grows in the footprint above the label band.
-      const vegH = Math.max(p.h - labelH * 0.9, p.h * 0.55);
-      const veg: VegView[] = computeVegetation(visual.seed, p.w * 0.94, vegH * 0.96, minVeg).map(
-        (v) => {
-          const cx = p.x + p.w * 0.03 + v.x;
-          const cy = p.y + vegH * 0.02 + v.y;
-          return {
-            ax: cx - v.size / 2,
-            ay: cy - v.size / 2,
-            size: v.size,
-            cx,
-            cy,
-            rotation: visual.rotation + v.rotation,
-          };
-        },
-      );
-      const showLabel = p.share >= 0.04 && p.w > base * 0.14 && label.length > 1;
-      const labelW = Math.min(p.w * 0.92, label.length * fontSize * 0.68 + pad);
-      const rx = Math.min(p.w, p.h) * 0.14;
-      // The raised bed's wooden frame: thick enough to read, never a slab.
-      const frame = Math.min(Math.max(Math.min(p.w, p.h) * 0.07, base * 0.005), base * 0.018);
-      return {
-        plantId: p.plantId,
-        label,
-        fullLabel: p.label,
-        plantType: p.plantType,
-        requiredArea: p.requiredArea,
-        share: p.share,
-        x: p.x,
-        y: p.y,
-        w: p.w,
-        h: p.h,
-        cx: p.x + p.w / 2,
-        cy: p.y + p.h / 2,
-        rx,
-        soil: {
-          x: p.x + frame,
-          y: p.y + frame,
-          w: Math.max(p.w - frame * 2, 0),
-          h: Math.max(p.h - frame * 2, 0),
-          rx: Math.max(rx - frame * 0.7, 0),
-        },
-        fontSize,
-        showLabel,
-        aria:
-          `${p.label}, ${p.requiredArea} square meters, ${Math.round(p.share * 100)} percent of the garden. ` +
-          'Drag or use the arrow keys to move it; Home returns it to its automatic spot.',
-        humidityDelta,
-        zone: wateringZone(plant?.idealHumidityLevel ?? this.garden().targetHumidityLevel),
-        visual,
-        paletteStyle: `--pv-a:${visual.palette.a};--pv-b:${visual.palette.b};--pv-c:${visual.palette.c}`,
-        veg,
-        labelW,
-        labelH,
-        labelY: p.y + p.h - labelH * 0.78,
-      };
-    });
-  });
+  protected readonly plotViews = computed<readonly PlotView[]>(() =>
+    buildPlotViews(this.layout(), this.plants(), this.garden()),
+  );
 
   /**
    * Paint order. SVG has no z-index — later nodes paint on top — so the bed
@@ -480,70 +318,29 @@ export class GardenMap {
   protected readonly freeSpot = computed(() => largestFreeRect(this.layout(), this.layout().plots));
 
   /**
-   * Free-soil annotation: make the remaining capacity explicit on the
-   * map. The label is drawn only where it genuinely fits the open ground —
-   * horizontally, else rotated along a tall spot — and a spot too small for
-   * either gets a compact "+" marker so 0.5 m² is visible without pretending
-   * to be more. Hidden mid-drag (the ground is changing under the cursor)
-   * and while the timeline replays the past.
+   * The free-soil annotation (`freeHintFor`). Hidden mid-drag (the ground is
+   * changing under the cursor) and while the timeline replays the past.
    */
-  protected readonly freeHint = computed<{
-    kind: 'label' | 'label-vertical' | 'marker';
-    cx: number;
-    cy: number;
-    fs: number;
-  } | null>(() => {
-    const layout = this.layout();
+  protected readonly freeHint = computed<FreeHint | null>(() => {
     const spot = this.freeSpot();
     if (!spot || this.plants().length === 0 || this.draggingPlant() || this.timelineOpen()) {
       return null; // an empty garden keeps its dedicated "planting zone" hints
     }
-    const cx = spot.x + spot.w / 2;
-    const cy = spot.y + spot.h / 2;
-    const maxFs = layout.width * 0.019;
-    const minFs = layout.width * 0.011;
-    // "Available · 12.5 m²" ≈ 18 glyphs at ~0.62 em, plus breathing room.
-    const lengthPerFs = 18 * 0.62 * 1.12;
-    const along = (length: number, across: number): number =>
-      Math.min(maxFs, across * 0.3, length / lengthPerFs);
-    const horizontal = along(spot.w, spot.h);
-    if (horizontal >= minFs) {
-      return { kind: 'label', cx, cy, fs: horizontal };
-    }
-    const vertical = along(spot.h, spot.w);
-    if (vertical >= minFs) {
-      return { kind: 'label-vertical', cx, cy, fs: vertical };
-    }
-    return {
-      kind: 'marker',
-      cx,
-      cy,
-      fs: Math.max(Math.min(spot.w, spot.h) * 0.42, layout.width * 0.008),
-    };
+    return freeHintFor(this.layout(), spot);
   });
 
   /** Dashed "planting zone" hints, only when the garden is truly empty. */
   protected readonly emptyZones = computed(() => {
     const spot = this.freeSpot();
-    if (!spot || this.plants().length > 0) {
-      return [];
-    }
-    const r = Math.min(spot.h / 2, spot.w / 8) * 0.72;
-    return [0.24, 0.5, 0.76].map((f) => ({
-      cx: spot.x + spot.w * f,
-      cy: spot.y + spot.h / 2,
-      r,
-    }));
+    return !spot || this.plants().length > 0 ? [] : emptyZonesFor(spot);
   });
 
   // ── HUD (delegates to the shared domain math — never re-implemented) ─────
-  protected readonly usedArea = computed(() => usedSurfaceArea(this.plants()));
   protected readonly freeArea = computed(() => freeSurfaceArea(this.garden(), this.plants()));
   protected readonly utilizationPct = computed(() =>
     Math.min(100, occupancyRatio(this.garden(), this.plants()) * 100),
   );
   protected readonly status = computed(() => capacityStatus(this.garden(), this.plants()));
-  protected readonly statusLabel = computed(() => CAPACITY_STATUS_LABEL[this.status()]);
 
   protected readonly mapAria = computed(
     () =>
@@ -566,9 +363,6 @@ export class GardenMap {
         : clampCamera(previous.value, content),
   });
   protected readonly viewBox = computed(() => viewBoxOf(this.camera(), this.content()));
-  protected readonly zoomPercent = computed(() => Math.round(this.camera().zoom * 100));
-  protected readonly minZoom = MIN_ZOOM;
-  protected readonly maxZoom = MAX_ZOOM;
   protected readonly zoom = computed(() => this.camera().zoom);
   /** Zoom-dependent detail: area text joins the labels when zoomed in. */
   protected readonly detailZoom = computed(() => this.camera().zoom >= 1.35);
@@ -597,26 +391,7 @@ export class GardenMap {
   /** Placeholder bed for an in-flight POST, sized by the requested area. */
   protected readonly ghostBed = computed(() => {
     const area = this.pendingCreateArea();
-    if (area === null || area <= 0) {
-      return null;
-    }
-    const layout = this.layout();
-    const spot = this.freeSpot();
-    let w = Math.sqrt(area * 1.3);
-    let h = area / w;
-    const maxW = (spot?.w ?? layout.width * 0.9) * 0.9;
-    const maxH = (spot?.h ?? layout.height * 0.4) * 0.9;
-    if (w > maxW) {
-      w = maxW;
-      h = area / w;
-    }
-    if (h > maxH) {
-      h = maxH;
-      w = Math.min(area / h, maxW);
-    }
-    const cx = spot ? spot.x + spot.w / 2 : layout.width / 2;
-    const cy = spot ? spot.y + spot.h / 2 : layout.height * 0.72;
-    return { x: cx - w / 2, y: cy - h / 2, w, h, rx: Math.min(w, h) * 0.14 };
+    return area === null || area <= 0 ? null : ghostBedFor(area, this.layout(), this.freeSpot());
   });
 
   /**
@@ -663,40 +438,14 @@ export class GardenMap {
     };
   });
 
-  /**
-   * Dimension lines for the bed in hand (dragged, else selected): its real
-   * width and depth in metres — w × h is exactly its required m².
-   */
+  /** Dimension lines for the bed in hand (dragged, else selected). */
   protected readonly dimensions = computed(() => {
     const id = this.draggingId() ?? this.selectedPlantId();
     const plot = this.plotViews().find((p) => p.plantId === id);
     if (!plot || this.mutatingIds().has(plot.plantId)) {
       return null;
     }
-    const base = this.layout().width;
-    const off = base * 0.024;
-    const fs = base * 0.015;
-    const tick = fs * 0.45;
-    const topY = plot.y - off;
-    const leftX = plot.x - off;
-    const leftLabelX = leftX - fs * 0.75;
-    return {
-      fs,
-      w: plot.w,
-      h: plot.h,
-      topPath:
-        `M${plot.x} ${topY}H${plot.x + plot.w}` +
-        `M${plot.x} ${topY - tick}V${topY + tick}M${plot.x + plot.w} ${topY - tick}V${topY + tick}`,
-      leftPath:
-        `M${leftX} ${plot.y}V${plot.y + plot.h}` +
-        `M${leftX - tick} ${plot.y}H${leftX + tick}M${leftX - tick} ${plot.y + plot.h}H${leftX + tick}`,
-      top: { x: plot.x + plot.w / 2, y: topY - fs * 0.75 },
-      left: {
-        x: leftLabelX,
-        y: plot.y + plot.h / 2,
-        transform: `rotate(-90 ${leftLabelX} ${plot.y + plot.h / 2})`,
-      },
-    };
+    return dimensionsFor(plot, this.layout().width);
   });
 
   // ── Selection & hover (shared with the plants table via model two-way) ───
@@ -779,6 +528,54 @@ export class GardenMap {
     this.announce(`${name} returned to its automatic spot.`);
   }
 
+  // ── The plan as a list ────────────────────────────────────────────────────
+  /**
+   * Every bed of the current arrangement in words — position, size, watering
+   * zone and the beds next to it (the same distance the clash check uses) —
+   * in reading order, top to bottom, then left to right.
+   */
+  protected readonly planRows = computed<readonly PlanRow[]>(() => {
+    const plots = this.layout().plots;
+    const neighbours = findNeighbours(plots);
+    const names = new Map(plots.map((p) => [p.plantId, p.label]));
+    const humidity = this.humidityById();
+    const positions = this.positions();
+    // Compared to the centimetre: layout maths leaves float noise that would
+    // otherwise list a bed at "0 m down" after one at "0 m down" further right.
+    const cm = (value: number): number => Math.round(value * 100);
+    return [...plots]
+      .sort((a, b) => cm(a.y) - cm(b.y) || cm(a.x) - cm(b.x))
+      .map((p) => ({
+        plantId: p.plantId,
+        name: p.label,
+        x: p.x,
+        y: p.y,
+        width: p.w,
+        depth: p.h,
+        area: p.requiredArea,
+        zone: ZONE_LABEL[
+          wateringZone(humidity.get(p.plantId) ?? this.garden().targetHumidityLevel)
+        ],
+        placed: positions[p.plantId] !== undefined,
+        neighbours: (neighbours.get(p.plantId) ?? []).map((id) => names.get(id) as string),
+      }));
+  });
+
+  protected toggleList(): void {
+    const open = !this.listOpen();
+    this.listOpen.set(open);
+    if (!open) {
+      this.announce('Showing the plan.');
+      return;
+    }
+    this.layersOpen.set(false);
+    if (this.timelineOpen()) {
+      this.stopPlayback();
+      this.timelineOpen.set(false);
+    }
+    this.announce(`Showing the plan as a list of ${this.plants().length} beds.`);
+  }
+
   // ── Planting timeline ─────────────────────────────────────────────────────
   protected readonly timelineOpen = signal(false);
   protected readonly days = computed(() => plantingDays(this.plants()));
@@ -833,6 +630,7 @@ export class GardenMap {
     }
     this.timelineOpen.set(true);
     this.layersOpen.set(false);
+    this.listOpen.set(false); // the replay is drawn on the plan the list would cover
     this.dayIndex.set(0);
     this.announce(
       `Planting timeline: ${this.days().length} planting days. Showing the first, ${this.days()[0]}.`,
@@ -880,9 +678,9 @@ export class GardenMap {
     this.playing.set(false);
   }
 
-  protected onScrub(event: Event): void {
+  protected onScrub(dayIndex: number): void {
     this.stopPlayback();
-    this.dayIndex.set(Number((event.target as HTMLInputElement).value));
+    this.dayIndex.set(dayIndex);
   }
 
   // ── Gestures (renderer-local plain fields — not application state) ───────
@@ -1158,9 +956,10 @@ export class GardenMap {
   }
 
   /**
-   * Escape cascade: layers panel → timeline → fullscreen → selection. Bound
-   * on the map shell (not the SVG) so it also works with focus inside the
-   * toolbar or a popover — a keyboard user must be able to Escape out.
+   * Escape cascade: layers panel → timeline → plan list → fullscreen →
+   * selection. Bound on the map shell (not the SVG) so it also works with
+   * focus inside the toolbar, a popover or the list — a keyboard user must be
+   * able to Escape out.
    */
   protected onEscape(): void {
     if (this.layersOpen()) {
@@ -1170,6 +969,9 @@ export class GardenMap {
       this.mapSvg().nativeElement.focus();
     } else if (this.timelineOpen()) {
       this.closeTimeline();
+      this.mapSvg().nativeElement.focus();
+    } else if (this.listOpen()) {
+      this.toggleList();
       this.mapSvg().nativeElement.focus();
     } else if (this.isFullscreen()) {
       this.toggleFullscreen.emit();

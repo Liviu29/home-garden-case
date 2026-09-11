@@ -1,0 +1,80 @@
+@use '../map-controls' as controls;
+
+// Covers the plan between the toolbar and the HUD, both of which stay usable.
+:host {
+  position: absolute;
+  inset: calc(var(--sp-3) + 2.6rem) var(--sp-3) 4.25rem;
+  display: block;
+  overflow: auto;
+  padding: var(--sp-3);
+  border-radius: var(--radius-m);
+  font-size: var(--fs-caption);
+  color: var(--text-1);
+  // The stage turns text selection off for drags; a list may be copied.
+  user-select: text;
+  -webkit-user-select: text;
+  @include controls.glass-panel;
+}
+
+.plan-list-note {
+  margin: 0 0 var(--sp-2);
+  color: var(--text-2);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: var(--sp-1) var(--sp-2);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border);
+}
+
+thead th {
+  font-weight: 650;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+tbody tr.selected {
+  background: var(--brand-soft);
+}
+
+.bed-name {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-1);
+  font: inherit;
+  font-weight: 650;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+
+  &:focus-visible {
+    border-radius: 2px;
+    box-shadow: var(--focus-ring);
+  }
+}
+
+.placed,
+.none {
+  color: var(--text-3);
+  font-weight: 400;
+}
+
+.placed {
+  display: block;
+}
+
+@container map-stage (max-width: 34rem) {
+  :host {
+    inset: calc(var(--sp-2) + 2.5rem) var(--sp-2) 3.75rem;
+    padding: var(--sp-2);
+  }
+}

@@ -497,308 +497,65 @@
       </div>
     }
 
-    <!-- Toolbar: real icon buttons, keyboard/screen-reader friendly -->
-    <div class="map-toolbar" role="toolbar" aria-label="Map view controls">
-      <button
-        class="tool-btn press-feedback"
-        type="button"
-        aria-label="Zoom out"
-        title="Zoom out"
-        [disabled]="zoom() <= minZoom"
-        (click)="zoomOut()"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M5 11h14v2H5z" fill="currentColor" />
-        </svg>
-      </button>
-      <span class="zoom-level tabular" aria-live="polite">{{ zoomPercent() }}%</span>
-      <button
-        class="tool-btn press-feedback"
-        type="button"
-        aria-label="Zoom in"
-        title="Zoom in"
-        [disabled]="zoom() >= maxZoom"
-        (click)="zoomIn()"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z" fill="currentColor" />
-        </svg>
-      </button>
-      <span class="toolbar-divider" aria-hidden="true"></span>
-      <button
-        class="tool-btn press-feedback"
-        type="button"
-        aria-label="Fit garden"
-        title="Fit garden"
-        (click)="fit()"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="M4 9V5a1 1 0 0 1 1-1h4v2H6v3H4Zm16 0V6h-3V4h4a1 1 0 0 1 1 1v4h-2ZM4 15h2v3h3v2H5a1 1 0 0 1-1-1v-4Zm16 0h2v4a1 1 0 0 1-1 1h-4v-2h3v-3Z"
-            fill="currentColor"
-          />
-        </svg>
-      </button>
-      <button
-        class="tool-btn press-feedback tool-secondary"
-        type="button"
-        aria-label="Reset view and selection"
-        title="Reset view and selection"
-        (click)="resetView()"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7Z" fill="currentColor" />
-        </svg>
-      </button>
-      <span class="toolbar-divider" aria-hidden="true"></span>
-      <button
-        class="tool-btn press-feedback"
-        type="button"
-        aria-label="Undo layout move"
-        title="Undo layout move"
-        [disabled]="!canUndo()"
-        (click)="undoLayout.emit()"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="M12.5 8H7.83l2.58-2.59L9 4 4 9l5 5 1.41-1.41L7.83 10h4.67a4.5 4.5 0 0 1 0 9H7v2h5.5a6.5 6.5 0 0 0 0-13Z"
-            fill="currentColor"
-          />
-        </svg>
-      </button>
-      <button
-        class="tool-btn press-feedback"
-        type="button"
-        aria-label="Redo layout move"
-        title="Redo layout move"
-        [disabled]="!canRedo()"
-        (click)="redoLayout.emit()"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="M11.5 8h4.67l-2.58-2.59L15 4l5 5-5 5-1.41-1.41L16.17 10H11.5a4.5 4.5 0 0 0 0 9H17v2h-5.5a6.5 6.5 0 0 1 0-13Z"
-            fill="currentColor"
-          />
-        </svg>
-      </button>
-      <button
-        class="tool-btn press-feedback"
-        type="button"
-        aria-label="Reset layout to automatic arrangement"
-        title="Reset layout to automatic arrangement"
-        [disabled]="!hasCustomLayout()"
-        (click)="resetLayout.emit()"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM17.5 13.6l1.4 1.4-2 2 2 2-1.4 1.4-2-2-2 2-1.4-1.4 2-2-2-2 1.4-1.4 2 2z"
-            fill="currentColor"
-          />
-        </svg>
-      </button>
-      <span class="toolbar-divider" aria-hidden="true"></span>
-      <button
-        class="tool-btn press-feedback"
-        type="button"
-        [attr.aria-label]="
-          days().length < 2
-            ? 'Planting timeline — needs plants from different days'
-            : 'Planting timeline'
-        "
-        [attr.title]="
-          days().length < 2
-            ? 'Planting timeline — needs plants from different days'
-            : 'Planting timeline'
-        "
-        [attr.aria-pressed]="timelineOpen()"
-        [disabled]="days().length < 2"
-        (click)="toggleTimeline()"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="M12 3a9 9 0 1 0 9 9h-2a7 7 0 1 1-2.05-4.95L14 10h7V3l-2.64 2.64A8.97 8.97 0 0 0 12 3Zm-1 4v6l5 3 .9-1.5-3.9-2.3V7h-2Z"
-            fill="currentColor"
-          />
-        </svg>
-      </button>
-      <button
-        class="tool-btn press-feedback"
-        type="button"
-        aria-label="Toggle layers menu"
-        title="Toggle layers menu"
-        [attr.aria-expanded]="layersOpen()"
-        (click)="layersOpen.set(!layersOpen())"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="m12 3 9 5-9 5-9-5 9-5Zm-6.7 8.1L12 14.8l6.7-3.7L21 12.4l-9 5-9-5 2.3-1.3Zm0 4L12 18.8l6.7-3.7L21 16.4l-9 5-9-5 2.3-1.3Z"
-            fill="currentColor"
-          />
-        </svg>
-      </button>
-      <button
-        class="tool-btn press-feedback"
-        type="button"
-        [attr.aria-label]="isFullscreen() ? 'Exit fullscreen planner' : 'Expand planner'"
-        [attr.title]="isFullscreen() ? 'Exit fullscreen planner' : 'Expand planner'"
-        (click)="toggleFullscreen.emit()"
-      >
-        @if (isFullscreen()) {
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M9 4v3H6v2h5V4H9Zm9 5V7h-3V4h-2v5h5ZM4 15v2h3v3h2v-5H4Zm11 5h2v-3h3v-2h-5v5Z"
-              fill="currentColor"
-            />
-          </svg>
-        } @else {
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M4 4h6v2H6v4H4V4Zm10 0h6v6h-2V6h-4V4ZM4 14h2v4h4v2H4v-6Zm14 0h2v6h-6v-2h4v-4Z"
-              fill="currentColor"
-            />
-          </svg>
-        }
-      </button>
-    </div>
+    <!-- The plan as a list: the same beds as text, between toolbar and HUD -->
+    @if (listOpen()) {
+      <app-map-plan-list
+        [rows]="planRows()"
+        [selectedPlantId]="selectedPlantId()"
+        (select)="selectPlant($event)"
+      />
+    }
 
-    <!-- Layers menu: honest toggles, nothing more -->
+    <app-map-toolbar
+      [zoom]="zoom()"
+      [canUndo]="canUndo()"
+      [canRedo]="canRedo()"
+      [hasCustomLayout]="hasCustomLayout()"
+      [canReplay]="days().length >= 2"
+      [timelineOpen]="timelineOpen()"
+      [layersOpen]="layersOpen()"
+      [listOpen]="listOpen()"
+      [isFullscreen]="isFullscreen()"
+      (zoomIn)="zoomIn()"
+      (zoomOut)="zoomOut()"
+      (fit)="fit()"
+      (resetView)="resetView()"
+      (undo)="undoLayout.emit()"
+      (redo)="redoLayout.emit()"
+      (resetLayout)="resetLayout.emit()"
+      (toggleTimeline)="toggleTimeline()"
+      (toggleLayers)="toggleLayers()"
+      (toggleList)="toggleList()"
+      (toggleFullscreen)="toggleFullscreen.emit()"
+    />
+
     @if (layersOpen()) {
-      <div class="layers-panel" role="group" aria-label="Map layers">
-        <label class="layer-toggle">
-          <input type="checkbox" [checked]="layers().labels" (change)="toggleLayer('labels')" />
-          Plant labels
-        </label>
-        <label class="layer-toggle">
-          <input
-            type="checkbox"
-            [checked]="layers().footprints"
-            (change)="toggleLayer('footprints')"
-          />
-          Footprints
-        </label>
-        <label class="layer-toggle">
-          <input type="checkbox" [checked]="layers().grid" (change)="toggleLayer('grid')" />
-          Grid
-        </label>
-        <label class="layer-toggle">
-          <input type="checkbox" [checked]="layers().humidity" (change)="toggleLayer('humidity')" />
-          Humidity preference
-        </label>
-        <label class="layer-toggle">
-          <input type="checkbox" [checked]="layers().zones" (change)="toggleLayer('zones')" />
-          Watering zones
-        </label>
-        <label class="layer-toggle">
-          <input
-            type="checkbox"
-            [checked]="layers().freeSpace"
-            (change)="toggleLayer('freeSpace')"
-          />
-          Available space
-        </label>
-        @if (layers().zones) {
-          <ul class="zone-legend">
-            @for (z of zoneLegend; track z.zone) {
-              <li>
-                <span class="zone-swatch" [attr.data-zone]="z.zone" aria-hidden="true"></span>
-                {{ z.label }} <span class="zone-range">{{ z.range }}</span>
-              </li>
-            }
-            <li class="zone-clash-key">
-              <span class="clash-swatch" aria-hidden="true">≠</span> Neighbours that need different
-              watering
-            </li>
-          </ul>
-        }
-        @if (layers().humidity || layers().zones) {
-          <p class="layers-note">Preference vs target — not a measurement</p>
-        }
-      </div>
+      <app-map-layers-panel [layers]="layers()" (toggle)="toggleLayer($event)" />
     }
 
     @if (timelineOpen()) {
       <!-- Planting timeline: replays the garden from its first planting day -->
-      <div class="map-timeline" role="group" aria-label="Planting timeline">
-        <button
-          class="tool-btn press-feedback"
-          type="button"
-          [attr.aria-label]="playing() ? 'Pause timeline' : 'Play timeline'"
-          (click)="togglePlayback()"
-        >
-          @if (playing()) {
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor" />
-            </svg>
-          } @else {
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M8 5v14l11-7L8 5Z" fill="currentColor" />
-            </svg>
-          }
-        </button>
-        <input
-          class="timeline-range"
-          type="range"
-          min="0"
-          step="1"
-          [max]="days().length - 1"
-          [value]="dayIndex()"
-          aria-label="Planting day"
-          [attr.aria-valuetext]="timelineDate() | date: 'MMMM d, y' : 'UTC'"
-          (input)="onScrub($event)"
-        />
-        <span class="timeline-readout">
-          <strong class="tabular">{{ timelineDate() | date: 'MMM d, y' : 'UTC' }}</strong>
-          <span class="tabular">
-            {{ timelineStats().count }} of {{ timelineStats().total }} plants ·
-            {{ timelineStats().pct | number: '1.0-0' }}% used
-          </span>
-        </span>
-        <button
-          class="tool-btn press-feedback"
-          type="button"
-          aria-label="Close timeline"
-          (click)="toggleTimeline()"
-        >
-          ✕
-        </button>
-      </div>
+      <app-map-timeline
+        [dayCount]="days().length"
+        [dayIndex]="dayIndex()"
+        [date]="timelineDate()"
+        [planted]="timelineStats().count"
+        [total]="timelineStats().total"
+        [usedPct]="timelineStats().pct"
+        [playing]="playing()"
+        (togglePlayback)="togglePlayback()"
+        (scrub)="onScrub($event)"
+        (close)="toggleTimeline()"
+      />
     } @else {
-      <!-- Capacity HUD: one glass panel, numbers from shared domain math.
-           Fades while a bed is dragged so it never hides the drop zone. -->
-      <div class="map-hud" [class.hud-muted]="draggingPlant()">
-        <div class="hud-stat">
-          <span class="hud-value tabular">{{ utilizationPct() | number: '1.0-0' }}%</span>
-          <span class="hud-label">used</span>
-          <span class="hud-bar" aria-hidden="true">
-            <span
-              class="hud-bar-fill"
-              [class.warn]="status() === 'almost-full'"
-              [class.full]="status() === 'full'"
-              [style.transform]="'scaleX(' + utilizationPct() / 100 + ')'"
-            ></span>
-          </span>
-        </div>
-        <span class="hud-divider" aria-hidden="true"></span>
-        <div class="hud-stat">
-          <span class="hud-value tabular">{{ freeArea() | number: '1.0-1' }} m²</span>
-          <span class="hud-label">free</span>
-        </div>
-        <span class="hud-divider" aria-hidden="true"></span>
-        <div class="hud-stat humidity">
-          <svg class="drop-icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M12 2.7c3.4 4.2 6.5 7.9 6.5 11.5a6.5 6.5 0 1 1-13 0C5.5 10.6 8.6 6.9 12 2.7Z"
-              fill="currentColor"
-            />
-          </svg>
-          <span class="hud-value tabular">{{ garden().targetHumidityLevel }}%</span>
-          <span class="hud-label">target</span>
-        </div>
-        @if (status() === 'full') {
-          <span class="hud-divider" aria-hidden="true"></span>
-          <div class="hud-stat full-badge">{{ statusLabel() }}</div>
-        }
-      </div>
+      <!-- Capacity HUD: numbers from shared domain math; fades while a bed is dragged -->
+      <app-map-hud
+        [utilizationPct]="utilizationPct()"
+        [freeArea]="freeArea()"
+        [targetHumidity]="garden().targetHumidityLevel"
+        [status]="status()"
+        [muted]="draggingPlant()"
+      />
     }
 
     <!-- Designed empty state: the surface is an invitation, not a blank -->

@@ -4,6 +4,7 @@ import {
   CONFLICT_MIN_DELTA,
   arrangeByWateringZone,
   boxGap,
+  findNeighbours,
   findWateringConflicts,
   largestFreeRect,
   plantedBy,
@@ -280,5 +281,27 @@ describe('planting timeline', () => {
   it('knows what was in the ground on a day; unreadable dates always are', () => {
     expect([...plantedBy(plants, '2026-04-01')].sort()).toEqual([2, 4]);
     expect([...plantedBy(plants, '2026-04-03')].sort()).toEqual([1, 2, 3, 4]);
+  });
+});
+
+describe('neighbours', () => {
+  const box = (plantId: number, x: number, y: number) => ({ plantId, x, y, w: 1, h: 1 });
+  //  1 2          4 far away
+  //  6  3         (3 sits 0.2 m right of 6 and 0.1 m below 2)
+  const plots = [box(1, 0, 0), box(2, 1, 0), box(3, 1.2, 1.1), box(4, 5, 5), box(6, 0, 1)];
+
+  it('lists the beds within a watering pass of each bed, nearest first, then by id', () => {
+    const near = findNeighbours(plots);
+
+    expect(near.get(1)).toEqual([2, 6, 3]); // 2 and 6 touch it (tie → by id), 3 is 0.22 m off
+    expect(near.get(3)).toEqual([2, 6, 1]); // 0.1 m, 0.2 m, 0.22 m
+    expect(near.get(4)).toEqual([]);
+  });
+
+  it('takes the distance that counts as "next to" as an option', () => {
+    const touching = findNeighbours(plots, 0);
+
+    expect(touching.get(1)).toEqual([2, 6]);
+    expect(touching.get(3)).toEqual([]);
   });
 });

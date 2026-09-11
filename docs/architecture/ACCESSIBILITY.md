@@ -14,7 +14,8 @@ Target: WCAG 2.2 AA. Accessibility here is architecture, not garnish — the sam
 - The map deliberately avoids the canvas-accessibility trap: it is SVG, so every plant plot is a **real focusable element** (`role="button"`, `tabindex="0"`, `aria-pressed`, full-sentence `aria-label` with name, m² and share). No `aria-hidden` canvas, no parallel shadow DOM to keep in sync.
 - The `<svg>` itself is `role="group"` with an aria-label that reads the garden's totals and the keyboard contract; it is focusable and supports arrows (pan), `+`/`-` (zoom), `0` (fit), `Escape` (clear selection). Enter/Space on a plot selects it.
 - Everything informational also exists as plain DOM: the toolbar is a real `role="toolbar"` of native buttons, the HUD chips are text, and the selected plot's full details render in the inspector `aside[aria-label="Plant inspector"]` with Edit/Remove as real buttons. The hover tooltip is a visual duplicate and is `aria-hidden`.
-- The e2e a11y suite scans the detail page **with the map hydrated** and asserts plot keyboard operation (focus + Enter → `aria-pressed` + inspector).
+- **The plan as a list.** The toolbar's _Show the plan as a list_ (`aria-pressed`) opens a labelled region with a real `<table>` — every bed in reading order with its position in metres, width × depth, watering zone and the beds next to it. Each bed name is a button that selects it on the plan and in the inspector. This is the text equivalent of the drawing: a screen-reader user gets the layout, not just the totals.
+- The e2e a11y suite scans the detail page **with the map hydrated** and asserts plot keyboard operation (focus + Enter → `aria-pressed` + inspector); the planner suite scans the plan list too.
 
 **Charts (Highcharts — ADR-008)**
 
@@ -53,5 +54,4 @@ Target: WCAG 2.2 AA. Accessibility here is architecture, not garnish — the sam
 
 ## Known gaps
 
-- The Garden Map's grid/humidity halo are purely decorative and carry no semantics (by design); a screen-reader user gets the totals from the map's group label, the HUD text and the plants table rather than a spatial rendering. The plot nodes themselves are fully operable.
-- Map wheel-zoom intercepts scroll while the pointer is over the map surface (standard map behaviour); keyboard users are unaffected (arrows/`+`/`-` operate on the focused map only).
+- The Garden Map's grid and humidity halo are decorative and carry no semantics (by design); the layout reaches assistive technology through the plan list and the inspector. There is no arrow-key navigation _between_ beds — on a focused bed the arrows move it (the keyboard alternative to dragging), so beds are reached with Tab or from the list.

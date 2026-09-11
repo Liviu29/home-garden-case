@@ -1,0 +1,53 @@
+@if (rows().length === 0) {
+  <p class="plan-list-note">Nothing is planted yet — the whole garden is open soil.</p>
+} @else {
+  <p class="plan-list-note">Positions are measured from the garden's top-left corner, in metres.</p>
+  <table>
+    <caption class="visually-hidden">
+      Beds on the plan, top to bottom
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Bed</th>
+        <th scope="col">Position</th>
+        <th scope="col">Size</th>
+        <th scope="col">Watering</th>
+        <th scope="col">Next to</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of rows(); track row.plantId) {
+        <tr [class.selected]="row.plantId === selectedPlantId()">
+          <th scope="row">
+            <button
+              class="bed-name"
+              type="button"
+              [attr.aria-pressed]="row.plantId === selectedPlantId()"
+              (click)="select.emit(row.plantId)"
+            >
+              {{ row.name }}
+            </button>
+            @if (row.placed) {
+              <span class="placed">placed by you</span>
+            }
+          </th>
+          <td class="tabular">
+            {{ row.x | number: '1.0-2' }} m across, {{ row.y | number: '1.0-2' }} m down
+          </td>
+          <td class="tabular">
+            {{ row.width | number: '1.0-2' }} × {{ row.depth | number: '1.0-2' }} m ·
+            {{ row.area }} m²
+          </td>
+          <td>{{ row.zone }}</td>
+          <td>
+            @if (row.neighbours.length > 0) {
+              {{ row.neighbours.join(', ') }}
+            } @else {
+              <span class="none">no bed alongside</span>
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}

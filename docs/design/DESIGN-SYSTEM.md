@@ -156,8 +156,10 @@ Visual language:
 - **HUD:** glass chips (capacity used/total with mini bar, free m², target
   humidity with droplet, "Full" badge at 100%) — every number computed by the
   shared domain functions, never re-derived in the renderer.
-- **Camera:** drag to pan, wheel/pinch to zoom (0.5×–10×; zoomed out below fit the garden floats centered on the lawn, clamped so it
-  can't be lost), icon toolbar (zoom −/%, +, fit, reset). Map colors are
+- **Camera:** drag to pan; pinch, Ctrl/⌘ + wheel or the toolbar to zoom (0.5×–10×; zoomed out
+  below fit the garden floats centered on the lawn, clamped so it can't be lost). Embedded in the
+  page, a bare wheel scrolls the page and a short hint names the zoom gesture; in fullscreen the
+  wheel zooms. Icon toolbar: zoom −/%, +, fit, reset. Map colors are
   `--map-*` tokens, so dark mode ("moonlit" remap) costs zero component code.
 - **Botanical artwork (the visual layer):** each plant renders as original
   top-down vector art (8 categories, resolved by keyword heuristics with

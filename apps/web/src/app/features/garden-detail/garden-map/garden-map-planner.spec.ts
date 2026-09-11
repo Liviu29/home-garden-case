@@ -417,6 +417,113 @@ describe('GardenMap — planner tools', () => {
     });
   });
 
+  describe('the plan as a list (a text version of the map)', () => {
+    const list = () => el.querySelector('app-map-plan-list');
+    const rows = () => [...el.querySelectorAll<HTMLTableRowElement>('app-map-plan-list tbody tr')];
+    // By the bed's own name — its neighbours' names appear in other rows too.
+    const rowOf = (name: string) =>
+      rows().find((r) => r.querySelector('th button')?.textContent?.trim() === name)!;
+    const openList = () => {
+      button('Show the plan as a list')!.click();
+      fixture.detectChanges();
+    };
+
+    it('lists every bed with its position, size, watering zone and neighbours', () => {
+      mount(TRIO);
+      openList();
+
+      expect(list()?.getAttribute('role')).toBe('region');
+      expect(list()?.getAttribute('aria-label')).toBe('Plan as a list');
+      expect(button('Show the plan as a list')?.getAttribute('aria-pressed')).toBe('true');
+      expect(rows()).toHaveLength(3);
+
+      const tomato = rowOf('Tomato').textContent!.replace(/\s+/g, ' ');
+      expect(tomato).toMatch(/m across, [\d.]+ m down/);
+      expect(tomato).toContain('8 m²');
+      expect(tomato).toContain('Dry');
+      // Basil shares Tomato's right edge; being next to each other goes both ways.
+      expect(tomato).toContain('Basil');
+      expect(rowOf('Basil').textContent).toContain('Tomato');
+      expect(rowOf('Basil').textContent).toContain('Humid');
+      expect(live()).toContain('Showing the plan as a list of 3 beds');
+    });
+
+    it('reads top to bottom, then left to right', () => {
+      mount(TRIO);
+      openList();
+
+      const at = rows().map((r) => {
+        const [, across, down] = /([\d.]+) m across, ([\d.]+) m down/.exec(
+          (r.textContent ?? '').replace(/\s+/g, ' '),
+        )!;
+        return [Number(down), Number(across)];
+      });
+      expect(at).toEqual([...at].sort((a, b) => a[0] - b[0] || a[1] - b[1]));
+    });
+
+    it('chooses a bed from the list: selected on the plan and in the list', () => {
+      mount(TRIO);
+      openList();
+
+      const basil = rowOf('Basil').querySelector('button')!;
+      basil.click();
+      fixture.detectChanges();
+
+      expect(host.selected).toBe(2);
+      expect(plotNamed('Basil').getAttribute('aria-pressed')).toBe('true');
+      expect(rowOf('Basil').querySelector('button')?.getAttribute('aria-pressed')).toBe('true');
+      expect(rowOf('Basil').classList).toContain('selected');
+    });
+
+    it('marks the beds the gardener placed, and says when a bed stands alone', () => {
+      mount([BOXWOOD], { 1: { x: 0, y: 0 } });
+      openList();
+
+      expect(rowOf('Boxwood').textContent).toContain('placed by you');
+      expect(rowOf('Boxwood').textContent).toContain('no bed alongside');
+    });
+
+    it('says so when nothing is planted', () => {
+      mount([]);
+      openList();
+
+      expect(list()?.textContent).toContain('Nothing is planted yet');
+      expect(rows()).toHaveLength(0);
+    });
+
+    it('closes with its toolbar button or Escape, and returns to the plan', () => {
+      mount(TRIO);
+      openList();
+      openList();
+      expect(list()).toBeNull();
+      expect(live()).toContain('Showing the plan.');
+
+      openList();
+      key(el.querySelector('.map-shell')!, 'Escape');
+      expect(list()).toBeNull();
+    });
+
+    it('takes the place of the layers panel and the timeline, and gives way to the timeline', () => {
+      mount([
+        plant(1, 4, 'Tomato', 55, '2026-04-01T08:00:00.000Z'),
+        plant(2, 3, 'Basil', 55, '2026-04-10T08:00:00.000Z'),
+      ]);
+      button('Toggle layers menu')!.click();
+      fixture.detectChanges();
+      openList();
+      expect(el.querySelector('.layers-panel')).toBeNull();
+
+      button('Planting timeline')!.click();
+      fixture.detectChanges();
+      expect(list()).toBeNull();
+      expect(el.querySelector('.map-timeline')).not.toBeNull();
+
+      openList();
+      expect(el.querySelector('.map-timeline')).toBeNull();
+      expect(button('Play timeline') ?? button('Pause timeline')).toBeNull();
+    });
+  });
+
   describe('free soil follows the beds (a moved bed never breaks the map)', () => {
     it('the ground a bed left becomes open soil and the label moves to the open ground', () => {
       mount([BOXWOOD], { 1: { x: 2, y: 0 } });

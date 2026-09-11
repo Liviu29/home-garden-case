@@ -1,0 +1,32 @@
+<div class="hud-stat">
+  <span class="hud-value tabular">{{ utilizationPct() | number: '1.0-0' }}%</span>
+  <span class="hud-label">used</span>
+  <span class="hud-bar" aria-hidden="true">
+    <span
+      class="hud-bar-fill"
+      [class.warn]="status() === 'almost-full'"
+      [class.full]="status() === 'full'"
+      [style.transform]="'scaleX(' + utilizationPct() / 100 + ')'"
+    ></span>
+  </span>
+</div>
+<span class="hud-divider" aria-hidden="true"></span>
+<div class="hud-stat">
+  <span class="hud-value tabular">{{ freeArea() | number: '1.0-1' }} m²</span>
+  <span class="hud-label">free</span>
+</div>
+<span class="hud-divider" aria-hidden="true"></span>
+<div class="hud-stat humidity">
+  <svg class="drop-icon" viewBox="0 0 24 24" aria-hidden="true">
+    <path
+      d="M12 2.7c3.4 4.2 6.5 7.9 6.5 11.5a6.5 6.5 0 1 1-13 0C5.5 10.6 8.6 6.9 12 2.7Z"
+      fill="currentColor"
+    />
+  </svg>
+  <span class="hud-value tabular">{{ targetHumidity() }}%</span>
+  <span class="hud-label">target</span>
+</div>
+@if (status() === 'full') {
+  <span class="hud-divider" aria-hidden="true"></span>
+  <div class="hud-stat full-badge">{{ statusLabel() }}</div>
+}
