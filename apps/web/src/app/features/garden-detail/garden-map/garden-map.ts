@@ -42,7 +42,7 @@ import {
   wateringZone,
   zoneBreakdown,
 } from '../../../domain/garden-planner/garden-planner';
-import { LayoutPositions } from './garden-layout-repository/garden-layout-repository';
+import { LayoutPositions } from '../../../state/garden-layout/garden-layout-repository';
 import {
   FreeHint,
   MapBox,

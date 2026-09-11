@@ -1,6 +1,7 @@
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { GardensApi } from '../../../core/api/gardens-api';
+import { plantInputOf } from '../../../core/api/mappers';
 import { PlantsApi } from '../../../core/api/plants-api';
 import { Garden, Plant, PlantInput } from '../../../core/api/models';
 import { toApiError } from '../../../core/errors/api-error';
@@ -16,6 +17,10 @@ import {
 } from '../../../domain/garden-insights/garden-insights';
 import { MutationResult, RequestStatus } from '../../../state/gardens-store/gardens-store';
 import { PlantsIndexStore } from '../../../state/plants-index-store/plants-index-store';
+import {
+  GardenLayoutRepository,
+  LayoutPositions,
+} from '../../../state/garden-layout/garden-layout-repository';
 
 interface GardenDetailState {
   garden: Garden | null;
@@ -38,7 +43,14 @@ interface GardenDetailState {
   pendingDeletes: readonly number[];
   /** Set on successful create — lets the screen select the new plant. */
   lastCreatedPlantId: number | null;
+  /**
+   * Bed positions of a plant an undo brought back (under its new id), so the
+   * planner on screen puts it where it stood.
+   */
+  restored: { readonly gardenId: number; readonly positions: LayoutPositions } | null;
 }
+
+type BedPosition = LayoutPositions[number];
 
 /**
  * Route-scoped store for one garden (provided by the GardenDetail component,
@@ -61,6 +73,7 @@ export const GardenDetailStore = signalStore(
     pendingUpdates: [],
     pendingDeletes: [],
     lastCreatedPlantId: null,
+    restored: null,
   }),
   withComputed((store) => {
     const plantsIndex = inject(PlantsIndexStore);
@@ -111,6 +124,7 @@ export const GardenDetailStore = signalStore(
     const toasts = inject(ToastStore);
     const logger = inject(Logger);
     const plantsIndex = inject(PlantsIndexStore);
+    const layout = inject(GardenLayoutRepository);
 
     /** All plant writes go through the single owner. */
     const writePlants = (gardenId: number, plants: readonly Plant[]): void => {
@@ -193,6 +207,50 @@ export const GardenDetailStore = signalStore(
       }
     };
 
+    /**
+     * Undo for a removal. The API has no restore, so the plant is planted
+     * again — same fields, new id — and its bed goes back where it stood.
+     * It may be pressed after leaving the screen: everything it writes is
+     * keyed by the plant's own garden, not by the route.
+     */
+    const restorePlant = async (plant: Plant, spot: BedPosition | undefined): Promise<void> => {
+      const onScreen = plant.gardenId === store.gardenId();
+      if (onScreen) {
+        patchState(store, { pendingCreateArea: plant.surfaceAreaRequired });
+      }
+      try {
+        const restored = await plantsApi.create(plantInputOf(plant));
+        // The removal wrote this garden's entry, so the index knows it.
+        const known = plantsIndex.byGarden()[plant.gardenId] ?? [];
+        plantsIndex.setPlants(plant.gardenId, [
+          ...known.filter((p) => p.plantId !== restored.plantId),
+          restored,
+        ]);
+        if (spot) {
+          const positions = { [restored.plantId]: spot };
+          layout.place(plant.gardenId, positions);
+          patchState(store, { restored: { gardenId: plant.gardenId, positions } });
+        }
+        toasts.success(`“${restored.plantName}” is back.`);
+      } catch (err) {
+        const error = toApiError(err);
+        if (error.kind === 'technical') {
+          toasts.error(`Couldn't bring back “${plant.plantName}”.`, {
+            label: 'Try again',
+            run: () => void restorePlant(plant, spot),
+          });
+        } else {
+          // e.g. its room went to another plant in the meantime (capacity 400)
+          toasts.error(`Couldn't bring back “${plant.plantName}”. ${error.message}`);
+        }
+        logger.warn('garden-detail:restorePlant', error.message);
+      } finally {
+        if (onScreen) {
+          patchState(store, { pendingCreateArea: null });
+        }
+      }
+    };
+
     return {
       /** Garden + plants load in parallel — neither blocks the other's skeleton. */
       load(gardenId: number): void {
@@ -263,12 +321,14 @@ export const GardenDetailStore = signalStore(
        * Ghost-confirmed delete (ASYNC-UX.md): the plant stays in state but its
        * row/plot render as a gray mutation ghost while the DELETE is in
        * flight; it leaves the UI only when the server confirms. Re-entrant
-       * calls per plant are ignored.
+       * calls per plant are ignored. The confirmation toast offers Undo.
        */
       async removePlant(plant: Plant): Promise<void> {
         if (store.pendingDeletes().includes(plant.plantId)) {
           return;
         }
+        // Where its bed stands, read before it goes: an undo puts it back there.
+        const spot = layout.load(plant.gardenId)[plant.plantId];
         patchState(store, { pendingDeletes: [...store.pendingDeletes(), plant.plantId] });
         try {
           await plantsApi.delete(plant.plantId);
@@ -276,7 +336,10 @@ export const GardenDetailStore = signalStore(
             plant.gardenId,
             currentPlants().filter((p) => p.plantId !== plant.plantId),
           );
-          toasts.success(`“${plant.plantName}” removed.`);
+          toasts.success(`“${plant.plantName}” removed.`, {
+            label: 'Undo',
+            run: () => void restorePlant(plant, spot),
+          });
         } catch (err) {
           // The ghost simply resolves back into the real plant — nothing to roll back.
           const retry = (): void => void this.removePlant(plant);

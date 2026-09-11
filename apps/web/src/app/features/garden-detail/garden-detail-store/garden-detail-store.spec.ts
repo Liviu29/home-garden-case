@@ -5,6 +5,7 @@ import { Garden, Plant } from '../../../core/api/models';
 import { ApiError } from '../../../core/errors/api-error';
 import { ToastStore } from '../../../core/errors/toast-store';
 import { PlantsIndexStore } from '../../../state/plants-index-store/plants-index-store';
+import { GardenLayoutRepository } from '../../../state/garden-layout/garden-layout-repository';
 import { GardenDetailStore } from './garden-detail-store';
 
 const garden: Garden = {
@@ -494,5 +495,129 @@ describe('GardenDetailStore — derived state before a garden exists', () => {
     expect(store.plantsEmpty()).toBe(false); // not loaded ≠ empty
     store.load(1);
     await vi.waitFor(() => expect(store.plantsEmpty()).toBe(true));
+  });
+});
+
+describe('GardenDetailStore — Undo for a removed plant', () => {
+  let plantsApi: Record<string, ReturnType<typeof vi.fn>>;
+  let store: InstanceType<typeof GardenDetailStore>;
+  let toasts: ToastStore;
+  let layout: GardenLayoutRepository;
+
+  beforeEach(() => {
+    localStorage.clear();
+    plantsApi = {
+      getByGarden: vi.fn().mockResolvedValue([plant(1, 5), plant(2, 3)]),
+      create: vi.fn().mockResolvedValue(plant(9, 5)),
+      update: vi.fn(),
+      delete: vi.fn().mockResolvedValue(undefined),
+    };
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        GardenDetailStore,
+        { provide: GardensApi, useValue: { getById: vi.fn().mockResolvedValue(garden) } },
+        { provide: PlantsApi, useValue: plantsApi },
+      ],
+    });
+    store = TestBed.inject(GardenDetailStore);
+    toasts = TestBed.inject(ToastStore);
+    layout = TestBed.inject(GardenLayoutRepository);
+  });
+
+  /** Loads garden 3, removes Plant 1 and hands back the removal toast. */
+  const removePlantOne = async () => {
+    store.load(3);
+    await vi.waitFor(() => expect(store.plants()).toHaveLength(2));
+    await store.removePlant(store.plants()[0]);
+    return toasts.toasts().find((t) => t.actionLabel === 'Undo');
+  };
+  const errorToast = () => toasts.toasts().find((t) => t.tone === 'error');
+
+  it('the removal toast offers Undo', async () => {
+    const undo = await removePlantOne();
+    expect(undo).toMatchObject({ tone: 'success', message: '“Plant 1” removed.' });
+  });
+
+  it('Undo plants it again with the same fields, and its bed goes back where it stood', async () => {
+    layout.save(3, { 1: { x: 4, y: 2 } }, [1, 2]);
+    const undo = await removePlantOne();
+
+    undo?.action?.();
+    await vi.waitFor(() => expect(store.plants().map((p) => p.plantId)).toEqual([2, 9]));
+
+    expect(plantsApi['create']).toHaveBeenCalledWith({
+      plantName: 'Plant 1',
+      species: 's',
+      plantType: 'vegetable',
+      plantationDate: '2026-04-01T00:00:00.000Z',
+      surfaceAreaRequired: 5,
+      idealHumidityLevel: 60,
+      gardenId: 3,
+    });
+    expect(layout.load(3)[9]).toEqual({ x: 4, y: 2 });
+    expect(store.restored()).toEqual({ gardenId: 3, positions: { 9: { x: 4, y: 2 } } });
+    expect(toasts.toasts().some((t) => t.message === '“Plant 9” is back.')).toBe(true);
+  });
+
+  it('a bed that was never moved gets no position — the auto-layout places it', async () => {
+    const undo = await removePlantOne();
+
+    undo?.action?.();
+    await vi.waitFor(() => expect(store.plants()).toHaveLength(2));
+
+    expect(layout.load(3)).toEqual({});
+    expect(store.restored()).toBeNull();
+  });
+
+  it('shows a creation ghost while the plant is replanted', async () => {
+    const undo = await removePlantOne();
+    let resolve!: (p: Plant) => void;
+    plantsApi['create'].mockReturnValue(new Promise<Plant>((r) => (resolve = r)));
+
+    undo?.action?.();
+    expect(store.pendingCreateArea()).toBe(5);
+
+    resolve(plant(9, 5));
+    await vi.waitFor(() => expect(store.pendingCreateArea()).toBeNull());
+  });
+
+  it('pressed after moving on to another garden, it lands in its own garden, not on screen', async () => {
+    const undo = await removePlantOne();
+    store.load(4);
+    let resolve!: (p: Plant) => void;
+    plantsApi['create'].mockReturnValue(new Promise<Plant>((r) => (resolve = r)));
+
+    undo?.action?.();
+    expect(store.pendingCreateArea()).toBeNull(); // no ghost in someone else's garden
+
+    resolve(plant(9, 5));
+    const index = TestBed.inject(PlantsIndexStore);
+    await vi.waitFor(() => expect(index.byGarden()[3].map((p) => p.plantId)).toEqual([2, 9]));
+  });
+
+  it('a technical failure says so and offers Try again', async () => {
+    const undo = await removePlantOne();
+    plantsApi['create'].mockRejectedValueOnce(new ApiError('technical', 'boom', 500));
+
+    undo?.action?.();
+    await vi.waitFor(() => expect(errorToast()?.actionLabel).toBe('Try again'));
+    expect(errorToast()?.message).toBe("Couldn't bring back “Plant 1”.");
+
+    errorToast()?.action?.();
+    await vi.waitFor(() => expect(store.plants()).toHaveLength(2));
+  });
+
+  it('a verdict (the room went to another plant meanwhile) is shown as it is, with nothing to retry', async () => {
+    const undo = await removePlantOne();
+    plantsApi['create'].mockRejectedValue(
+      new ApiError('functional', 'Not enough room left in this garden.', 400),
+    );
+
+    undo?.action?.();
+    await vi.waitFor(() => expect(errorToast()).toBeDefined());
+    expect(errorToast()?.message).toContain('Not enough room left in this garden.');
+    expect(errorToast()?.actionLabel).toBeUndefined();
+    expect(store.plants().map((p) => p.plantId)).toEqual([2]);
   });
 });

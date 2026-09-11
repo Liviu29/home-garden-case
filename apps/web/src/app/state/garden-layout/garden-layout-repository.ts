@@ -83,6 +83,25 @@ export class GardenLayoutRepository {
     }
   }
 
+  /**
+   * Adds positions and keeps the rest, pruning nothing: for plants an undo
+   * brought back under new ids, whose beds belong where they stood.
+   */
+  place(gardenId: number, positions: LayoutPositions): void {
+    if (Object.keys(positions).length === 0) {
+      return;
+    }
+    try {
+      const payload: GardenVisualLayoutV2 = {
+        v: 2,
+        positions: { ...this.load(gardenId), ...positions },
+      };
+      localStorage.setItem(KEY_PREFIX + gardenId, JSON.stringify(payload));
+    } catch {
+      // storage unavailable — the beds take their automatic spots
+    }
+  }
+
   reset(gardenId: number): void {
     try {
       localStorage.removeItem(KEY_PREFIX + gardenId);

@@ -34,7 +34,7 @@ to a typed result or a typed `ApiError` ([ARCHITECTURE §4.3](./ARCHITECTURE.md#
 | ---------- | --------------------------------------------------------------------- |
 | Framework  | Fastify 5 + `@fastify/autoload`, DI via `@fastify/awilix`             |
 | Validation | zod v4 through `fastify-type-provider-zod` (request **and** response) |
-| Database   | SQLite (`better-sqlite3`) via Kysely, file `db.sqlite`, 2 migrations  |
+| Database   | SQLite (`better-sqlite3`) via Kysely, file `db.sqlite`, 3 migrations  |
 | OpenAPI    | Generated: `/docs` (Swagger UI) and `/docs/json` (OpenAPI 3.0.3)      |
 | Bruno      | 16 requests — exactly the 16 API routes; no hidden endpoints          |
 | Layering   | route → service (business rules) → repository (Kysely) → SQLite       |
@@ -92,9 +92,12 @@ on a 200–2000 ms API an extra round trip per plant would only add latency.
 
 ## 4. Domain model — verified against the migrations
 
-Three tables: `user`, `garden`, `plant`. **There is no relationship between `user` and `garden`**
-(no `userId` column, no user filter on any endpoint): gardens and plants are global. The frontend
-therefore presents a profile honestly as a local session identity, never as data ownership.
+Three tables: `user`, `garden`, `plant`. As provided, **there was no relationship between `user`
+and `garden`**: gardens and plants were global. Migration 003 adds a nullable `garden.userId`
+([ADR-009](../adr/ADR-009-garden-ownership.md)): a garden belongs to the profile that created it,
+`?visibleTo=` lists a profile's own gardens plus the unowned (shared) ones, and deleting a profile
+hands its gardens back as shared. It is still not access control — there is no authentication
+([ADR-005](../adr/ADR-005-authentication.md)).
 
 - **`user`** — `firstName`, `lastName` (nullable), `age` (nullable, positive integer),
   `emailAddress` (required, lower-cased and trimmed; uniqueness enforced in the service, not by a DB
@@ -166,21 +169,21 @@ the five real plant fields.
 Every operation renders a designed state for everything the backend can actually produce (there is
 no authentication, so there is no 401/403 column). **All implemented** except where marked.
 
-| Operation                    | Pending UI                                 | 4xx verdict                                        | 404                    | 5xx / network                | Race guard           |
-| ---------------------------- | ------------------------------------------ | -------------------------------------------------- | ---------------------- | ---------------------------- | -------------------- |
-| `GET /users`                 | profile-card skeletons                     | —                                                  | —                      | error state + Try again      | —                    |
-| `GET /users/{id}` (boot)     | silent                                     | —                                                  | sign out → Welcome     | **session kept**             | —                    |
-| `POST /users`                | submit-button ghost                        | inline field errors; **409 → continue as profile** | —                      | inline message               | single-flight        |
-| `PUT` / `DELETE /users/{id}` | button ghost; profile chip ghost on delete | inline (email, age); 409 inline                    | reconciles (signs out) | inline / toast, profile kept | single-flight        |
-| `GET /gardens`               | garden-card skeletons                      | —                                                  | —                      | error state + Try again      | SWR keeps stale data |
-| `GET /gardens/{id}`          | full-page skeleton                         | invalid id → not-found, no request                 | **not-found page**     | **retry page**               | **load token**       |
-| `POST /gardens`              | creation ghost card                        | inline (name, area, lat + lng pair)                | —                      | inline + toast               | idempotent append    |
-| `PUT /gardens/{id}`          | card / header ghost                        | inline; ⚠️ server allows shrinking — client warns  | inline message         | inline + toast               | single-flight        |
-| `DELETE /gardens/{id}`       | ghost-confirmed card                       | —                                                  | reconciles             | restored + Try again toast   | single-flight        |
-| `GET /plants/garden/{id}`    | table + planner skeleton                   | 400 for a missing garden — the garden 404 decides  | via the garden         | localized error + Try again  | **load token**       |
-| `POST /plants`               | ghost row + ghost bed                      | **capacity 400 inline, verbatim**                  | garden gone → message  | inline + toast               | idempotent append    |
-| `PUT /plants/{id}`           | row + bed ghost                            | capacity (self excluded, mirrors the server)       | inline message         | inline + toast               | single-flight        |
-| `DELETE /plants/{id}`        | ghost-confirmed row + bed                  | —                                                  | reconciles             | restored + Try again toast   | single-flight        |
+| Operation                    | Pending UI                                               | 4xx verdict                                        | 404                    | 5xx / network                | Race guard           |
+| ---------------------------- | -------------------------------------------------------- | -------------------------------------------------- | ---------------------- | ---------------------------- | -------------------- |
+| `GET /users`                 | profile-card skeletons                                   | —                                                  | —                      | error state + Try again      | —                    |
+| `GET /users/{id}` (boot)     | silent                                                   | —                                                  | sign out → Welcome     | **session kept**             | —                    |
+| `POST /users`                | submit-button ghost                                      | inline field errors; **409 → continue as profile** | —                      | inline message               | single-flight        |
+| `PUT` / `DELETE /users/{id}` | button ghost; profile chip ghost on delete               | inline (email, age); 409 inline                    | reconciles (signs out) | inline / toast, profile kept | single-flight        |
+| `GET /gardens`               | garden-card skeletons                                    | —                                                  | —                      | error state + Try again      | SWR keeps stale data |
+| `GET /gardens/{id}`          | full-page skeleton                                       | invalid id → not-found, no request                 | **not-found page**     | **retry page**               | **load token**       |
+| `POST /gardens`              | creation ghost card                                      | inline (name, area, lat + lng pair)                | —                      | inline + toast               | idempotent append    |
+| `PUT /gardens/{id}`          | card / header ghost                                      | inline; ⚠️ server allows shrinking — client warns  | inline message         | inline + toast               | single-flight        |
+| `DELETE /gardens/{id}`       | ghost-confirmed card; Undo re-creates it with its plants | —                                                  | reconciles             | restored + Try again toast   | single-flight        |
+| `GET /plants/garden/{id}`    | table + planner skeleton                                 | 400 for a missing garden — the garden 404 decides  | via the garden         | localized error + Try again  | **load token**       |
+| `POST /plants`               | ghost row + ghost bed                                    | **capacity 400 inline, verbatim**                  | garden gone → message  | inline + toast               | idempotent append    |
+| `PUT /plants/{id}`           | row + bed ghost                                          | capacity (self excluded, mirrors the server)       | inline message         | inline + toast               | single-flight        |
+| `DELETE /plants/{id}`        | ghost-confirmed row + bed; Undo re-plants it in its spot | —                                                  | reconciles             | restored + Try again toast   | single-flight        |
 
 - **Timeouts** — no client timeout is imposed: the API's own delay is by design, and aborting a
   legitimately slow request would turn a working page into an error. The skeleton stays until the

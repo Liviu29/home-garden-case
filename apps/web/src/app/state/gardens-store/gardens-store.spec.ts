@@ -1,7 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { GardensApi } from '../../core/api/gardens-api';
+import { PlantsApi } from '../../core/api/plants-api';
 import { SessionStore } from '../../core/auth/session-store';
-import { Garden } from '../../core/api/models';
+import { Garden, Plant, PlantInput } from '../../core/api/models';
+import { GardenLayoutRepository } from '../garden-layout/garden-layout-repository';
 import { ApiError } from '../../core/errors/api-error';
 import { ToastStore } from '../../core/errors/toast-store';
 import { QueryCache, cacheKeys } from '../../core/resilience/query-cache';
@@ -452,5 +454,190 @@ describe('GardensStore — a profile sees its own gardens and the shared ones (A
       expect.objectContaining({ gardenName: 'Mine' }),
       7,
     );
+  });
+});
+
+describe('GardensStore — Undo for a deleted garden', () => {
+  let gardensApi: Record<string, ReturnType<typeof vi.fn>>;
+  let plantsApi: Record<string, ReturnType<typeof vi.fn>>;
+  let store: InstanceType<typeof GardensStore>;
+  let toasts: ToastStore;
+  let cache: QueryCache;
+  let layout: GardenLayoutRepository;
+  let session: SessionStore;
+
+  const plantOf = (id: number): Plant => ({
+    plantId: id,
+    plantName: `Plant ${id}`,
+    species: 's',
+    plantType: 'flower',
+    plantationDate: '2026-04-01T00:00:00.000Z',
+    surfaceAreaRequired: 2,
+    idealHumidityLevel: 50,
+    gardenId: 1,
+    createdAt: '',
+    updatedAt: '',
+  });
+  const profile = (userId: number) => ({
+    userId,
+    emailAddress: `p${userId}@example.com`,
+    firstName: null,
+    lastName: null,
+    age: null,
+  });
+
+  beforeEach(() => {
+    localStorage.clear();
+    gardensApi = {
+      getAll: vi.fn().mockResolvedValue([garden(1), garden(2)]),
+      getById: vi.fn(),
+      create: vi.fn().mockResolvedValue(garden(10, 'Garden 1')),
+      update: vi.fn(),
+      delete: vi.fn().mockResolvedValue(undefined),
+    };
+    let nextPlantId = 100;
+    plantsApi = {
+      create: vi.fn().mockImplementation(async (input: PlantInput): Promise<Plant> => ({
+        ...input,
+        plantId: nextPlantId++,
+        createdAt: '',
+        updatedAt: '',
+      })),
+    };
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: GardensApi, useValue: gardensApi },
+        { provide: PlantsApi, useValue: plantsApi },
+      ],
+    });
+    store = TestBed.inject(GardensStore);
+    toasts = TestBed.inject(ToastStore);
+    cache = TestBed.inject(QueryCache);
+    layout = TestBed.inject(GardenLayoutRepository);
+    session = TestBed.inject(SessionStore);
+  });
+
+  /** Deletes `target` with its plants known, and hands back the Undo toast. */
+  const deleteWithPlants = async (
+    target: Garden = garden(1),
+    plants = [plantOf(1), plantOf(2)],
+  ) => {
+    await store.load();
+    cache.set(cacheKeys.plantsOfGarden(target.gardenId), plants);
+    await store.remove(target);
+    return toasts.toasts().find((t) => t.actionLabel === 'Undo');
+  };
+  const errorToast = () => toasts.toasts().find((t) => t.tone === 'error');
+
+  it('the delete toast offers Undo, and the deleted garden’s layout is cleared', async () => {
+    layout.save(1, { 1: { x: 3, y: 4 } }, [1, 2]);
+    const undo = await deleteWithPlants();
+    expect(undo).toMatchObject({ tone: 'success', message: 'Garden “Garden 1” deleted.' });
+    expect(layout.load(1)).toEqual({});
+  });
+
+  it('offers no Undo when its plants were never loaded — it could not bring them back', async () => {
+    await store.load();
+    await store.remove(garden(1));
+    expect(toasts.toasts().some((t) => t.message === 'Garden “Garden 1” deleted.')).toBe(true);
+    expect(toasts.toasts().some((t) => t.actionLabel === 'Undo')).toBe(false);
+  });
+
+  it('Undo creates the garden and its plants again, and moves the planner layout over', async () => {
+    layout.save(1, { 1: { x: 3, y: 4 } }, [1, 2]);
+    const undo = await deleteWithPlants();
+
+    undo?.action?.();
+    expect(store.creating()).toBe(true); // the creation ghost card stands in
+    await vi.waitFor(() => expect(store.creating()).toBe(false));
+
+    // A shared garden comes back shared: no owner is sent.
+    expect(gardensApi['create']).toHaveBeenCalledWith(
+      expect.objectContaining({ gardenName: 'Garden 1', totalSurfaceArea: 20 }),
+    );
+    expect(plantsApi['create']).toHaveBeenCalledTimes(2);
+    expect(plantsApi['create']).toHaveBeenCalledWith(
+      expect.objectContaining({ plantName: 'Plant 1', gardenId: 10 }),
+    );
+    expect(store.gardens().map((g) => g.gardenId)).toEqual([2, 10]);
+    expect(store.lastCreatedId()).toBe(10);
+    expect(cache.read(cacheKeys.gardens)).toEqual(store.gardens());
+    expect(cache.read<Plant[]>(cacheKeys.plantsOfGarden(10))?.map((p) => p.plantId)).toEqual([
+      100, 101,
+    ]);
+    expect(layout.load(10)).toEqual({ 100: { x: 3, y: 4 } });
+    expect(toasts.toasts().some((t) => t.message === 'Garden “Garden 1” is back.')).toBe(true);
+  });
+
+  it('the garden goes back to the profile that owned it', async () => {
+    session.signIn(profile(7));
+    const owned: Garden = { ...garden(1), ownerId: 7 };
+    gardensApi['getAll'].mockResolvedValue([owned, garden(2)]);
+    const undo = await deleteWithPlants(owned, []);
+
+    undo?.action?.();
+    await vi.waitFor(() => expect(store.creating()).toBe(false));
+
+    expect(gardensApi['create']).toHaveBeenCalledWith(
+      expect.objectContaining({ gardenName: 'Garden 1' }),
+      7,
+    );
+    expect(store.gardens().map((g) => g.gardenId)).toEqual([2, 10]);
+  });
+
+  it("brought back after another profile signed in, it stays out of that profile's list", async () => {
+    session.signIn(profile(7));
+    const owned: Garden = { ...garden(1), ownerId: 7 };
+    gardensApi['getAll'].mockResolvedValue([owned, garden(2)]);
+    const undo = await deleteWithPlants(owned, []);
+
+    session.signIn(profile(8));
+    undo?.action?.();
+    await vi.waitFor(() => expect(store.creating()).toBe(false));
+
+    expect(gardensApi['create']).toHaveBeenCalled();
+    expect(store.gardens().map((g) => g.gardenId)).toEqual([2]);
+  });
+
+  it('says how many plants could not be replanted', async () => {
+    const undo = await deleteWithPlants();
+    plantsApi['create'].mockRejectedValueOnce(new ApiError('technical', 'boom', 500));
+
+    undo?.action?.();
+    await vi.waitFor(() => expect(store.creating()).toBe(false));
+
+    expect(errorToast()?.message).toBe(
+      'Garden “Garden 1” is back, but 1 of its 2 plants could not be replanted.',
+    );
+    expect(cache.read<Plant[]>(cacheKeys.plantsOfGarden(10))).toHaveLength(1);
+  });
+
+  it('a technical failure offers Try again', async () => {
+    const undo = await deleteWithPlants();
+    gardensApi['create'].mockRejectedValueOnce(new ApiError('technical', 'boom', 500));
+
+    undo?.action?.();
+    await vi.waitFor(() => expect(store.creating()).toBe(false));
+    expect(errorToast()).toMatchObject({
+      message: "Couldn't bring back “Garden 1”.",
+      actionLabel: 'Try again',
+    });
+
+    errorToast()?.action?.();
+    await vi.waitFor(() => expect(store.gardens().map((g) => g.gardenId)).toEqual([2, 10]));
+  });
+
+  it('a verdict (its owner is gone) is reported with nothing to retry', async () => {
+    const undo = await deleteWithPlants();
+    gardensApi['create'].mockRejectedValueOnce(
+      new ApiError('functional', 'Profile with ID 7 not found', 400),
+    );
+
+    undo?.action?.();
+    await vi.waitFor(() => expect(store.creating()).toBe(false));
+
+    expect(errorToast()?.actionLabel).toBeUndefined();
+    expect(store.gardens().map((g) => g.gardenId)).toEqual([2]);
   });
 });

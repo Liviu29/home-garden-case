@@ -145,4 +145,25 @@ describe('GardenLayoutRepository', () => {
       removeItem.mockRestore();
     });
   });
+
+  describe('place (an undo bringing beds back under new ids)', () => {
+    it('adds positions next to the saved ones and prunes nothing', () => {
+      repo.save(1, { 10: { x: 2, y: 3 } }, [10]);
+      repo.place(1, { 11: { x: 5, y: 6 } });
+      expect(repo.load(1)).toEqual({ 10: { x: 2, y: 3 }, 11: { x: 5, y: 6 } });
+    });
+
+    it('writes nothing when there is nothing to place', () => {
+      repo.place(1, {});
+      expect(localStorage.getItem(KEY(1))).toBeNull();
+    });
+
+    it('survives storage throwing', () => {
+      const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new DOMException('QuotaExceededError');
+      });
+      expect(() => repo.place(1, { 11: { x: 5, y: 6 } })).not.toThrow();
+      setItem.mockRestore();
+    });
+  });
 });

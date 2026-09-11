@@ -36,7 +36,7 @@ Target: WCAG 2.2 AA. Accessibility here is architecture, not garnish — the sam
 **Loading & async**
 
 - SkeletonGroup exposes `role="status"` + `aria-live="polite"` with a visually-hidden "Loading…"; the ghost blocks themselves are `aria-hidden`.
-- The toast host is an `aria-live="polite"` region; error toasts persist until dismissed (no timed removal of content the user hasn't seen); dismiss buttons carry `aria-label`.
+- The toast host is an `aria-live="polite"` region; error toasts persist until dismissed (no timed removal of content the user hasn't seen); dismiss buttons carry `aria-label`. A timed toast pauses while the pointer is on it or focus is inside it (WCAG 2.2.1), so a keyboard user can still reach its Undo.
 
 **Not color alone**
 

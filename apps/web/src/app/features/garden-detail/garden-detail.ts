@@ -33,7 +33,7 @@ import { GardenDetailStore } from './garden-detail-store/garden-detail-store';
 import {
   GardenLayoutRepository,
   LayoutPositions,
-} from './garden-map/garden-layout-repository/garden-layout-repository';
+} from '../../state/garden-layout/garden-layout-repository';
 import { GardenMap } from './garden-map/garden-map';
 import { GardenMapSkeleton } from './garden-map/garden-map-skeleton/garden-map-skeleton';
 import { PlantFormDialog } from './plant-form-dialog/plant-form-dialog';
@@ -167,6 +167,14 @@ export class GardenDetail {
         // Malformed deep link (/gardens/abc, /gardens/-1): designed not-found
         // state, no request issued.
         this.store.markMissing();
+      }
+    });
+    // An undone removal brings a plant back under a new id: its bed returns
+    // to the spot it had (the store has already saved it for later visits).
+    effect(() => {
+      const restored = this.store.restored();
+      if (restored && restored.gardenId === this.gardenId()) {
+        this.positions.update((positions) => ({ ...positions, ...restored.positions }));
       }
     });
     // Route title refines from 'Garden · HomeGarden' to the actual name.

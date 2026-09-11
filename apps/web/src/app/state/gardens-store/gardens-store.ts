@@ -1,12 +1,15 @@
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { GardensApi } from '../../core/api/gardens-api';
+import { gardenInputOf, plantInputOf } from '../../core/api/mappers';
+import { PlantsApi } from '../../core/api/plants-api';
 import { SessionStore } from '../../core/auth/session-store';
-import { Garden, GardenInput } from '../../core/api/models';
+import { Garden, GardenInput, Plant } from '../../core/api/models';
 import { ApiError, toApiError } from '../../core/errors/api-error';
 import { ToastStore } from '../../core/errors/toast-store';
 import { Logger } from '../../core/logging/logger';
 import { QueryCache, cacheKeys } from '../../core/resilience/query-cache';
+import { GardenLayoutRepository, LayoutPositions } from '../garden-layout/garden-layout-repository';
 import { GardenSort } from './garden-view';
 
 export type RequestStatus = 'idle' | 'loading' | 'ready' | 'error';
@@ -67,8 +70,8 @@ function persistView(query: string, sort: GardenSort): void {
 
 /**
  * Root-scoped garden state (ARCHITECTURE §5): SWR-backed reads,
- * ghost-confirmed deletes (ASYNC-UX.md), pessimistic create/update (the
- * server owns validation verdicts the form must render).
+ * ghost-confirmed deletes with Undo (ASYNC-UX.md), pessimistic create/update
+ * (the server owns validation verdicts the form must render).
  */
 export const GardensStore = signalStore(
   { providedIn: 'root' },
@@ -93,16 +96,89 @@ export const GardensStore = signalStore(
   })),
   withMethods((store) => {
     const api = inject(GardensApi);
+    const plantsApi = inject(PlantsApi);
     const cache = inject(QueryCache);
     const toasts = inject(ToastStore);
     const logger = inject(Logger);
     const session = inject(SessionStore);
+    const layout = inject(GardenLayoutRepository);
 
     const applyList = (gardens: readonly Garden[]) =>
       patchState(store, { gardens, status: 'ready' });
 
     /** The signed-in profile — whose gardens (plus the shared ones) the list shows. */
     const profileId = (): number | null => session.profile()?.userId ?? null;
+
+    /** Idempotent add: a revalidation may already have delivered this garden. */
+    const addToList = (garden: Garden): void => {
+      patchState(store, {
+        gardens: [...store.gardens().filter((g) => g.gardenId !== garden.gardenId), garden],
+        status: 'ready',
+        lastCreatedId: garden.gardenId,
+      });
+      cache.set(cacheKeys.gardens, store.gardens());
+    };
+
+    /**
+     * Undo for a deleted garden. The API has no restore, and deleting a
+     * garden deletes its plants, so both are created again — same fields,
+     * same owner, new ids — and the planner layout moves to the new ids. A
+     * creation ghost card stands in until the garden is whole.
+     */
+    const restoreGarden = async (
+      garden: Garden,
+      plants: readonly Plant[],
+      layoutBefore: LayoutPositions,
+    ): Promise<void> => {
+      patchState(store, { creating: true });
+      try {
+        const owner = garden.ownerId ?? null;
+        const input = gardenInputOf(garden);
+        const restored = await (owner === null ? api.create(input) : api.create(input, owner));
+
+        // One at a time: the API checks capacity per insert, and they all fitted before.
+        const replanted: Plant[] = [];
+        const positions: Record<number, LayoutPositions[number]> = {};
+        for (const plant of plants) {
+          try {
+            const back = await plantsApi.create(plantInputOf(plant, restored.gardenId));
+            replanted.push(back);
+            const spot = layoutBefore[plant.plantId];
+            if (spot) {
+              positions[back.plantId] = spot;
+            }
+          } catch (err) {
+            logger.warn('gardens:restore-plant', toApiError(err).message);
+          }
+        }
+        cache.set(cacheKeys.plantsOfGarden(restored.gardenId), replanted);
+        layout.place(restored.gardenId, positions);
+
+        // Another profile may have signed in since; its list stays its own.
+        if (owner === null || owner === profileId()) {
+          addToList(restored);
+        }
+        const lost = plants.length - replanted.length;
+        if (lost === 0) {
+          toasts.success(`Garden “${restored.gardenName}” is back.`);
+        } else {
+          toasts.error(
+            `Garden “${restored.gardenName}” is back, but ${lost} of its ${plants.length} plants could not be replanted.`,
+          );
+        }
+      } catch (err) {
+        const error = toApiError(err);
+        toasts.error(
+          `Couldn't bring back “${garden.gardenName}”.`,
+          error.kind === 'technical'
+            ? { label: 'Try again', run: () => void restoreGarden(garden, plants, layoutBefore) }
+            : undefined,
+        );
+        logger.warn('gardens:restore', error.message);
+      } finally {
+        patchState(store, { creating: false });
+      }
+    };
 
     return {
       setQuery(query: string): void {
@@ -165,12 +241,7 @@ export const GardensStore = signalStore(
           // server AFTER the insert may already have delivered this garden
           // (a slow-API race) — a blind append would render
           // the card twice.
-          patchState(store, {
-            gardens: [...store.gardens().filter((g) => g.gardenId !== created.gardenId), created],
-            status: 'ready',
-            lastCreatedId: created.gardenId,
-          });
-          cache.set(cacheKeys.gardens, store.gardens());
+          addToList(created);
           toasts.success(`Garden “${created.gardenName}” created.`);
           return { ok: true };
         } catch (err) {
@@ -209,12 +280,17 @@ export const GardensStore = signalStore(
       /**
        * Ghost-confirmed delete (ASYNC-UX.md): the card stays but renders as a
        * gray mutation ghost while the DELETE is in flight; it leaves the grid
-       * only on server confirmation. Re-entrant calls are ignored.
+       * only on server confirmation. Re-entrant calls are ignored. The
+       * confirmation toast offers Undo whenever the garden's plants are known.
        */
       async remove(garden: Garden): Promise<void> {
         if (store.pendingDeletes().includes(garden.gardenId)) {
           return;
         }
+        // Read before the DELETE, which takes the plants with it: an undo
+        // needs them, and the planner layout, to put the garden back whole.
+        const plants = cache.read<readonly Plant[]>(cacheKeys.plantsOfGarden(garden.gardenId));
+        const layoutBefore = layout.load(garden.gardenId);
         patchState(store, { pendingDeletes: [...store.pendingDeletes(), garden.gardenId] });
 
         try {
@@ -225,7 +301,14 @@ export const GardensStore = signalStore(
           cache.set(cacheKeys.gardens, store.gardens());
           cache.invalidate(cacheKeys.garden(garden.gardenId));
           cache.invalidate(cacheKeys.plantsOfGarden(garden.gardenId));
-          toasts.success(`Garden “${garden.gardenName}” deleted.`);
+          layout.reset(garden.gardenId);
+          toasts.success(
+            `Garden “${garden.gardenName}” deleted.`,
+            // Without its plants an undo would quietly bring back less than was deleted.
+            plants
+              ? { label: 'Undo', run: () => void restoreGarden(garden, plants, layoutBefore) }
+              : undefined,
+          );
         } catch (err) {
           // The ghost resolves back into the real card — nothing was removed yet.
           const retry = (): void => void this.remove(garden);

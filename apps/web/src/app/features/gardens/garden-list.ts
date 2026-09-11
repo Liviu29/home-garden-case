@@ -151,7 +151,7 @@ export class GardenList {
   protected async remove(garden: Garden): Promise<void> {
     const confirmed = await this.confirm.confirm({
       title: 'Delete garden?',
-      message: `“${garden.gardenName}” and all of its plants will be permanently deleted.`,
+      message: `“${garden.gardenName}” and all of its plants will be deleted.`,
       confirmLabel: 'Delete',
       destructive: true,
     });

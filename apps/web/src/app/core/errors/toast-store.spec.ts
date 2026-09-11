@@ -75,4 +75,93 @@ describe('ToastStore', () => {
     const ids = store.toasts().map((t) => t.id);
     expect(new Set(ids).size).toBe(3);
   });
+
+  it('keeps a success toast with an action (Undo) up twice as long', () => {
+    const run = vi.fn();
+    store.success('Plant removed', { label: 'Undo', run });
+    expect(store.toasts()[0]).toMatchObject({ tone: 'success', actionLabel: 'Undo' });
+
+    vi.advanceTimersByTime(9999);
+    expect(store.toasts()).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    expect(store.toasts()).toHaveLength(0);
+    expect(run).not.toHaveBeenCalled(); // timing out never runs the action
+  });
+
+  describe('pausing the countdown (pointer or focus on the toast)', () => {
+    it('holds while paused, then resumes with the time that was left', () => {
+      store.success('Saved');
+      const [toast] = store.toasts();
+      vi.advanceTimersByTime(3000);
+
+      store.hold(toast.id);
+      vi.advanceTimersByTime(60_000);
+      expect(store.toasts()).toHaveLength(1);
+
+      store.release(toast.id);
+      vi.advanceTimersByTime(1999);
+      expect(store.toasts()).toHaveLength(1);
+      vi.advanceTimersByTime(1);
+      expect(store.toasts()).toHaveLength(0);
+    });
+
+    it('stays paused until pointer and focus have both left', () => {
+      store.success('Saved');
+      const [toast] = store.toasts();
+      store.hold(toast.id); // pointer
+      store.hold(toast.id); // focus
+      store.release(toast.id); // the pointer leaves; focus stays
+
+      vi.advanceTimersByTime(60_000);
+      expect(store.toasts()).toHaveLength(1);
+
+      store.release(toast.id);
+      vi.advanceTimersByTime(5000);
+      expect(store.toasts()).toHaveLength(0);
+    });
+
+    it('never resumes with less than a moment to read it again', () => {
+      store.success('Saved');
+      const [toast] = store.toasts();
+      vi.advanceTimersByTime(4900);
+      store.hold(toast.id);
+      store.release(toast.id);
+
+      vi.advanceTimersByTime(1499);
+      expect(store.toasts()).toHaveLength(1);
+      vi.advanceTimersByTime(1);
+      expect(store.toasts()).toHaveLength(0);
+    });
+
+    it('a release with no hold before it changes nothing', () => {
+      store.success('Saved');
+      const [toast] = store.toasts();
+      store.release(toast.id);
+      vi.advanceTimersByTime(5000);
+      expect(store.toasts()).toHaveLength(0);
+    });
+
+    it('ignores toasts without a countdown and ids that are gone', () => {
+      store.error('Stays until dismissed');
+      const [toast] = store.toasts();
+      store.hold(toast.id);
+      store.release(toast.id);
+      store.hold(999);
+      store.release(999);
+
+      vi.advanceTimersByTime(60_000);
+      expect(store.toasts()).toHaveLength(1);
+    });
+
+    it('dismissing a held toast leaves no countdown behind', () => {
+      store.success('Saved');
+      const [toast] = store.toasts();
+      store.hold(toast.id);
+      store.dismiss(toast.id);
+      store.release(toast.id); // focus leaving the removed toast
+
+      vi.advanceTimersByTime(60_000);
+      expect(store.toasts()).toHaveLength(0);
+    });
+  });
 });

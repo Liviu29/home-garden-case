@@ -93,4 +93,33 @@ describe('ToastHost', () => {
     const el = render().nativeElement as HTMLElement;
     expect(el.querySelector('.close')?.getAttribute('aria-label')).toBe('Dismiss');
   });
+
+  it('pauses the countdown while the pointer is on the toast', () => {
+    store.success('Plant removed', { label: 'Undo', run: vi.fn() });
+    const el = render().nativeElement as HTMLElement;
+    const toast = el.querySelector('.toast') as HTMLElement;
+
+    toast.dispatchEvent(new MouseEvent('mouseenter'));
+    vi.advanceTimersByTime(60_000);
+    expect(store.toasts()).toHaveLength(1);
+
+    toast.dispatchEvent(new MouseEvent('mouseleave'));
+    vi.advanceTimersByTime(10_000);
+    expect(store.toasts()).toHaveLength(0);
+  });
+
+  it('pauses the countdown while focus is inside it, so a keyboard user reaches Undo in time', () => {
+    store.success('Plant removed', { label: 'Undo', run: vi.fn() });
+    const el = render().nativeElement as HTMLElement;
+    const action = el.querySelector('.action') as HTMLButtonElement;
+    expect(action.textContent?.trim()).toBe('Undo');
+
+    action.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    vi.advanceTimersByTime(60_000);
+    expect(store.toasts()).toHaveLength(1);
+
+    action.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    vi.advanceTimersByTime(10_000);
+    expect(store.toasts()).toHaveLength(0);
+  });
 });

@@ -11,7 +11,15 @@ import { ToastStore } from '../../../core/errors/toast-store';
   template: `
     <div class="host" aria-live="polite">
       @for (toast of store.toasts(); track toast.id) {
-        <div class="toast anim-fade-up" [class]="toast.tone">
+        <!-- Pointer or focus on a toast pauses its countdown (ToastStore.hold) -->
+        <div
+          class="toast anim-fade-up"
+          [class]="toast.tone"
+          (mouseenter)="store.hold(toast.id)"
+          (mouseleave)="store.release(toast.id)"
+          (focusin)="store.hold(toast.id)"
+          (focusout)="store.release(toast.id)"
+        >
           <span class="glyph" aria-hidden="true">
             @switch (toast.tone) {
               @case ('success') {
