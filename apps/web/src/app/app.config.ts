@@ -18,7 +18,15 @@ import { GlobalErrorHandler } from './core/errors/global-error-handler';
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideRouter(routes, withComponentInputBinding(), withViewTransitions()),
+    provideRouter(
+      routes,
+      withComponentInputBinding(),
+      // No transition on the very first navigation: there is no old page, so
+      // the browser cross-faded a blank white snapshot into the first screen —
+      // a grey flash on every cold load and reload (seen on the dark welcome).
+      withViewTransitions({ skipInitialTransition: true }),
+      // (Scroll-to-top on navigation lives in the root App component.)
+    ),
     // Interceptor order matters: base-url first, then retry around the network call.
     provideHttpClient(withFetch(), withInterceptors([baseUrlInterceptor, retryInterceptor])),
     provideAnimationsAsync(),

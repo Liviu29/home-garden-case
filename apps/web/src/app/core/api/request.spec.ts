@@ -4,7 +4,7 @@ import { ApiError } from '../errors/api-error';
 import { requestAsPromise } from './request';
 
 /**
- * The promise bridge's contract (CODING-GUIDELINES §5): a caller may `await`
+ * The promise bridge's contract: a caller may `await`
  * it and catch `ApiError` — nothing raw ever escapes.
  */
 describe('requestAsPromise', () => {

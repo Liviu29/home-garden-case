@@ -16,8 +16,13 @@
   gap: var(--sp-1);
   margin-bottom: var(--sp-3);
 
+  // Block + auto width keeps MDC's 8px side margins INSIDE the column.
+  // `width: 100%` plus those margins pushed the slider — and its wider,
+  // absolutely positioned range input — past the dialog padding, giving the
+  // whole dialog a horizontal scrollbar.
   mat-slider {
-    width: 100%;
+    display: block;
+    width: auto;
   }
 }
 

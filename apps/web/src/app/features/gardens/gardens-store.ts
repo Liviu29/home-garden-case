@@ -20,12 +20,14 @@ interface GardensState {
   saving: boolean;
   /** A garden POST in flight — the grid shows a ghost card (ASYNC-UX.md). */
   creating: boolean;
+  /** The garden created last in this session — the list points it out once. */
+  lastCreatedId: number | null;
   /** Garden ids with a PUT in flight — their card/header render as ghosts. */
   pendingUpdates: readonly number[];
   /** Toolbar view state — persisted; the last-used view is restored, never reset. */
   query: string;
   sort: GardenSort;
-  /** Garden ids with a DELETE in flight — ghost-confirmed removal (REM-009 guard). */
+  /** Garden ids with a DELETE in flight — ghost-confirmed removal. */
   pendingDeletes: readonly number[];
 }
 
@@ -48,7 +50,7 @@ function readPersistedView(): { query: string; sort: GardenSort } {
 
 let persistTimer: ReturnType<typeof setTimeout> | undefined;
 
-/** Trailing-debounced (REM-015): typing stays instant, storage writes don't churn. */
+/** Trailing-debounced: typing stays instant, storage writes don't churn. */
 function persistView(query: string, sort: GardenSort): void {
   clearTimeout(persistTimer);
   persistTimer = setTimeout(() => {
@@ -72,6 +74,7 @@ export const GardensStore = signalStore(
     status: 'idle',
     saving: false,
     creating: false,
+    lastCreatedId: null,
     pendingUpdates: [],
     pendingDeletes: [],
     ...readPersistedView(),
@@ -132,13 +135,19 @@ export const GardensStore = signalStore(
         patchState(store, { saving: true, creating: true });
         try {
           const created = await api.create(input);
+          // A garden that was just created has no plants — that is known, not
+          // loading. Seeding its (fresh) plants entry lets the card, the
+          // dashboard and the detail page say "0 plants" at once, instead of
+          // a ghost that waits on a pointless GET.
+          cache.set(cacheKeys.plantsOfGarden(created.gardenId), []);
           // Idempotent append: a background list revalidation that hit the
           // server AFTER the insert may already have delivered this garden
-          // (slow-API race, runtime-reproduced) — a blind append would render
+          // (a slow-API race) — a blind append would render
           // the card twice.
           patchState(store, {
             gardens: [...store.gardens().filter((g) => g.gardenId !== created.gardenId), created],
             status: 'ready',
+            lastCreatedId: created.gardenId,
           });
           cache.set(cacheKeys.gardens, store.gardens());
           toasts.success(`Garden “${created.gardenName}” created.`);
@@ -179,7 +188,7 @@ export const GardensStore = signalStore(
       /**
        * Ghost-confirmed delete (ASYNC-UX.md): the card stays but renders as a
        * gray mutation ghost while the DELETE is in flight; it leaves the grid
-       * only on server confirmation. Re-entrant calls are ignored (REM-009).
+       * only on server confirmation. Re-entrant calls are ignored.
        */
       async remove(garden: Garden): Promise<void> {
         if (store.pendingDeletes().includes(garden.gardenId)) {

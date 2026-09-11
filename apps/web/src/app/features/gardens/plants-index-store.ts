@@ -9,6 +9,11 @@ import { QueryCache, cacheKeys } from '../../core/resilience/query-cache';
 interface PlantsIndexState {
   /** gardenId → its plants; absent key = not loaded yet. */
   byGarden: Readonly<Record<number, readonly Plant[]>>;
+  /**
+   * gardenIds whose plants could not be loaded and have no cached copy. Lets
+   * a card stop showing a loading ghost it would otherwise show forever.
+   */
+  failed: Readonly<Record<number, true>>;
 }
 
 /** Same ids, same order → the fan-out already ran; nothing to do. */
@@ -28,12 +33,17 @@ const sameIds = (a: readonly number[], b: readonly number[]): boolean =>
  */
 export const PlantsIndexStore = signalStore(
   { providedIn: 'root' },
-  withState<PlantsIndexState>({ byGarden: {} }),
+  withState<PlantsIndexState>({ byGarden: {}, failed: {} }),
   withMethods((store) => {
     const api = inject(PlantsApi);
     const cache = inject(QueryCache);
 
     const apply = (gardenId: number, plants: readonly Plant[]): void => {
+      if (store.failed()[gardenId]) {
+        const stillFailed = { ...store.failed() };
+        delete stillFailed[gardenId];
+        patchState(store, { failed: stillFailed });
+      }
       // Skip identical writes: keeps renders minimal.
       if (store.byGarden()[gardenId] === plants) {
         return;
@@ -52,6 +62,11 @@ export const PlantsIndexStore = signalStore(
         ?.then((plants) => apply(gardenId, plants))
         .catch(() => {
           // Insight data is progressive enhancement — cards render without it.
+          // With nothing cached, record the failure so the card can say so
+          // instead of shimmering a loading ghost forever.
+          if (!cached) {
+            patchState(store, { failed: { ...store.failed(), [gardenId]: true } });
+          }
         });
     };
 

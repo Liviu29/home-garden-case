@@ -77,7 +77,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
     }
 
     .value-arc {
-      transition: stroke-dashoffset 700ms var(--ease-out);
+      transition: stroke-dashoffset var(--dur-slow) var(--ease-out);
     }
 
     .value {
@@ -128,7 +128,7 @@ export class HumidityGauge {
   protected readonly dashOffset = computed(() => {
     const value = this.value();
     if (value === null) {
-      return this.ARC_LENGTH; // empty arc — no data is not 0% (REM-008)
+      return this.ARC_LENGTH; // empty arc — no data is not 0%
     }
     const clamped = Math.min(100, Math.max(0, value));
     return this.ARC_LENGTH * (1 - clamped / 100);

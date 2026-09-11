@@ -87,6 +87,12 @@ describe('computeVegetation (deterministic growth clusters)', () => {
     expect(veg[0].size).toBeGreaterThanOrEqual(0.45);
     expect(veg[0].size).toBeLessThanOrEqual(0.5);
   });
+
+  it('treats a zero seed like any other: the cluster still varies', () => {
+    const veg = computeVegetation(0, 4, 2.5, 0.45);
+    expect(veg.length).toBeGreaterThan(1);
+    expect(new Set(veg.map((v) => v.rotation)).size).toBeGreaterThan(1);
+  });
 });
 
 describe('resolvePlantVisual — every plantType maps to a category', () => {

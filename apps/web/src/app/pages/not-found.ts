@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { EmptyState } from '../shared/ui/empty-state/empty-state';
 
-/** Friendly 404 (CODING-GUIDELINES §7: deep-link misses get a page, not a toast). */
+/** Friendly 404: deep-link misses get a page, not a toast. */
 @Component({
   selector: 'app-not-found',
   changeDetection: ChangeDetectionStrategy.OnPush,

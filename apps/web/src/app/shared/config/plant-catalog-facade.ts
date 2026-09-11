@@ -4,7 +4,7 @@ import { PlantRecommendation, rankCatalog } from '../utils/plant-recommendation'
 import { PLANT_CATALOG, PlantPreset, searchCatalog } from './plant-catalog';
 
 /**
- * Provider seam for plant discovery (feature brief §5).
+ * Provider seam for plant discovery.
  *
  * The LOCAL provider is the shipped implementation: deterministic, offline,
  * CI-safe, zero credentials — the assignment must never depend on an API key.

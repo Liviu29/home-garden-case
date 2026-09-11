@@ -2,7 +2,7 @@ import { InjectionToken } from '@angular/core';
 import { environment } from '../../../environments/environment';
 
 /**
- * Application configuration (CODING-GUIDELINES §2 — no magic numbers in code).
+ * Application configuration — no magic numbers in code.
  * Values that could ever change live here, injected app-wide; deployment-
  * dependent values come from `environments/` and are swapped at build time.
  */
@@ -20,11 +20,8 @@ export interface AppConfig {
   readonly cache: {
     readonly freshTtlMs: number;
   };
-  /** Skeleton timing (DESIGN-SYSTEM §4): delay avoids flash, min display avoids blink. */
-  readonly skeleton: {
-    readonly appearDelayMs: number;
-    readonly minDisplayMs: number;
-  };
+  // Skeleton timing is presentation, not config: `--skeleton-delay` in
+  // styles/_tokens.scss (the one skeleton engine owns when ghosts appear).
   readonly toastDurationMs: number;
 }
 
@@ -39,10 +36,6 @@ export const APP_CONFIG = new InjectionToken<AppConfig>('APP_CONFIG', {
     },
     cache: {
       freshTtlMs: 30_000,
-    },
-    skeleton: {
-      appearDelayMs: 150,
-      minDisplayMs: 300,
     },
     toastDurationMs: 5000,
   }),

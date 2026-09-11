@@ -1,4 +1,4 @@
-// Add/Edit Plant — one-screen picker + form (feature brief §9–13, §48–50).
+// Add/Edit Plant — one-screen picker + form.
 // Desktop acceptance: no internal vertical scroll at 1440×900; only the
 // catalog card strip scrolls, horizontally, on its own.
 
@@ -262,8 +262,11 @@ mat-dialog-content.picker-content {
   gap: var(--sp-1);
   align-content: start;
 
+  // Block + auto width keeps MDC's 8px side margins INSIDE the column (see
+  // garden-form-dialog.scss): `width: 100%` overflowed into a scrollbar.
   mat-slider {
-    width: 100%;
+    display: block;
+    width: auto;
   }
 }
 

@@ -34,9 +34,9 @@ interface GardenDetailState {
   pendingCreateArea: number | null;
   /** Plant ids with a PUT in flight — their row/plot render as gray ghosts. */
   pendingUpdates: readonly number[];
-  /** Plant ids with a DELETE in flight — ghost-confirmed removal (REM-009 guard). */
+  /** Plant ids with a DELETE in flight — ghost-confirmed removal. */
   pendingDeletes: readonly number[];
-  /** Set on successful create — lets the screen select the new plant (§30). */
+  /** Set on successful create — lets the screen select the new plant. */
   lastCreatedPlantId: number | null;
 }
 
@@ -44,7 +44,7 @@ interface GardenDetailState {
  * Route-scoped store for one garden (provided by the GardenDetail component,
  * destroyed with it).
  *
- * Ownership (REM-005): plant entities have exactly ONE writable owner —
+ * Ownership: plant entities have exactly ONE writable owner —
  * `PlantsIndexStore.byGarden`. This store holds only the route key and
  * statuses; `plants` is a computed view into the index, so the gardens grid,
  * the dashboard and this screen can never disagree about a garden's plants.
@@ -78,7 +78,16 @@ export const GardenDetailStore = signalStore(
       gardenMissing: computed(() => store.gardenNotFound()),
       /** 5xx / network → retryable error state, garden may well still exist. */
       gardenFailed: computed(() => store.gardenStatus() === 'error' && !store.gardenNotFound()),
-      plantsEmpty: computed(() => store.plantsStatus() === 'ready' && plants().length === 0),
+      /** Plants could not be loaded (and nothing was cached) — retryable. */
+      plantsFailed: computed(() => store.plantsStatus() === 'error'),
+      // A first plant being created is not "empty": its creation ghost row
+      // must render instead of the "Nothing planted yet" state.
+      plantsEmpty: computed(
+        () =>
+          store.plantsStatus() === 'ready' &&
+          plants().length === 0 &&
+          store.pendingCreateArea() === null,
+      ),
       usedArea: computed(() => usedSurfaceArea(plants())),
       freeArea: computed(() => {
         const garden = store.garden();
@@ -194,7 +203,7 @@ export const GardenDetailStore = signalStore(
       },
 
       /**
-       * Invalid route id (NaN, zero, negative — REM-001): render the designed
+       * Invalid route id (NaN, zero, negative): render the designed
        * not-found state without issuing any request.
        */
       markMissing(): void {
@@ -254,7 +263,7 @@ export const GardenDetailStore = signalStore(
        * Ghost-confirmed delete (ASYNC-UX.md): the plant stays in state but its
        * row/plot render as a gray mutation ghost while the DELETE is in
        * flight; it leaves the UI only when the server confirms. Re-entrant
-       * calls per plant are ignored (REM-009).
+       * calls per plant are ignored.
        */
       async removePlant(plant: Plant): Promise<void> {
         if (store.pendingDeletes().includes(plant.plantId)) {

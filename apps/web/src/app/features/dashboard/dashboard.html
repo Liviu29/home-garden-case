@@ -22,16 +22,38 @@
     <h1 class="hero-title hero-step-1">{{ greeting() }}</h1>
     <p class="hero-sub hero-step-2">
       @if (gardens.isLoading()) {
-        <app-skeleton class="hero-ghost" variant="line" w="18rem" />
+        <app-skeleton class="hero-ghost skeleton-appear" variant="line" w="18rem" />
       } @else if (gardens.count() > 0) {
         {{ gardens.count() }} {{ gardens.count() === 1 ? 'garden' : 'gardens' }} ·
-        {{ totalPlants() }} {{ totalPlants() === 1 ? 'plant' : 'plants' }} · {{ totalArea() }} m²
-        under management
+        @if (plantsSettled()) {
+          {{ totalPlants() }} {{ totalPlants() === 1 ? 'plant' : 'plants' }}
+        } @else {
+          <!-- The count is still arriving garden by garden: a word-sized
+               ghost, never a partial number that later jumps -->
+          <app-skeleton
+            class="hero-count-ghost skeleton-appear"
+            variant="line"
+            w="4.5rem"
+            h="0.75em"
+          />
+        }
+        · {{ totalArea() | number: '1.0-2' }} m² under management
       } @else {
         Your green empire starts with a single bed.
       }
     </p>
-    @if (!gardens.isLoading() && gardens.count() > 0 && plantsSettled()) {
+    @if (gardens.isLoading() || (gardens.count() > 0 && !plantsSettled())) {
+      <!-- Holds the status row while its numbers load: no jump when it lands -->
+      <p class="hero-status hero-step-3" aria-hidden="true">
+        <!-- A status chip's exact height: caption line + 0.2rem padding + border -->
+        <app-skeleton
+          class="skeleton-appear"
+          variant="line"
+          w="7rem"
+          h="calc(var(--fs-caption) * 1.5 + 0.4rem + 2px)"
+        />
+      </p>
+    } @else if (gardens.count() > 0) {
       <p class="hero-status hero-step-3">
         <span class="status-chip ok">
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -76,45 +98,59 @@
   </div>
 </section>
 
-<app-skeleton-group [loading]="gardens.isLoading()">
-  <!-- Content-shaped dashboard skeleton (§19–26): mirrors the real layout -->
+<app-skeleton-group [loading]="gardens.isLoading()" label="Loading your gardens">
+  <!-- Content-shaped dashboard skeleton: mirrors the real layout -->
   <div ghost class="dash-skeleton">
     <div class="stats-grid">
-      @for (w of ['55%', '40%', '62%', '48%']; track w) {
+      @for (w of ['55%', '40%', '62%', '48%']; track w; let last = $last) {
+        <!-- Row for row the real stat card: icon, value, label, context
+             (+ the utilization strip) — the grid never moves when it lands -->
         <div class="kpi-ghost">
-          <app-skeleton variant="circle" w="2.25rem" h="2.25rem" />
-          <app-skeleton variant="title" w="3.5rem" h="2rem" />
-          <app-skeleton variant="line" [w]="w" />
-          <app-skeleton variant="line" w="70%" h="0.6rem" />
+          <app-skeleton class="ghost-icon" variant="circle" w="2.25rem" h="2.25rem" />
+          <app-skeleton class="ghost-value" variant="title" w="3.5rem" h="2.2rem" />
+          <app-skeleton class="ghost-text" variant="line" [w]="w" h="0.7rem" />
+          <app-skeleton class="ghost-text ghost-context" variant="line" w="70%" h="0.7rem" />
+          @if (last) {
+            <app-skeleton class="ghost-strip" variant="rect" h="0.3rem" />
+          }
         </div>
       }
     </div>
     <div class="overview-grid">
-      <div>
-        <app-skeleton variant="title" w="9rem" />
+      <div class="section">
+        <app-skeleton class="ghost-section-title" variant="line" w="8rem" h="0.75rem" />
+        <!-- One card on the "Everything looks healthy" footprint — the most
+             common outcome, so the section rarely moves when data lands -->
         <div class="ghost-stack">
-          @for (i of [1, 2]; track i) {
-            <div class="attention-ghost">
-              <app-skeleton variant="circle" w="2rem" h="2rem" />
-              <div class="ghost-lines">
-                <app-skeleton variant="line" w="45%" />
-                <app-skeleton variant="line" w="65%" h="0.6rem" />
-                <app-skeleton variant="rect" h="0.4rem" />
-              </div>
+          <div class="attention-ghost">
+            <app-skeleton variant="circle" w="2.25rem" h="2.25rem" />
+            <div class="ghost-lines">
+              <app-skeleton class="ghost-body" variant="line" w="45%" h="0.8rem" />
+              <app-skeleton class="ghost-text" variant="line" w="80%" h="0.7rem" />
+              <app-skeleton class="ghost-text ghost-wrap" variant="line" w="35%" h="0.7rem" />
             </div>
-          }
+          </div>
         </div>
       </div>
-      <div>
-        <app-skeleton variant="title" w="9rem" />
+      <div class="section">
+        <app-skeleton class="ghost-section-title" variant="line" w="8rem" h="0.75rem" />
         <div class="ghost-cards">
           @for (i of [1, 2, 3]; track i) {
+            <!-- Row for row the real health card: preview, name + status,
+                 counts, capacity bar, humidity, call to action -->
             <div class="health-ghost">
-              <app-skeleton variant="rect" h="4.5rem" />
-              <app-skeleton variant="line" w="55%" />
+              <div class="ghost-preview"><app-skeleton variant="rect" h="100%" /></div>
+              <span class="ghost-row ghost-top">
+                <app-skeleton variant="line" w="45%" h="0.875rem" />
+                <app-skeleton variant="line" w="5.5rem" h="1.6rem" />
+              </span>
+              <app-skeleton class="ghost-text" variant="line" w="70%" h="0.7rem" />
               <app-skeleton variant="rect" h="0.5rem" />
-              <app-skeleton variant="line" w="75%" h="0.6rem" />
-              <app-skeleton variant="line" w="60%" h="0.6rem" />
+              <span class="ghost-row ghost-humidity">
+                <app-skeleton variant="line" w="5rem" h="0.7rem" />
+                <app-skeleton variant="line" w="7rem" h="1.5rem" />
+              </span>
+              <app-skeleton class="ghost-text ghost-cta" variant="line" w="5.8rem" h="0.7rem" />
             </div>
           }
         </div>
@@ -139,11 +175,12 @@
       <a matButton="filled" routerLink="/gardens" class="press-feedback">Create a garden</a>
     </app-empty-state>
   } @else {
-    <!-- KPI tiles: value + secondary context + quiet visual accent (§5–6) -->
+    <!-- KPI tiles: value + secondary context + quiet visual accent -->
     <div class="stats-grid stagger-children">
       <app-stat-card
         [value]="gardens.count()"
         label="Gardens"
+        [pending]="!plantsSettled()"
         [context]="
           plantsSettled()
             ? healthyCount() +
@@ -168,6 +205,7 @@
       </app-stat-card>
       <app-stat-card
         [value]="totalPlants()"
+        [valuePending]="!plantsSettled()"
         label="Plants growing"
         [context]="'across ' + gardens.count() + (gardens.count() === 1 ? ' garden' : ' gardens')"
       >
@@ -189,6 +227,7 @@
       <app-stat-card
         [value]="totalArea()"
         label="m² of growing space"
+        [pending]="!plantsSettled()"
         [context]="plantsSettled() ? (usedArea() | number: '1.0-1') + ' m² currently used' : ''"
       >
         <svg
@@ -207,10 +246,12 @@
       </app-stat-card>
       <app-stat-card
         [value]="utilizationPct()"
+        [valuePending]="!plantsSettled()"
         suffix="%"
         label="Utilization"
+        [pending]="!plantsSettled()"
         [context]="plantsSettled() ? (freeArea() | number: '1.0-1') + ' m² still available' : ''"
-        [progress]="plantsSettled() ? utilizationPct() / 100 : null"
+        [progress]="plantsSettled() ? utilizationPct() / 100 : 0"
         [progressWarn]="utilizationPct() >= 90"
       >
         <svg
@@ -229,7 +270,7 @@
     </div>
 
     <div class="overview-grid">
-      <!-- ── Attention Center (§8–10) ── -->
+      <!-- ── Attention Center ── -->
       <section class="section anim-fade-up" aria-labelledby="attention-heading">
         <h2 id="attention-heading" class="section-title">Needs attention</h2>
         @if (attention().length > 0) {
@@ -297,8 +338,13 @@
               </a>
             }
           </div>
+        } @else if (plantsSettled() && plantsFailed()) {
+          <!-- Never claim "healthy" for gardens whose plants never arrived -->
+          <p class="attention-note">
+            Plant data for some gardens couldn't load, so their health can't be checked right now.
+          </p>
         } @else if (plantsSettled()) {
-          <!-- Positive empty state (§10): the section never just vanishes -->
+          <!-- Positive empty state: the section never just vanishes -->
           <div class="all-healthy">
             <span class="healthy-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -311,13 +357,21 @@
             </div>
           </div>
         } @else {
-          <div class="ghost-stack">
-            <app-skeleton variant="rect" h="5rem" />
+          <!-- Plants still loading: the same single card the cold ghost held -->
+          <div class="ghost-stack skeleton-appear" aria-hidden="true">
+            <div class="attention-ghost">
+              <app-skeleton variant="circle" w="2.25rem" h="2.25rem" />
+              <div class="ghost-lines">
+                <app-skeleton class="ghost-body" variant="line" w="45%" h="0.8rem" />
+                <app-skeleton class="ghost-text" variant="line" w="80%" h="0.7rem" />
+                <app-skeleton class="ghost-text ghost-wrap" variant="line" w="35%" h="0.7rem" />
+              </div>
+            </div>
           </div>
         }
       </section>
 
-      <!-- ── Garden Health (§11–14, §16): the compact portfolio ── -->
+      <!-- ── Garden Health: the compact portfolio ── -->
       <section class="section anim-fade-up" aria-labelledby="health-heading">
         <h2 id="health-heading" class="section-title">Garden health</h2>
         <div class="health-grid stagger-children">
@@ -330,9 +384,19 @@
               />
               <span class="health-top">
                 <span class="health-name">{{ insight.garden.gardenName }}</span>
-                <app-status-badge class="health-status" [tone]="insight.statusTone">
-                  {{ insight.statusLabel }}
-                </app-status-badge>
+                @if (insight.plants === undefined && !plantsFailedFor(insight.garden.gardenId)) {
+                  <!-- status is computed from plants: a badge-sized ghost, never "…" -->
+                  <app-skeleton
+                    class="health-status skeleton-appear"
+                    variant="line"
+                    w="5.5rem"
+                    h="1.6rem"
+                  />
+                } @else {
+                  <app-status-badge class="health-status" [tone]="insight.statusTone">
+                    {{ insight.statusLabel }}
+                  </app-status-badge>
+                }
               </span>
               @if (insight.plants; as plants) {
                 <span class="health-meta tabular">
@@ -362,9 +426,27 @@
                   }
                 </span>
                 <span class="health-cta">View garden →</span>
+              } @else if (plantsFailedFor(insight.garden.gardenId)) {
+                <span class="health-meta">Plant details unavailable</span>
               } @else {
-                <app-skeleton variant="rect" h="0.5rem" />
-                <app-skeleton variant="line" w="50%" />
+                <!-- Plants loading: the four data rows' exact line boxes -->
+                <app-skeleton
+                  class="skeleton-appear ghost-text"
+                  variant="line"
+                  w="70%"
+                  h="0.7rem"
+                />
+                <app-skeleton class="skeleton-appear" variant="rect" h="0.5rem" />
+                <span class="ghost-row ghost-humidity skeleton-appear" aria-hidden="true">
+                  <app-skeleton variant="line" w="5rem" h="0.7rem" />
+                  <app-skeleton variant="line" w="7rem" h="1.5rem" />
+                </span>
+                <app-skeleton
+                  class="skeleton-appear ghost-text ghost-cta"
+                  variant="line"
+                  w="5.8rem"
+                  h="0.7rem"
+                />
               }
             </a>
           }

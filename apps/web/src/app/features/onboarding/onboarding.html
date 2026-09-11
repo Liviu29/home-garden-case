@@ -3,6 +3,23 @@
 <app-plant-artwork-defs />
 
 <div class="page">
+  <!-- The case brief's own garden behind the brand side, on a gradient mask:
+       decorative, low priority, and faded in once decoded — it never pops -->
+  <img
+    class="page-photo"
+    [class.is-ready]="photoReady()"
+    (load)="photoReady.set(true)"
+    src="images/garden-backdrop-1600.webp"
+    srcset="images/garden-backdrop-800.webp 800w, images/garden-backdrop-1600.webp 1600w"
+    sizes="100vw"
+    alt=""
+    aria-hidden="true"
+    width="1600"
+    height="800"
+    decoding="async"
+    fetchpriority="low"
+  />
+
   <!-- Theme toggle: reuses ThemeStore (no duplicated theme logic) -->
   <button
     class="theme-toggle press-feedback"
@@ -91,207 +108,221 @@
 
     <!-- ── Profile experience ── -->
     <section class="panel anim-fade-up">
+      <!-- Each view fades in as it swaps (list ⇄ form), instead of cutting -->
       @if (!showCreate()) {
-        <header class="panel-head">
-          @if (status() === 'ready' && profiles().length === 0) {
-            <h1>Welcome to HomeGarden</h1>
-            <p class="sub">Your garden journey starts here.</p>
-          } @else {
-            <h1>Welcome back</h1>
-            <p class="sub">Choose a profile to continue tending your gardens.</p>
-          }
-        </header>
+        <div class="panel-view">
+          <header class="panel-head">
+            @if (status() === 'ready' && profiles().length === 0) {
+              <h1>Welcome to HomeGarden</h1>
+              <p class="sub">Your garden journey starts here.</p>
+            } @else {
+              <h1>Welcome back</h1>
+              <p class="sub">Choose a profile to continue tending your gardens.</p>
+            }
+          </header>
 
-        <app-skeleton-group [loading]="status() === 'loading'">
-          <!-- Content-shaped ghost: same geometry as a real profile card -->
-          <div ghost class="profiles">
-            @for (w of ['62%', '48%']; track w) {
-              <div class="profile ghost-card">
+          <app-skeleton-group [loading]="status() === 'loading'" label="Loading profiles">
+            <!-- Content-shaped ghost: same geometry as a real profile card -->
+            <div ghost class="profiles">
+              @for (w of ['62%', '48%']; track w) {
+                <div class="profile ghost-card">
+                  <app-skeleton variant="circle" w="2.75rem" h="2.75rem" />
+                  <span class="who">
+                    <app-skeleton variant="line" [w]="w" />
+                    <app-skeleton variant="line" w="78%" h="0.6rem" />
+                  </span>
+                  <app-skeleton variant="line" w="1rem" h="0.9rem" />
+                </div>
+              }
+              <!-- = the real create card: the 2.75rem "+" ring (aligned with the
+                 avatars above) and its two text lines -->
+              <div class="create-card ghost-card">
                 <app-skeleton variant="circle" w="2.75rem" h="2.75rem" />
                 <span class="who">
-                  <app-skeleton variant="line" [w]="w" />
-                  <app-skeleton variant="line" w="78%" h="0.6rem" />
+                  <app-skeleton variant="line" w="55%" />
+                  <app-skeleton variant="line" w="80%" h="0.6rem" />
                 </span>
-                <app-skeleton variant="line" w="1rem" h="0.9rem" />
               </div>
-            }
-            <div class="create-card ghost-card">
-              <app-skeleton variant="circle" w="2.25rem" h="2.25rem" />
-              <app-skeleton variant="line" w="45%" />
             </div>
-          </div>
 
-          @if (status() === 'error') {
-            <div class="error-state">
-              <p class="error-line" role="alert">We couldn't load your profiles.</p>
-              <button matButton="filled" class="press-feedback" (click)="load()">Try again</button>
-            </div>
-          } @else if (status() === 'ready' && profiles().length === 0) {
-            <!-- Zero-profile onboarding: designed, not an empty box. Gated on
+            @if (status() === 'error') {
+              <div class="error-state">
+                <p class="error-line" role="alert">We couldn't load your profiles.</p>
+                <button matButton="filled" class="press-feedback" (click)="load()">
+                  Try again
+                </button>
+              </div>
+            } @else if (status() === 'ready' && profiles().length === 0) {
+              <!-- Zero-profile onboarding: designed, not an empty box. Gated on
                  'ready' — during the skeleton's appear delay the list is also
                  empty, and "you have no profiles" would be a lie. -->
-            <div class="zero-state">
-              <svg class="zero-bed" viewBox="0 0 220 90" aria-hidden="true">
-                <rect
-                  x="6"
-                  y="8"
-                  width="208"
-                  height="74"
-                  rx="12"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-dasharray="3 7"
-                  stroke-linecap="round"
-                />
-                <path
-                  d="M110 62 V44 M110 50 C110 40 102 37 95 38 C96 46 103 50 110 50 Z M110 46 C110 38 117 35 124 36 C123 44 117 47 110 46 Z"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                />
-              </svg>
-              <p class="zero-copy">A profile keeps your gardens, plans and plants together.</p>
-              <button
-                matButton="filled"
-                class="press-feedback zero-cta"
-                (click)="showCreate.set(true)"
-              >
-                Create your profile
-              </button>
-            </div>
-          } @else if (profiles().length > 0) {
-            <ul class="profiles stagger-children">
-              @for (profile of profiles(); track profile.userId) {
+              <div class="zero-state">
+                <svg class="zero-bed" viewBox="0 0 220 90" aria-hidden="true">
+                  <rect
+                    x="6"
+                    y="8"
+                    width="208"
+                    height="74"
+                    rx="12"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-dasharray="3 7"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M110 62 V44 M110 50 C110 40 102 37 95 38 C96 46 103 50 110 50 Z M110 46 C110 38 117 35 124 36 C123 44 117 47 110 46 Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                <p class="zero-copy">A profile keeps your gardens, plans and plants together.</p>
+                <button
+                  matButton="filled"
+                  class="press-feedback zero-cta"
+                  (click)="showCreate.set(true)"
+                >
+                  Create your profile
+                </button>
+              </div>
+            } @else if (profiles().length > 0) {
+              <ul class="profiles stagger-children">
+                @for (profile of profiles(); track profile.userId) {
+                  <li>
+                    <button class="profile press-feedback" type="button" (click)="select(profile)">
+                      <span class="avatar" aria-hidden="true">{{ initialsOf(profile) }}</span>
+                      <span class="who">
+                        <span class="name">{{ nameOf(profile) }}</span>
+                        <span class="email">{{ profile.emailAddress }}</span>
+                      </span>
+                      <span class="go" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                          <path
+                            d="M9 5 L16 12 L9 19"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                        </svg>
+                      </span>
+                    </button>
+                  </li>
+                }
                 <li>
-                  <button class="profile press-feedback" type="button" (click)="select(profile)">
-                    <span class="avatar" aria-hidden="true">{{ initialsOf(profile) }}</span>
+                  <button
+                    class="create-card press-feedback"
+                    type="button"
+                    (click)="showCreate.set(true)"
+                  >
+                    <span class="plus" aria-hidden="true">＋</span>
                     <span class="who">
-                      <span class="name">{{ nameOf(profile) }}</span>
-                      <span class="email">{{ profile.emailAddress }}</span>
-                    </span>
-                    <span class="go" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" width="16" height="16">
-                        <path
-                          d="M9 5 L16 12 L9 19"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
+                      <span class="name">Create new profile</span>
+                      <span class="email">Start a separate space for your gardens</span>
                     </span>
                   </button>
                 </li>
-              }
-              <li>
-                <button
-                  class="create-card press-feedback"
-                  type="button"
-                  (click)="showCreate.set(true)"
-                >
-                  <span class="plus" aria-hidden="true">＋</span>
-                  <span class="who">
-                    <span class="name">Create new profile</span>
-                    <span class="email">Start a separate space for your gardens</span>
-                  </span>
-                </button>
-              </li>
-            </ul>
-          }
-        </app-skeleton-group>
+              </ul>
+            }
+          </app-skeleton-group>
+        </div>
       } @else {
-        <header class="panel-head">
-          <h1>Create your profile</h1>
-          <p class="sub">Just an email to get growing — names are optional.</p>
-        </header>
-        <form
-          class="create-form"
-          [formGroup]="form"
-          (ngSubmit)="create()"
-          [attr.aria-busy]="creating() ? true : null"
-        >
-          <div class="name-row">
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>First name</mat-label>
-              <input matInput formControlName="firstName" autocomplete="given-name" />
+        <div class="panel-view">
+          <header class="panel-head">
+            <h1>Create your profile</h1>
+            <p class="sub">Just an email to get growing — names are optional.</p>
+          </header>
+          <form
+            class="create-form"
+            [formGroup]="form"
+            (ngSubmit)="create()"
+            [attr.aria-busy]="creating() ? true : null"
+          >
+            <div class="name-row">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>First name</mat-label>
+                <input matInput formControlName="firstName" autocomplete="given-name" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Last name</mat-label>
+                <input matInput formControlName="lastName" autocomplete="family-name" />
+              </mat-form-field>
+            </div>
+            <mat-form-field appearance="outline">
+              <mat-label>Email address</mat-label>
+              <input matInput type="email" formControlName="emailAddress" autocomplete="email" />
+              @if (form.controls.emailAddress.hasError('required')) {
+                <mat-error>Email address is required</mat-error>
+              }
+              @if (form.controls.emailAddress.hasError('email')) {
+                <mat-error>That doesn't look like an email address</mat-error>
+              }
             </mat-form-field>
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>Last name</mat-label>
-              <input matInput formControlName="lastName" autocomplete="family-name" />
+
+            <mat-form-field appearance="outline">
+              <mat-label>Age</mat-label>
+              <input matInput type="number" formControlName="age" min="1" step="1" />
+              <mat-hint>Optional</mat-hint>
+              @if (form.controls.age.hasError('min')) {
+                <mat-error>Age must be a positive whole number</mat-error>
+              }
             </mat-form-field>
-          </div>
-          <mat-form-field appearance="outline">
-            <mat-label>Email address</mat-label>
-            <input matInput type="email" formControlName="emailAddress" autocomplete="email" />
-            @if (form.controls.emailAddress.hasError('required')) {
-              <mat-error>Email address is required</mat-error>
-            }
-            @if (form.controls.emailAddress.hasError('email')) {
-              <mat-error>That doesn't look like an email address</mat-error>
-            }
-          </mat-form-field>
 
-          <mat-form-field appearance="outline">
-            <mat-label>Age</mat-label>
-            <input matInput type="number" formControlName="age" min="1" step="1" />
-            <mat-hint>Optional</mat-hint>
-            @if (form.controls.age.hasError('min')) {
-              <mat-error>Age must be a positive whole number</mat-error>
+            @if (serverError()) {
+              <p class="error-line" role="alert">{{ serverError() }}</p>
             }
-          </mat-form-field>
-
-          @if (serverError()) {
-            <p class="error-line" role="alert">{{ serverError() }}</p>
-          }
-          @if (duplicateEmail(); as existing) {
-            <!-- 409 recovery: the address already has a profile, so offer it
+            @if (duplicateEmail(); as existing) {
+              <!-- 409 recovery: the address already has a profile, so offer it
                  (GET /users/email/{emailAddress}) instead of a dead end. -->
-            <button
-              matButton="outlined"
-              type="button"
-              class="press-feedback duplicate-recovery"
-              [disabled]="resolvingDuplicate()"
-              [attr.aria-busy]="resolvingDuplicate() ? true : null"
-              (click)="continueAsExisting()"
-            >
-              @if (resolvingDuplicate()) {
-                <span class="btn-ghost" aria-hidden="true"></span>
-                <span class="visually-hidden">Opening {{ existing }}</span>
-              } @else {
-                Continue as {{ existing }}
-              }
-            </button>
-          }
+              <button
+                matButton="outlined"
+                type="button"
+                class="press-feedback duplicate-recovery"
+                [disabled]="resolvingDuplicate()"
+                [attr.aria-busy]="resolvingDuplicate() ? true : null"
+                (click)="continueAsExisting()"
+              >
+                <span class="btn-stack" [class.is-pending]="resolvingDuplicate()">
+                  <span class="btn-label">Continue as {{ existing }}</span>
+                  @if (resolvingDuplicate()) {
+                    <span class="btn-ghost" aria-hidden="true"></span>
+                    <span class="visually-hidden">Opening {{ existing }}</span>
+                  }
+                </span>
+              </button>
+            }
 
-          <div class="form-actions">
-            <button
-              matButton
-              type="button"
-              class="press-feedback"
-              [disabled]="creating()"
-              (click)="showCreate.set(false)"
-            >
-              Back
-            </button>
-            <button
-              matButton="filled"
-              type="submit"
-              class="press-feedback"
-              [disabled]="creating()"
-              [attr.aria-busy]="creating() ? true : null"
-            >
-              @if (creating()) {
-                <span class="btn-ghost" aria-hidden="true"></span>
-                <span class="visually-hidden">Creating profile</span>
-              } @else {
-                Create & continue
-              }
-            </button>
-          </div>
-        </form>
+            <div class="form-actions">
+              <button
+                matButton
+                type="button"
+                class="press-feedback"
+                [disabled]="creating()"
+                (click)="showCreate.set(false)"
+              >
+                Back
+              </button>
+              <button
+                matButton="filled"
+                type="submit"
+                class="press-feedback"
+                [disabled]="creating()"
+                [attr.aria-busy]="creating() ? true : null"
+              >
+                <span class="btn-stack" [class.is-pending]="creating()">
+                  <span class="btn-label">Create & continue</span>
+                  @if (creating()) {
+                    <span class="btn-ghost" aria-hidden="true"></span>
+                    <span class="visually-hidden">Creating profile</span>
+                  }
+                </span>
+              </button>
+            </div>
+          </form>
+        </div>
       }
     </section>
   </div>

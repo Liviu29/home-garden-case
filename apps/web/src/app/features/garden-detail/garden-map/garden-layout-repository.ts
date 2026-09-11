@@ -1,12 +1,17 @@
 import { Injectable } from '@angular/core';
 
 /**
- * Browser-local persistence for the planner's VISUAL layout (feature brief
- * §16/§61). Positions are UI preference state — the backend has no
+ * Browser-local persistence for the planner's VISUAL layout.
+ * Positions are UI preference state — the backend has no
  * coordinates and never will for this case; capacity math never reads them.
  *
- * Storage format is versioned (`v1`); corrupt or unavailable storage
- * degrades silently to the deterministic auto-layout.
+ * Storage format is versioned (`v2`); corrupt, unavailable or superseded
+ * storage degrades silently to the deterministic auto-layout.
+ *
+ * v2: a v1 position was measured against the previous auto-layout (free soil
+ * as a fixed strip, beds clamped to an inner gutter). Replayed over the
+ * current arrangement it lands a bed on top of its neighbours, so v1 saves
+ * are discarded — and deleted — rather than migrated.
  */
 
 interface PlantPosition {
@@ -16,23 +21,25 @@ interface PlantPosition {
 
 export type LayoutPositions = Readonly<Record<number, PlantPosition>>;
 
-interface GardenVisualLayoutV1 {
-  readonly v: 1;
+interface GardenVisualLayoutV2 {
+  readonly v: 2;
   readonly positions: Record<number, PlantPosition>;
 }
 
-const KEY_PREFIX = 'homeGarden.visualLayout.v1.';
+const KEY_PREFIX = 'homeGarden.visualLayout.v2.';
+const LEGACY_KEY_PREFIX = 'homeGarden.visualLayout.v1.';
 
 @Injectable({ providedIn: 'root' })
 export class GardenLayoutRepository {
   load(gardenId: number): LayoutPositions {
     try {
+      localStorage.removeItem(LEGACY_KEY_PREFIX + gardenId); // superseded — see above
       const raw = localStorage.getItem(KEY_PREFIX + gardenId);
       if (!raw) {
         return {};
       }
-      const parsed = JSON.parse(raw) as Partial<GardenVisualLayoutV1>;
-      if (parsed.v !== 1 || typeof parsed.positions !== 'object' || parsed.positions === null) {
+      const parsed = JSON.parse(raw) as Partial<GardenVisualLayoutV2>;
+      if (parsed.v !== 2 || typeof parsed.positions !== 'object' || parsed.positions === null) {
         return {};
       }
       const positions: Record<number, PlantPosition> = {};
@@ -69,7 +76,7 @@ export class GardenLayoutRepository {
         localStorage.removeItem(KEY_PREFIX + gardenId);
         return;
       }
-      const payload: GardenVisualLayoutV1 = { v: 1, positions: pruned };
+      const payload: GardenVisualLayoutV2 = { v: 2, positions: pruned };
       localStorage.setItem(KEY_PREFIX + gardenId, JSON.stringify(payload));
     } catch {
       // storage unavailable — layout simply won't survive reloads

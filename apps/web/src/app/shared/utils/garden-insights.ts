@@ -1,7 +1,7 @@
 import { Garden, Plant } from '../../core/api/models';
 
 /**
- * Pure domain math (CODING-GUIDELINES §9: prime spec targets).
+ * Pure domain math — the primary unit-test target.
  * Mirrors the backend's overcrowding rule in plant.service.ts — same numbers,
  * same comparison, changed together or not at all.
  */
@@ -70,7 +70,7 @@ export function humidityDelta(garden: Garden, plants: readonly Plant[]): number 
 }
 
 /**
- * Garden-edit guard (REM-002): would setting a new total surface area leave
+ * Garden-edit guard: would setting a new total surface area leave
  * the garden below what its plants already use? The server permits this
  * (no capacity check on garden update — see API-INTEGRATION.md proposal #7),
  * so the client warns rather than blocks.
@@ -82,7 +82,6 @@ export function wouldShrinkBelowUsed(plants: readonly Plant[], newTotalArea: num
 /**
  * Semantic capacity status — UI-ONLY visualization thresholds, not business
  * rules (the only business rule is the server's strict `>` overcrowding check).
- * Documented in docs/IMPLEMENTATION-PLAN.md Phase 10.
  */
 export type CapacityStatus = 'healthy' | 'approaching' | 'almost-full' | 'full';
 

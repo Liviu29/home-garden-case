@@ -1,0 +1,149 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// The ONE skeleton engine (docs/design/ASYNC-UX.md). Every loading surface —
+// cold-load skeletons, mutation ghosts, the in-button bar, the SVG map ghosts —
+// is a STATIC neutral-gray base under a moving highlight. Colors come from the
+// --skeleton-* tokens, timing from the motion tokens, and reduced-motion
+// behavior is decided here and nowhere else. Feature ghosts compose layout
+// only; they never define their own gradient, keyframe or duration.
+// ─────────────────────────────────────────────────────────────────────────────
+
+@keyframes shimmer-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.55;
+  }
+}
+
+// The moving highlight every HTML surface below shares.
+@mixin highlight {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--gradient-shimmer);
+  animation: shimmer-sweep var(--dur-shimmer) var(--ease-in-out) infinite;
+  pointer-events: none;
+}
+
+// Cold-load block — what the `Skeleton` primitive renders.
+.skeleton-shimmer {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: var(--gradient-skeleton-base);
+  border-radius: var(--radius-s);
+
+  &::after {
+    @include highlight;
+  }
+}
+
+// Mutation ghost: the REAL element grays out in place while its PUT/DELETE is
+// in flight. The gray veil is a background layer and stays put; only the
+// highlight travels. (It used to ride on the moving pseudo-element, so the
+// whole veil slid off the content at the start and end of every cycle.)
+.mutation-ghost {
+  position: relative;
+  overflow: hidden;
+  pointer-events: none;
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--skeleton-base) 55%, transparent),
+    color-mix(in srgb, var(--skeleton-base) 55%, transparent)
+  );
+
+  > * {
+    opacity: 0.35;
+    filter: grayscale(1);
+  }
+
+  &::before {
+    @include highlight;
+
+    z-index: 1;
+    border-radius: inherit;
+  }
+}
+
+// In-button bar: replaces a submit label while its request is in flight.
+.btn-ghost {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  width: 4.25rem;
+  height: 0.6rem;
+  border-radius: var(--radius-pill);
+  background: var(--gradient-skeleton-base);
+  vertical-align: middle;
+
+  &::after {
+    @include highlight;
+  }
+}
+
+// Pending submit button: `.btn-stack` keeps the label in the layout (only
+// hidden), and the ghost bar is laid over it at exactly the label's width —
+// so a button never shrinks or grows while its request is in flight.
+//   <span class="btn-stack" [class.is-pending]="saving()">
+//     <span class="btn-label">Save changes</span>
+//     @if (saving()) { <span class="btn-ghost" aria-hidden="true"></span> … }
+//   </span>
+.btn-stack {
+  display: inline-grid;
+  align-items: center;
+
+  > * {
+    grid-area: 1 / 1;
+  }
+
+  .btn-ghost {
+    justify-self: stretch;
+    width: auto;
+  }
+
+  &.is-pending .btn-label {
+    visibility: hidden;
+  }
+}
+
+// SVG ghosts (the garden map) cannot host an HTML overlay; they pulse in place
+// with the same keyframe reduced motion uses everywhere.
+.skeleton-pulse {
+  animation: skeleton-pulse var(--dur-pulse) var(--ease-in-out) infinite;
+}
+
+// Cold-load skeletons appear only after --skeleton-delay. The ghost is in the
+// layout from the first frame (just invisible), so a fast response never
+// flashes one and a slow one fades in without shifting anything. Mutation
+// ghosts never use this — the user just acted, feedback must be immediate.
+.skeleton-appear {
+  animation: fade-in var(--dur-fast) var(--ease-out) var(--skeleton-delay) backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  // Nothing travels: the sweep becomes a slow in-place pulse, which still
+  // reads as "loading" (the global rule would otherwise stop it dead).
+  .skeleton-shimmer::after,
+  .mutation-ghost::before,
+  .btn-ghost::after,
+  .skeleton-pulse {
+    animation: skeleton-pulse var(--dur-pulse) var(--ease-in-out) infinite !important;
+  }
+
+  // A delay is not motion — keep it, so fast responses still never flash.
+  .skeleton-appear {
+    animation-delay: var(--skeleton-delay) !important;
+  }
+}

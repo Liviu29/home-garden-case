@@ -1,7 +1,9 @@
 <div class="map-shell" (keydown.escape)="onEscape()">
   <div
     class="map-stage"
+    [class.is-dragging]="draggingPlant()"
     [class.has-selection]="selectedPlantId() !== null"
+    [class.is-replaying]="timelineOpen()"
     [class.layer-no-labels]="!layers().labels"
     [class.layer-no-footprints]="!layers().footprints"
     [class.layer-no-grid]="!layers().grid"
@@ -33,17 +35,27 @@
             vector-effect="non-scaling-stroke"
           />
         </pattern>
-        <!-- Lawn speckle: procedural texture, no image assets -->
-        <pattern id="lawn-speckle" width="1.6" height="1.6" patternUnits="userSpaceOnUse">
-          <circle cx="0.28" cy="0.42" r="0.045" class="speckle" />
-          <circle cx="0.95" cy="0.2" r="0.035" class="speckle" />
-          <circle cx="1.32" cy="0.95" r="0.05" class="speckle" />
-          <circle cx="0.55" cy="1.25" r="0.04" class="speckle" />
-          <circle cx="1.05" cy="0.68" r="0.03" class="speckle" />
+        <!-- Lawn beyond the fence: short grass blades, procedural, no assets -->
+        <pattern id="lawn-blades" width="1.4" height="1.4" patternUnits="userSpaceOnUse">
+          <path
+            class="blade"
+            vector-effect="non-scaling-stroke"
+            d="M0.18 0.42 l0.04 -0.16 M0.24 0.44 l-0.03 -0.13 M0.82 0.2 l0.05 -0.14 M0.9 0.24 l-0.02 -0.15 M1.2 0.92 l0.04 -0.15 M0.5 1.2 l-0.04 -0.14 M0.56 1.22 l0.03 -0.12 M1.05 0.62 l0.03 -0.11"
+          />
+          <circle cx="0.62" cy="0.7" r="0.03" class="speckle" />
+          <circle cx="1.3" cy="1.28" r="0.035" class="speckle" />
         </pattern>
-        <!-- Tilled-soil furrows for the free planting band -->
+        <!-- Tilled-soil furrows for the open ground -->
         <pattern id="soil-furrows" width="4" height="0.55" patternUnits="userSpaceOnUse">
           <path d="M 0 0.28 H 4" class="furrow" vector-effect="non-scaling-stroke" />
+        </pattern>
+        <!-- Crumbly bed soil: a few specks per quarter metre -->
+        <pattern id="bed-speck" width="0.42" height="0.42" patternUnits="userSpaceOnUse">
+          <circle cx="0.07" cy="0.11" r="0.018" class="soil-speck" />
+          <circle cx="0.29" cy="0.05" r="0.013" class="soil-speck" />
+          <circle cx="0.21" cy="0.3" r="0.02" class="soil-speck" />
+          <circle cx="0.36" cy="0.36" r="0.012" class="soil-speck light" />
+          <circle cx="0.1" cy="0.36" r="0.014" class="soil-speck light" />
         </pattern>
         <linearGradient id="lawn-light" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" class="lawn-stop-a" />
@@ -53,9 +65,43 @@
           <stop offset="0%" class="halo-stop-a" />
           <stop offset="55%" class="halo-stop-b" />
         </radialGradient>
+        <!-- Open ground = the garden minus every planted bed (future beds on
+             the timeline have not been dug yet, so they stay open) -->
+        <mask id="free-soil-mask">
+          <rect
+            x="0"
+            y="0"
+            [attr.width]="layout().width"
+            [attr.height]="layout().height"
+            fill="#fff"
+          />
+          @for (plot of plotViews(); track plot.plantId) {
+            @if (!futureIds().has(plot.plantId)) {
+              <rect
+                [attr.x]="plot.x"
+                [attr.y]="plot.y"
+                [attr.width]="plot.w"
+                [attr.height]="plot.h"
+                [attr.rx]="plot.rx"
+                fill="#000"
+              />
+            }
+          }
+        </mask>
       </defs>
 
-      <!-- ── Surface: lawn, texture, grid, humidity hint ── -->
+      <!-- ── Surround: the lawn beyond the fence; clicking it clears selection ── -->
+      <rect
+        class="surround"
+        [attr.x]="content().x - content().width"
+        [attr.y]="content().y - content().height"
+        [attr.width]="content().width * 3"
+        [attr.height]="content().height * 3"
+        fill="url(#lawn-blades)"
+        (click)="clearSelection()"
+      />
+
+      <!-- ── Surface ── -->
       <rect
         class="lawn"
         x="0"
@@ -66,66 +112,42 @@
         fill="url(#lawn-light)"
         (click)="clearSelection()"
       />
-      <rect
-        class="lawn-texture"
-        x="0"
-        y="0"
-        [attr.width]="layout().width"
-        [attr.height]="layout().height"
-        [attr.rx]="cornerR()"
-        fill="url(#lawn-speckle)"
-      />
-      <rect
-        class="soil-grid-fill"
-        x="0"
-        y="0"
-        [attr.width]="layout().width"
-        [attr.height]="layout().height"
-        [attr.rx]="cornerR()"
-        fill="url(#soil-grid)"
-      />
+      <!-- The fence runs just outside the planting surface: a bed pushed to the
+           edge sits inside it, never on top of it. -->
       <rect
         class="garden-fence"
-        [attr.x]="layout().width * 0.012"
-        [attr.y]="layout().width * 0.012"
-        [attr.width]="layout().width * 0.976"
-        [attr.height]="layout().height - layout().width * 0.024"
-        [attr.rx]="cornerR() * 0.8"
+        [attr.x]="-fenceGap()"
+        [attr.y]="-fenceGap()"
+        [attr.width]="layout().width + fenceGap() * 2"
+        [attr.height]="layout().height + fenceGap() * 2"
+        [attr.rx]="cornerR() + fenceGap()"
         vector-effect="non-scaling-stroke"
       />
-      <rect
-        class="humidity-overlay"
-        x="0"
-        y="0"
-        [attr.width]="layout().width"
-        [attr.height]="layout().height"
-        [attr.rx]="cornerR()"
-        fill="url(#humidity-halo)"
-        [attr.opacity]="humidityHaloOpacity()"
-      />
 
-      <!-- ── Free soil: tilled band, room to grow ── -->
-      @if (layout().freeBand; as band) {
+      <!-- ── Free soil: all the ground no bed covers (a mask, never a stale cell) ── -->
+      @if (freeSpot()) {
         <g class="free-soil">
           <rect
             class="free-band"
-            [attr.x]="band.x"
-            [attr.y]="band.y"
-            [attr.width]="band.w"
-            [attr.height]="band.h"
-            [attr.rx]="cornerR() * 0.6"
-            vector-effect="non-scaling-stroke"
+            x="0"
+            y="0"
+            [attr.width]="layout().width"
+            [attr.height]="layout().height"
+            [attr.rx]="cornerR()"
+            mask="url(#free-soil-mask)"
+            (click)="clearSelection()"
           />
           <rect
             class="free-furrows"
-            [attr.x]="band.x"
-            [attr.y]="band.y"
-            [attr.width]="band.w"
-            [attr.height]="band.h"
-            [attr.rx]="cornerR() * 0.6"
+            x="0"
+            y="0"
+            [attr.width]="layout().width"
+            [attr.height]="layout().height"
+            [attr.rx]="cornerR()"
             fill="url(#soil-furrows)"
+            mask="url(#free-soil-mask)"
           />
-          <!-- Explicit free-capacity annotation (§6): honest, never inflated -->
+          <!-- Explicit free-capacity annotation: honest, never inflated -->
           @if (freeHint(); as hint) {
             @if (hint.kind === 'marker') {
               <g class="free-marker">
@@ -167,6 +189,27 @@
           }
         </g>
       }
+      <!-- The m² grid and the humidity hint sit ON the open ground (they used
+           to be painted beneath it, where no one could see them) -->
+      <rect
+        class="soil-grid-fill"
+        x="0"
+        y="0"
+        [attr.width]="layout().width"
+        [attr.height]="layout().height"
+        [attr.rx]="cornerR()"
+        fill="url(#soil-grid)"
+      />
+      <rect
+        class="humidity-overlay"
+        x="0"
+        y="0"
+        [attr.width]="layout().width"
+        [attr.height]="layout().height"
+        [attr.rx]="cornerR()"
+        fill="url(#humidity-halo)"
+        [attr.opacity]="humidityHaloOpacity()"
+      />
       @for (zone of emptyZones(); track zone.cx) {
         <circle
           class="empty-zone"
@@ -179,7 +222,7 @@
 
       <!-- ── Creation ghost: an in-flight POST prepares a bed (ASYNC-UX) ── -->
       @if (ghostBed(); as ghost) {
-        <g class="ghost-bed" aria-hidden="true">
+        <g class="ghost-bed skeleton-pulse" aria-hidden="true">
           <rect
             [attr.x]="ghost.x"
             [attr.y]="ghost.y"
@@ -191,14 +234,16 @@
         </g>
       }
 
-      <!-- ── Plant beds: honest footprint + botanical artwork above it ── -->
-      @for (plot of plotViews(); track plot.plantId) {
+      <!-- ── Plant beds: wooden frame, soil, honest footprint + artwork ── -->
+      @for (plot of paintOrder(); track plot.plantId) {
         <g
           class="plot"
           [class]="plot.visual.category"
           [class.selected]="plot.plantId === selectedPlantId()"
+          [class.dragging]="plot.plantId === draggingId()"
           [class.mutating]="mutatingIds().has(plot.plantId)"
           [class.overlapping]="overlappingIds().has(plot.plantId)"
+          [class.future]="futureIds().has(plot.plantId)"
           role="button"
           tabindex="0"
           [attr.aria-label]="plot.aria"
@@ -206,6 +251,7 @@
           [attr.aria-disabled]="mutatingIds().has(plot.plantId) ? true : null"
           (click)="onPlotClick(plot.plantId)"
           (pointerdown)="onPlotPointerDown(plot.plantId)"
+          (keydown)="onPlotKeydown(plot, $event)"
           (keydown.enter)="selectPlant(plot.plantId)"
           (keydown.space)="selectPlant(plot.plantId); $event.preventDefault()"
           (pointerenter)="onPlotHover(plot, $event)"
@@ -224,9 +270,10 @@
               [attr.ry]="plot.h * 0.62"
             />
           }
-          <!-- The mathematically honest occupied footprint (raised bed) -->
+          <!-- The mathematically honest occupied footprint: a raised bed -->
           <rect
             class="plot-bed"
+            [class.skeleton-pulse]="mutatingIds().has(plot.plantId)"
             [attr.x]="plot.x"
             [attr.y]="plot.y"
             [attr.width]="plot.w"
@@ -234,6 +281,34 @@
             [attr.rx]="plot.rx"
             vector-effect="non-scaling-stroke"
           />
+          <rect
+            class="plot-soil"
+            [attr.x]="plot.soil.x"
+            [attr.y]="plot.soil.y"
+            [attr.width]="plot.soil.w"
+            [attr.height]="plot.soil.h"
+            [attr.rx]="plot.soil.rx"
+          />
+          <rect
+            class="plot-soil-speck"
+            [attr.x]="plot.soil.x"
+            [attr.y]="plot.soil.y"
+            [attr.width]="plot.soil.w"
+            [attr.height]="plot.soil.h"
+            [attr.rx]="plot.soil.rx"
+            fill="url(#bed-speck)"
+          />
+          @if (layers().zones) {
+            <rect
+              class="zone-tint"
+              [attr.data-zone]="plot.zone"
+              [attr.x]="plot.soil.x"
+              [attr.y]="plot.soil.y"
+              [attr.width]="plot.soil.w"
+              [attr.height]="plot.soil.h"
+              [attr.rx]="plot.soil.rx"
+            />
+          }
           @if (plot.plantId === selectedPlantId()) {
             <rect
               class="selection-ring"
@@ -293,7 +368,134 @@
           }
         </g>
       }
+
+      <!-- ── Watering clashes between neighbours (zones layer) ── -->
+      @if (layers().zones) {
+        @for (c of conflicts(); track c.a + '-' + c.b) {
+          <g class="clash" aria-hidden="true">
+            <!-- on the edge where the two beds meet, clear of their name plates -->
+            <line
+              class="clash-edge"
+              [attr.x1]="c.edge.x1"
+              [attr.y1]="c.edge.y1"
+              [attr.x2]="c.edge.x2"
+              [attr.y2]="c.edge.y2"
+              vector-effect="non-scaling-stroke"
+            />
+            <circle
+              class="clash-badge"
+              [attr.cx]="c.at.x"
+              [attr.cy]="c.at.y"
+              [attr.r]="layout().width * 0.017"
+              vector-effect="non-scaling-stroke"
+            />
+            <text
+              class="clash-mark"
+              [attr.x]="c.at.x"
+              [attr.y]="c.at.y"
+              [attr.font-size]="layout().width * 0.022"
+              text-anchor="middle"
+              dominant-baseline="central"
+            >
+              ≠
+            </text>
+          </g>
+        }
+      }
+
+      <!-- ── Drop target, smart guides and a live position readout ── -->
+      @if (dropPreview(); as drop) {
+        <!-- Home slot: where the bed in hand came from — drop near it to return.
+             Painted over the beds, so its label shows even under the bed. -->
+        @if (drop.home; as home) {
+          <g class="home-slot" aria-hidden="true">
+            <rect
+              [attr.x]="home.x"
+              [attr.y]="home.y"
+              [attr.width]="drop.w"
+              [attr.height]="drop.h"
+              [attr.rx]="drop.rx"
+              vector-effect="non-scaling-stroke"
+            />
+            <text
+              [attr.x]="home.cx"
+              [attr.y]="home.cy"
+              [attr.font-size]="drop.readout.fs"
+              text-anchor="middle"
+              dominant-baseline="central"
+            >
+              Auto spot
+            </text>
+          </g>
+        }
+        <g class="drop" aria-hidden="true">
+          @for (g of drop.guides; track g.axis) {
+            <line
+              class="align-guide"
+              [attr.x1]="g.axis === 'x' ? g.at : g.from"
+              [attr.y1]="g.axis === 'x' ? g.from : g.at"
+              [attr.x2]="g.axis === 'x' ? g.at : g.to"
+              [attr.y2]="g.axis === 'x' ? g.to : g.at"
+              vector-effect="non-scaling-stroke"
+            />
+          }
+          <rect
+            class="drop-preview"
+            [class.at-home]="drop.atHome"
+            [attr.x]="drop.x"
+            [attr.y]="drop.y"
+            [attr.width]="drop.w"
+            [attr.height]="drop.h"
+            [attr.rx]="drop.rx"
+            vector-effect="non-scaling-stroke"
+          />
+          <text
+            class="drop-readout"
+            [attr.x]="drop.readout.x"
+            [attr.y]="drop.readout.y"
+            [attr.font-size]="drop.readout.fs"
+            text-anchor="middle"
+            dominant-baseline="central"
+          >
+            {{ drop.readout.text }}
+          </text>
+        </g>
+      }
+
+      <!-- ── Dimensions of the bed in hand: width × depth = its m² ── -->
+      @if (dimensions(); as d) {
+        <g class="dimension" aria-hidden="true">
+          <path [attr.d]="d.topPath" vector-effect="non-scaling-stroke" />
+          <path [attr.d]="d.leftPath" vector-effect="non-scaling-stroke" />
+          <text
+            [attr.x]="d.top.x"
+            [attr.y]="d.top.y"
+            [attr.font-size]="d.fs"
+            text-anchor="middle"
+            dominant-baseline="central"
+          >
+            {{ d.w | number: '1.0-2' }} m
+          </text>
+          <text
+            [attr.x]="d.left.x"
+            [attr.y]="d.left.y"
+            [attr.font-size]="d.fs"
+            [attr.transform]="d.left.transform"
+            text-anchor="middle"
+            dominant-baseline="central"
+          >
+            {{ d.h | number: '1.0-2' }} m
+          </text>
+        </g>
+      }
     </svg>
+
+    <!-- A bare wheel scrolls the page; this says how to zoom instead -->
+    @if (wheelHint()) {
+      <div class="wheel-hint" aria-hidden="true">
+        <span>Hold {{ zoomModifier }} and scroll to zoom</span>
+      </div>
+    }
 
     <!-- Toolbar: real icon buttons, keyboard/screen-reader friendly -->
     <div class="map-toolbar" role="toolbar" aria-label="Map view controls">
@@ -338,7 +540,7 @@
         </svg>
       </button>
       <button
-        class="tool-btn press-feedback"
+        class="tool-btn press-feedback tool-secondary"
         type="button"
         aria-label="Reset view and selection"
         title="Reset view and selection"
@@ -389,17 +591,36 @@
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path
-            d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm11.5 0L13 15.5l2.5 2.5-1.4 1.4L11.6 16.9l-1.4 1.4L8.8 16.9l2.5-2.5L8.8 12l1.4-1.4 2.4 2.4 2.5-2.4 1.4 1.4Z"
-            fill="currentColor"
-            opacity="0"
-          />
-          <path
             d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM17.5 13.6l1.4 1.4-2 2 2 2-1.4 1.4-2-2-2 2-1.4-1.4 2-2-2-2 1.4-1.4 2 2z"
             fill="currentColor"
           />
         </svg>
       </button>
       <span class="toolbar-divider" aria-hidden="true"></span>
+      <button
+        class="tool-btn press-feedback"
+        type="button"
+        [attr.aria-label]="
+          days().length < 2
+            ? 'Planting timeline — needs plants from different days'
+            : 'Planting timeline'
+        "
+        [attr.title]="
+          days().length < 2
+            ? 'Planting timeline — needs plants from different days'
+            : 'Planting timeline'
+        "
+        [attr.aria-pressed]="timelineOpen()"
+        [disabled]="days().length < 2"
+        (click)="toggleTimeline()"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M12 3a9 9 0 1 0 9 9h-2a7 7 0 1 1-2.05-4.95L14 10h7V3l-2.64 2.64A8.97 8.97 0 0 0 12 3Zm-1 4v6l5 3 .9-1.5-3.9-2.3V7h-2Z"
+            fill="currentColor"
+          />
+        </svg>
+      </button>
       <button
         class="tool-btn press-feedback"
         type="button"
@@ -440,7 +661,7 @@
       </button>
     </div>
 
-    <!-- Layers menu (§40): five honest toggles, nothing more -->
+    <!-- Layers menu: honest toggles, nothing more -->
     @if (layersOpen()) {
       <div class="layers-panel" role="group" aria-label="Map layers">
         <label class="layer-toggle">
@@ -464,6 +685,10 @@
           Humidity preference
         </label>
         <label class="layer-toggle">
+          <input type="checkbox" [checked]="layers().zones" (change)="toggleLayer('zones')" />
+          Watering zones
+        </label>
+        <label class="layer-toggle">
           <input
             type="checkbox"
             [checked]="layers().freeSpace"
@@ -471,48 +696,110 @@
           />
           Available space
         </label>
-        @if (layers().humidity) {
+        @if (layers().zones) {
+          <ul class="zone-legend">
+            @for (z of zoneLegend; track z.zone) {
+              <li>
+                <span class="zone-swatch" [attr.data-zone]="z.zone" aria-hidden="true"></span>
+                {{ z.label }} <span class="zone-range">{{ z.range }}</span>
+              </li>
+            }
+            <li class="zone-clash-key">
+              <span class="clash-swatch" aria-hidden="true">≠</span> Neighbours that need different
+              watering
+            </li>
+          </ul>
+        }
+        @if (layers().humidity || layers().zones) {
           <p class="layers-note">Preference vs target — not a measurement</p>
         }
       </div>
     }
 
-    <!-- Capacity HUD: one glass panel, numbers from shared domain math.
-         Fades while a bed is dragged so it never hides the drop zone. -->
-    <div class="map-hud" [class.hud-muted]="draggingPlant()">
-      <div class="hud-stat">
-        <span class="hud-value tabular">{{ utilizationPct() | number: '1.0-0' }}%</span>
-        <span class="hud-label">used</span>
-        <span class="hud-bar" aria-hidden="true">
-          <span
-            class="hud-bar-fill"
-            [class.warn]="status() === 'almost-full'"
-            [class.full]="status() === 'full'"
-            [style.width.%]="utilizationPct()"
-          ></span>
+    @if (timelineOpen()) {
+      <!-- Planting timeline: replays the garden from its first planting day -->
+      <div class="map-timeline" role="group" aria-label="Planting timeline">
+        <button
+          class="tool-btn press-feedback"
+          type="button"
+          [attr.aria-label]="playing() ? 'Pause timeline' : 'Play timeline'"
+          (click)="togglePlayback()"
+        >
+          @if (playing()) {
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor" />
+            </svg>
+          } @else {
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 5v14l11-7L8 5Z" fill="currentColor" />
+            </svg>
+          }
+        </button>
+        <input
+          class="timeline-range"
+          type="range"
+          min="0"
+          step="1"
+          [max]="days().length - 1"
+          [value]="dayIndex()"
+          aria-label="Planting day"
+          [attr.aria-valuetext]="timelineDate() | date: 'MMMM d, y' : 'UTC'"
+          (input)="onScrub($event)"
+        />
+        <span class="timeline-readout">
+          <strong class="tabular">{{ timelineDate() | date: 'MMM d, y' : 'UTC' }}</strong>
+          <span class="tabular">
+            {{ timelineStats().count }} of {{ timelineStats().total }} plants ·
+            {{ timelineStats().pct | number: '1.0-0' }}% used
+          </span>
         </span>
+        <button
+          class="tool-btn press-feedback"
+          type="button"
+          aria-label="Close timeline"
+          (click)="toggleTimeline()"
+        >
+          ✕
+        </button>
       </div>
-      <span class="hud-divider" aria-hidden="true"></span>
-      <div class="hud-stat">
-        <span class="hud-value tabular">{{ freeArea() | number: '1.0-1' }} m²</span>
-        <span class="hud-label">free</span>
-      </div>
-      <span class="hud-divider" aria-hidden="true"></span>
-      <div class="hud-stat humidity">
-        <svg class="drop-icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="M12 2.7c3.4 4.2 6.5 7.9 6.5 11.5a6.5 6.5 0 1 1-13 0C5.5 10.6 8.6 6.9 12 2.7Z"
-            fill="currentColor"
-          />
-        </svg>
-        <span class="hud-value tabular">{{ garden().targetHumidityLevel }}%</span>
-        <span class="hud-label">target</span>
-      </div>
-      @if (status() === 'full') {
+    } @else {
+      <!-- Capacity HUD: one glass panel, numbers from shared domain math.
+           Fades while a bed is dragged so it never hides the drop zone. -->
+      <div class="map-hud" [class.hud-muted]="draggingPlant()">
+        <div class="hud-stat">
+          <span class="hud-value tabular">{{ utilizationPct() | number: '1.0-0' }}%</span>
+          <span class="hud-label">used</span>
+          <span class="hud-bar" aria-hidden="true">
+            <span
+              class="hud-bar-fill"
+              [class.warn]="status() === 'almost-full'"
+              [class.full]="status() === 'full'"
+              [style.transform]="'scaleX(' + utilizationPct() / 100 + ')'"
+            ></span>
+          </span>
+        </div>
         <span class="hud-divider" aria-hidden="true"></span>
-        <div class="hud-stat full-badge">{{ statusLabel() }}</div>
-      }
-    </div>
+        <div class="hud-stat">
+          <span class="hud-value tabular">{{ freeArea() | number: '1.0-1' }} m²</span>
+          <span class="hud-label">free</span>
+        </div>
+        <span class="hud-divider" aria-hidden="true"></span>
+        <div class="hud-stat humidity">
+          <svg class="drop-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M12 2.7c3.4 4.2 6.5 7.9 6.5 11.5a6.5 6.5 0 1 1-13 0C5.5 10.6 8.6 6.9 12 2.7Z"
+              fill="currentColor"
+            />
+          </svg>
+          <span class="hud-value tabular">{{ garden().targetHumidityLevel }}%</span>
+          <span class="hud-label">target</span>
+        </div>
+        @if (status() === 'full') {
+          <span class="hud-divider" aria-hidden="true"></span>
+          <div class="hud-stat full-badge">{{ statusLabel() }}</div>
+        }
+      </div>
+    }
 
     <!-- Designed empty state: the surface is an invitation, not a blank -->
     @if (plants().length === 0 && pendingCreateArea() === null) {
@@ -532,133 +819,32 @@
       <div class="map-tooltip" aria-hidden="true" [style.left.px]="tip.x" [style.top.px]="tip.y">
         <span class="tip-name">{{ tip.label }}</span>
         <span class="tip-meta">{{ tip.area }} m² · {{ tip.sharePct }}% of garden</span>
-        <span class="tip-hint">Click for details</span>
+        <span class="tip-hint">Click for details · drag to move</span>
       </div>
     }
   </div>
 
   <!-- Inspector: plain DOM, the accessible home of every plot's details -->
-  <aside
-    class="map-inspector"
-    aria-label="Plant inspector"
-    [attr.aria-busy]="selectedPlantMutating() ? true : null"
-  >
-    @if (selectedPlant(); as plant) {
-      @if (selectedPlantMutating()) {
-        <div class="inspector-ghost" aria-hidden="true">
-          <div class="ghost-head">
-            <app-skeleton variant="circle" w="3rem" h="3rem" />
-            <div class="ghost-head-text">
-              <app-skeleton variant="title" w="70%" h="1.1rem" />
-              <app-skeleton variant="line" w="50%" />
-            </div>
-          </div>
-          <app-skeleton variant="line" w="100%" />
-          <app-skeleton variant="line" w="88%" />
-          <app-skeleton variant="line" w="92%" />
-        </div>
-        <span class="visually-hidden">Saving changes to {{ plant.plantName }}</span>
-      } @else {
-        <header class="inspector-head">
-          <app-plant-thumb class="inspector-thumb" [plant]="plant" />
-          <div class="inspector-title">
-            <h3>{{ plant.plantName }}</h3>
-            <p class="species">{{ plant.species }}</p>
-          </div>
-          <button
-            class="tool-btn press-feedback"
-            type="button"
-            aria-label="Clear selection"
-            (click)="clearSelection()"
-          >
-            ✕
-          </button>
-        </header>
-        <dl class="inspector-facts">
-          <div class="fact">
-            <dt>Required surface</dt>
-            <dd class="tabular">
-              {{ plant.surfaceAreaRequired }} m²
-              <span class="fact-sub">{{ selectedShare() | number: '1.0-0' }}% of garden</span>
-            </dd>
-          </div>
-          <div class="fact">
-            <dt>Ideal humidity</dt>
-            <dd class="tabular">
-              {{ plant.idealHumidityLevel }}%
-              <span
-                class="fact-sub"
-                [class.above]="selectedHumidityDelta() > 5"
-                [class.below]="selectedHumidityDelta() < -5"
-              >
-                {{ selectedHumidityDelta() > 0 ? '+' : '' }}{{ selectedHumidityDelta() }} vs
-                {{ garden().targetHumidityLevel }}% target
-              </span>
-            </dd>
-          </div>
-          <div class="fact">
-            <dt>Planted</dt>
-            <dd>{{ plant.plantationDate | date: 'MMM d, y' : 'UTC' }}</dd>
-          </div>
-          <div class="fact">
-            <dt>Type</dt>
-            <dd class="type-name">{{ plant.plantType }}</dd>
-          </div>
-        </dl>
-        <div class="contribution">
-          <span class="contribution-label">Capacity contribution</span>
-          <span class="contribution-bar" aria-hidden="true">
-            <span class="contribution-fill" [style.width.%]="selectedShare()"></span>
-          </span>
-          <span class="contribution-value tabular">{{ selectedShare() | number: '1.0-0' }}%</span>
-        </div>
-        <p class="drag-hint">Drag its bed on the plan to reposition it.</p>
-        <div class="inspector-actions">
-          <button
-            matButton="outlined"
-            class="press-feedback"
-            type="button"
-            aria-label="Focus this plant on the plan"
-            (click)="focusSelected()"
-          >
-            Focus
-          </button>
-          <button
-            matButton="outlined"
-            class="press-feedback"
-            type="button"
-            (click)="editPlant.emit(plant)"
-          >
-            Edit
-          </button>
-          <button
-            matButton="outlined"
-            class="press-feedback danger"
-            type="button"
-            (click)="removePlant.emit(plant)"
-          >
-            Remove
-          </button>
-        </div>
-      }
-    } @else {
-      <div class="inspector-idle">
-        <p class="inspector-hint">Select a plant on the map to inspect it.</p>
-        <dl class="inspector-facts">
-          <div class="fact">
-            <dt>Plants</dt>
-            <dd class="tabular">{{ plants().length }}</dd>
-          </div>
-          <div class="fact">
-            <dt>Space used</dt>
-            <dd class="tabular">{{ utilizationPct() | number: '1.0-0' }}%</dd>
-          </div>
-          <div class="fact">
-            <dt>Room to grow</dt>
-            <dd class="tabular">{{ freeArea() | number: '1.0-1' }} m²</dd>
-          </div>
-        </dl>
-      </div>
-    }
-  </aside>
+  <app-map-inspector
+    [garden]="garden()"
+    [plants]="plants()"
+    [plant]="selectedPlant()"
+    [mutating]="selectedPlantMutating()"
+    [deleting]="selectedPlantDeleting()"
+    [customPosition]="selectedHasCustomPosition()"
+    [utilizationPct]="utilizationPct()"
+    [freeArea]="freeArea()"
+    [conflicts]="conflicts()"
+    [arrangeBlocked]="arrangeBlocked()"
+    (focusPlant)="focusSelected()"
+    (editPlant)="editPlant.emit($event)"
+    (removePlant)="removePlant.emit($event)"
+    (clear)="clearSelection()"
+    (returnHome)="returnHome($event)"
+    (arrange)="arrange()"
+    (showZones)="showZones()"
+  />
+
+  <!-- Narrates keyboard moves, regrouping and the timeline -->
+  <p class="visually-hidden" aria-live="polite">{{ liveMessage() }}</p>
 </div>

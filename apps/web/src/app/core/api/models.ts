@@ -1,5 +1,5 @@
 /**
- * Frontend domain models (CODING-GUIDELINES §2: plain names; DTOs live in dtos.ts).
+ * Frontend domain models: plain names; DTOs live in dtos.ts.
  * Mapped from API DTOs in mappers.ts — components and stores only ever see these.
  */
 

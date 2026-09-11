@@ -17,7 +17,6 @@ describe('QueryCache (stale-while-revalidate, ADR-004)', () => {
             apiBaseUrl: '/api',
             retry: { maxAttempts: 3, baseDelayMs: 250, backoffFactor: 3, maxDelayMs: 3000 },
             cache: { freshTtlMs: FRESH_TTL },
-            skeleton: { appearDelayMs: 150, minDisplayMs: 300 },
             toastDurationMs: 5000,
           } satisfies AppConfig,
         },
@@ -28,6 +27,30 @@ describe('QueryCache (stale-while-revalidate, ADR-004)', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('refresh force-fetches even while the entry is fresh, and still de-duplicates', async () => {
+    const fetcher = vi.fn().mockResolvedValue(['v1']);
+    await cache.swr('gardens', fetcher).revalidate;
+    fetcher.mockResolvedValue(['v2']);
+
+    const first = cache.refresh('gardens', fetcher);
+    const second = cache.refresh('gardens', fetcher);
+
+    await expect(first).resolves.toEqual(['v2']);
+    await expect(second).resolves.toEqual(['v2']);
+    expect(fetcher).toHaveBeenCalledTimes(2); // the initial load + ONE forced refresh
+    expect(cache.read('gardens')).toEqual(['v2']);
+  });
+
+  it('clear drops every entry', () => {
+    cache.set('gardens', ['a']);
+    cache.set('gardens:1', { gardenId: 1 });
+
+    cache.clear();
+
+    expect(cache.read('gardens')).toBeUndefined();
+    expect(cache.read('gardens:1')).toBeUndefined();
   });
 
   it('a cache miss fetches and stores the value', async () => {

@@ -121,11 +121,12 @@
     [attr.aria-busy]="store.saving() ? true : null"
     [disabled]="(form.invalid && form.touched) || store.saving()"
   >
-    @if (store.saving()) {
-      <span class="btn-ghost" aria-hidden="true"></span>
-      <span class="visually-hidden">{{ isEdit ? 'Updating garden' : 'Creating garden' }}</span>
-    } @else {
-      {{ isEdit ? 'Save changes' : 'Create garden' }}
-    }
+    <span class="btn-stack" [class.is-pending]="store.saving()">
+      <span class="btn-label">{{ isEdit ? 'Save changes' : 'Create garden' }}</span>
+      @if (store.saving()) {
+        <span class="btn-ghost" aria-hidden="true"></span>
+        <span class="visually-hidden">{{ isEdit ? 'Updating garden' : 'Creating garden' }}</span>
+      }
+    </span>
   </button>
 </mat-dialog-actions>

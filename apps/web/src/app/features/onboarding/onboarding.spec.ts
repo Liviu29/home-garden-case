@@ -14,7 +14,6 @@ const CONFIG = {
   apiBaseUrl: '/api',
   retry: { maxAttempts: 1, baseDelayMs: 1, backoffFactor: 1, maxDelayMs: 1 },
   cache: { freshTtlMs: 30_000 },
-  skeleton: { appearDelayMs: 0, minDisplayMs: 0 },
   toastDurationMs: 5000,
 } as AppConfig;
 
@@ -375,6 +374,30 @@ describe('Onboarding (profile selection — ADR-005)', () => {
       toggles(vm).showCreate.set(false);
       fixture.detectChanges();
       expect(el.querySelector('form')).toBeNull();
+    });
+
+    it('renders each panel view in its own fading wrapper, so a swap never cuts', async () => {
+      const { fixture, vm, el } = render();
+      await vi.waitFor(() => expect(vm.status()).toBe('ready'));
+      fixture.detectChanges();
+      expect(el.querySelectorAll('.panel-view')).toHaveLength(1);
+
+      toggles(vm).showCreate.set(true);
+      fixture.detectChanges();
+      expect(el.querySelectorAll('.panel-view')).toHaveLength(1);
+      expect(el.querySelector('.panel-view form')).not.toBeNull();
+    });
+
+    it('sets the case brief’s garden behind the brand, fading in once decoded', () => {
+      const { fixture, el } = render();
+      const photo = el.querySelector('img.page-photo')!;
+      expect(photo.getAttribute('aria-hidden')).toBe('true');
+      expect(photo.getAttribute('alt')).toBe('');
+      expect(photo.classList).not.toContain('is-ready'); // never pops in half-decoded
+
+      photo.dispatchEvent(new Event('load'));
+      fixture.detectChanges();
+      expect(photo.classList).toContain('is-ready');
     });
 
     it('renders the required-email message once the form is touched', async () => {

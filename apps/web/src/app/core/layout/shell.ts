@@ -76,10 +76,22 @@ import { ToastHost } from '../../shared/ui/toast/toast-host';
           }
         </button>
 
-        <button class="profile press-feedback" [matMenuTriggerFor]="profileMenu" type="button">
+        <!-- While its DELETE is in flight the profile chip is a mutation ghost:
+             visibly pending, inert, announced — never a silent wait. -->
+        <button
+          class="profile press-feedback"
+          [class.mutation-ghost]="deleting()"
+          [attr.aria-busy]="deleting() ? true : null"
+          [attr.inert]="deleting() ? '' : null"
+          [matMenuTriggerFor]="profileMenu"
+          type="button"
+        >
           <span class="avatar" aria-hidden="true">{{ session.initials() }}</span>
           <span class="profile-name">{{ session.displayName() }}</span>
         </button>
+        <span class="visually-hidden" role="status">{{
+          deleting() ? 'Deleting profile…' : ''
+        }}</span>
         <mat-menu #profileMenu="matMenu" xPosition="before">
           <button mat-menu-item (click)="editProfile()">Edit profile</button>
           <button mat-menu-item (click)="switchProfile()">Switch profile</button>
@@ -99,6 +111,22 @@ import { ToastHost } from '../../shared/ui/toast/toast-host';
         <router-outlet />
       </main>
 
+      <!-- Every page ends in the case brief's own garden: a decorative photo
+           rising out of the page on a gradient mask (fixed height, lazy — it
+           never shifts anything and costs nothing until scrolled near). -->
+      <div class="page-backdrop" aria-hidden="true">
+        <img
+          src="images/garden-backdrop-1600.webp"
+          srcset="images/garden-backdrop-800.webp 800w, images/garden-backdrop-1600.webp 1600w"
+          sizes="100vw"
+          alt=""
+          width="1600"
+          height="800"
+          loading="lazy"
+          decoding="async"
+        />
+      </div>
+
       <app-toast-host />
     </div>
   `,
@@ -107,6 +135,36 @@ import { ToastHost } from '../../shared/ui/toast/toast-host';
       min-height: 100dvh;
       display: flex;
       flex-direction: column;
+      // Own stacking context: the page backdrop (z-index -1) paints beneath
+      // the content but never beneath the page itself.
+      position: relative;
+      isolation: isolate;
+    }
+
+    // ── Page backdrop: the case brief's garden photo ─────────────────────────
+    // In flow after <main>, pulled up under its bottom padding. A gradient MASK
+    // (not a colour overlay) fades it into whatever page colour is behind it,
+    // so the same photo sits right on the light theme and the dark one.
+    .page-backdrop {
+      position: relative;
+      z-index: -1;
+      height: clamp(14rem, 30vw, 26rem);
+      margin-top: calc(-1 * var(--sp-16));
+      overflow: hidden;
+      pointer-events: none;
+
+      img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center 62%;
+        mask-image: linear-gradient(to bottom, transparent 0%, rgb(0 0 0 / 0.4) 38%, #000 88%);
+      }
+    }
+
+    :host-context([data-theme='dark']) .page-backdrop img {
+      filter: brightness(0.72) saturate(0.9);
     }
 
     // Visible only on keyboard focus (ACCESSIBILITY.md)
@@ -181,15 +239,18 @@ import { ToastHost } from '../../shared/ui/toast/toast-host';
         padding-block: 1.125rem;
         text-decoration: none;
 
+        // Active-route underline: grows with a transform (not by animating
+        // the right offset), so navigating never re-lays out the bar.
         &::after {
           content: '';
           position: absolute;
-          left: 0;
-          right: 100%;
+          inset-inline: 0;
           bottom: 0;
           height: 2px;
           background: var(--gradient-brand);
-          transition: right var(--dur-base) var(--ease-out);
+          transform: scaleX(0);
+          transform-origin: left center;
+          transition: transform var(--dur-base) var(--ease-out);
         }
 
         &:hover {
@@ -200,7 +261,7 @@ import { ToastHost } from '../../shared/ui/toast/toast-host';
           color: var(--text-1);
 
           &::after {
-            right: 0;
+            transform: scaleX(1);
           }
         }
       }
@@ -326,7 +387,7 @@ export class Shell {
   /**
    * DELETE /users/{userId}. Gardens are NOT owned by a profile in this backend
    * (no userId column anywhere), so the copy must not claim gardens are removed
-   * — verified in BACKEND-API-AUDIT §Domain model.
+   * — verified in API-INTEGRATION.md §4.
    */
   protected async deleteProfile(): Promise<void> {
     const profile = this.session.profile();

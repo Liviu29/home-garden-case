@@ -28,7 +28,7 @@
   </div>
 }
 
-<app-skeleton-group [loading]="store.isLoading()">
+<app-skeleton-group [loading]="store.isLoading()" label="Loading your gardens">
   <!-- Ghosts mirror the final card grid — zero layout shift -->
   <div ghost class="grid">
     @for (i of [1, 2, 3]; track i) {
@@ -67,8 +67,11 @@
       @for (garden of visibleGardens(); track garden.gardenId) {
         <article
           class="card lift-hover"
+          [class.is-new]="garden.gardenId === newGardenId()"
+          [attr.data-garden-id]="garden.gardenId"
           [class.mutation-ghost]="isCardMutating(garden.gardenId)"
           [attr.aria-busy]="isCardMutating(garden.gardenId) ? true : null"
+          [attr.inert]="isCardMutating(garden.gardenId) ? '' : null"
           [appPrefetchGarden]="garden.gardenId"
         >
           <a class="card-link" [routerLink]="['/gardens', garden.gardenId]">
@@ -91,9 +94,32 @@
                   {{ garden.totalSurfaceArea }} m² total
                 </span>
               </p>
+            } @else if (plantsFailed(garden)) {
+              <p class="meta">Plant details unavailable · {{ garden.totalSurfaceArea }} m² total</p>
             } @else {
-              <app-skeleton variant="rect" h="2.5rem" />
-              <p class="meta">{{ garden.totalSurfaceArea }} m² total</p>
+              <!-- Plants loading: row for row what lands — the capacity bar's
+                   caption and track, then the status chip beside the total -->
+              <div class="plants-ghost skeleton-appear" aria-hidden="true">
+                <span class="ghost-caption">
+                  <app-skeleton variant="line" w="40%" h="0.7rem" />
+                  <app-skeleton variant="line" w="2.25rem" h="0.7rem" />
+                </span>
+                <app-skeleton variant="rect" h="0.5rem" />
+              </div>
+              <p class="meta">
+                <app-skeleton class="skeleton-appear" variant="line" w="7rem" h="1.6rem" />
+                <!-- "N plants" is a word-sized ghost, so the row wraps where the
+                     real "N plants · X m² total" will -->
+                <span>
+                  <app-skeleton
+                    class="count-ghost skeleton-appear"
+                    variant="line"
+                    w="3rem"
+                    h="0.7rem"
+                  />
+                  · {{ garden.totalSurfaceArea }} m² total
+                </span>
+              </p>
             }
           </a>
 
@@ -114,7 +140,7 @@
       }
       @if (store.creating()) {
         <!-- Creation ghost card: the garden being created (ASYNC-UX) -->
-        <div aria-busy="true" role="status" aria-label="Creating garden">
+        <div class="creating-ghost" aria-busy="true" role="status" aria-label="Creating garden">
           <app-skeleton-garden-card />
         </div>
       }

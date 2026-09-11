@@ -37,7 +37,6 @@ const TEST_CONFIG: AppConfig = {
   apiBaseUrl: '/api',
   retry: { maxAttempts: 1, baseDelayMs: 1, backoffFactor: 1, maxDelayMs: 1 },
   cache: { freshTtlMs: 30_000 },
-  skeleton: { appearDelayMs: 0, minDisplayMs: 0 },
   toastDurationMs: 5000,
 };
 
@@ -106,7 +105,7 @@ describe('Dashboard (aggregate insights a user notices)', () => {
   });
 
   it('shows the positive "all healthy" state when no garden needs attention', async () => {
-    // The section never just vanishes (control-center brief §10): a healthy
+    // The section never just vanishes: a healthy
     // portfolio gets an explicit healthy card, not an absence.
     gardensApi.getAll.mockResolvedValue([garden(1, 'Calm Garden', 20, 50)]);
     plantsApi.getByGarden.mockResolvedValue([plant(1, 1, 5, 52)]);
@@ -227,9 +226,49 @@ describe('Dashboard — greeting, KPI edges and insight tones', () => {
       );
 
       const vm = fixture.componentInstance as unknown as DashApi;
-      expect(vm.insights()[0].statusLabel).toBe('…');
+      // No "…" text placeholder: the template shows a badge-sized skeleton instead.
+      expect(vm.insights()[0].statusLabel).toBe('');
       expect(vm.insights()[0].statusTone).toBe('neutral');
       expect(vm.plantsSettled()).toBe(false);
+    });
+
+    it('ghosts every plant-derived number until the plant lists settle', async () => {
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [
+          provideRouter([]),
+          provideNoopAnimations(),
+          { provide: APP_CONFIG, useValue: TEST_CONFIG },
+          { provide: GardensApi, useValue: gardensApi },
+          {
+            provide: PlantsApi,
+            useValue: { getByGarden: vi.fn().mockReturnValue(new Promise(() => undefined)) },
+          },
+        ],
+      });
+      const fixture = TestBed.createComponent(Dashboard);
+      fixture.detectChanges();
+      await vi.waitFor(() =>
+        expect((fixture.componentInstance as unknown as DashApi).insights().length).toBe(3),
+      );
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+
+      // The hero sentence: gardens and area are known; the plant count is not.
+      const sub = el.querySelector('.hero-sub')!;
+      expect(sub.textContent).toContain('3 gardens');
+      expect(sub.textContent).not.toMatch(/\d+\s+plants?\b/);
+      expect(sub.querySelector('.hero-count-ghost')).not.toBeNull();
+      // Plants growing and Utilization hold value ghosts — no partial totals.
+      expect(el.querySelectorAll('app-stat-card .value-ghost')).toHaveLength(2);
+    });
+
+    it('shows the real plant count once every list has landed', async () => {
+      const { fixture } = await mountDash({ 1: [plant(1, 1, 4)] });
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('.hero-sub')?.textContent).toContain('1 plant');
+      expect(el.querySelector('.hero-count-ghost')).toBeNull();
+      expect(el.querySelector('.value-ghost')).toBeNull();
     });
 
     it('says "No plants yet" for an empty garden', async () => {

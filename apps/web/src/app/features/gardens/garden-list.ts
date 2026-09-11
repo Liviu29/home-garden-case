@@ -1,4 +1,12 @@
-import { computed, inject, ChangeDetectionStrategy, Component, Injector } from '@angular/core';
+import {
+  afterRenderEffect,
+  computed,
+  inject,
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  Injector,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -55,15 +63,40 @@ export class GardenList {
   protected readonly plantsIndex = inject(PlantsIndexStore);
   private readonly dialog = inject(MatDialog);
   private readonly confirm = inject(ConfirmService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   /** The source the plants index follows; the store owns the fan-out itself. */
   private readonly gardenIds = computed(() => this.store.gardens().map((g) => g.gardenId));
 
+  /** Created before this screen opened — not "new" when the user comes back. */
+  private readonly createdBefore = this.store.lastCreatedId();
+
+  /** A garden created while this screen is open: it glows and scrolls into view. */
+  protected readonly newGardenId = computed(() => {
+    const id = this.store.lastCreatedId();
+    return id !== this.createdBefore ? id : null;
+  });
+
   constructor() {
     void this.store.load();
     // Declare the source once. No component-level effect, no writes from here
-    // into a shared store — the index enriches cards as gardens arrive (F-02).
+    // into a shared store — the index enriches cards as gardens arrive.
     this.plantsIndex.ensureForGardens(this.gardenIds, { injector: inject(Injector) });
+
+    // The new card lands in its sorted place — often below the fold, while the
+    // creation ghost sat at the end of the grid. Bring it into view once, right
+    // after the render that inserted it (DOM work only — no signal writes).
+    afterRenderEffect(() => {
+      const id = this.newGardenId();
+      if (id === null) {
+        return;
+      }
+      const reduce =
+        typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      this.host.nativeElement
+        .querySelector(`[data-garden-id="${id}"]`)
+        ?.scrollIntoView?.({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+    });
   }
 
   protected readonly sortOptions = Object.entries(GARDEN_SORT_LABEL) as [GardenSort, string][];
@@ -84,6 +117,11 @@ export class GardenList {
 
   protected plantsOf(garden: Garden): readonly Plant[] | undefined {
     return this.plantsIndex.byGarden()[garden.gardenId];
+  }
+
+  /** Plants could not load for this card — it says so instead of a forever ghost. */
+  protected plantsFailed(garden: Garden): boolean {
+    return this.plantsIndex.failed()[garden.gardenId] === true;
   }
 
   protected usedArea(plants: readonly Plant[]): number {

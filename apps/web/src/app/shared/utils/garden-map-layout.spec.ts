@@ -27,6 +27,17 @@ const plant = (plantId: number, surfaceAreaRequired: number): Plant => ({
   updatedAt: '',
 });
 
+/** Total unplanted area: the free cells tile what the beds leave, exactly. */
+const freeAreaOf = (layout: ReturnType<typeof computeGardenMapLayout>) =>
+  layout.freeCells.reduce((sum, c) => sum + c.w * c.h, 0);
+
+type Box = { x: number; y: number; w: number; h: number };
+const overlaps = (a: Box, b: Box) =>
+  a.x < b.x + b.w - 1e-9 &&
+  b.x < a.x + a.w - 1e-9 &&
+  a.y < b.y + b.h - 1e-9 &&
+  b.y < a.y + a.h - 1e-9;
+
 describe('computeGardenMapLayout (deterministic digital-twin layout)', () => {
   it('models the garden surface with area ≈ totalSurfaceArea', () => {
     const layout = computeGardenMapLayout(garden(20), []);
@@ -99,19 +110,22 @@ describe('computeGardenMapLayout (deterministic digital-twin layout)', () => {
     expect(layout.freeBand).toBeNull();
   });
 
-  it('sizes the free strip by the REAL free area: whole surface when empty, none when full', () => {
+  it('sizes the free soil by the REAL free area: whole surface when empty, none when full', () => {
     const empty = computeGardenMapLayout(garden(20), []);
     expect(empty.freeBand).not.toBeNull();
-    expect(empty.freeBand!.w * empty.freeBand!.h).toBeCloseTo(20, 5); // all free
+    expect(empty.freeBand!.w * empty.freeBand!.h).toBeCloseTo(20, 5); // all free, one cell
+    expect(freeAreaOf(empty)).toBeCloseTo(20, 5);
 
     const half = computeGardenMapLayout(garden(20), [plant(1, 10)]);
-    expect(half.freeBand!.w * half.freeBand!.h).toBeCloseTo(10, 5); // half free
+    expect(freeAreaOf(half)).toBeCloseTo(10, 5); // half free, in the block + outside it
 
     const sliver = computeGardenMapLayout(garden(20), [plant(1, 19.5)]);
-    expect(sliver.freeBand!.w * sliver.freeBand!.h).toBeCloseTo(0.5, 5); // 0.5 m² sliver
+    expect(sliver.freeCells).toHaveLength(1);
+    expect(freeAreaOf(sliver)).toBeCloseTo(0.5, 5); // 0.5 m² sliver
 
     const full = computeGardenMapLayout(garden(6), [plant(1, 6)]);
     expect(full.freeBand).toBeNull();
+    expect(full.freeCells).toEqual([]);
   });
 
   it('ignores zero-area plants rather than emitting invisible plots', () => {
@@ -149,7 +163,7 @@ describe('computeGardenMapLayout (deterministic digital-twin layout)', () => {
     expect(areaOf(layout, 2) / areaOf(layout, 1)).toBeCloseTo(4, 6);
   });
 
-  // ── Occupancy honesty (refinement brief §3/§59): the DRAWN occupied
+  // ── Occupancy honesty: the DRAWN occupied
   // fraction of the surface equals usedArea / totalArea — what the HUD says
   // is what the eye sees. Exact by construction with the squarified treemap.
   const occupiedFraction = (layout: ReturnType<typeof computeGardenMapLayout>) =>
@@ -167,7 +181,7 @@ describe('computeGardenMapLayout (deterministic digital-twin layout)', () => {
     expect(occupiedFraction(layout)).toBeCloseTo(expected, 5);
   });
 
-  // ── Layout contract (ADR-007, treemap amendment): the layout is a pure,
+  // ── Layout contract (ADR-007): the layout is a pure,
   // deterministic function of the plant SET. Editing the set may rearrange
   // cells (the treemap re-partitions), but the same set always produces the
   // same picture — a slow revalidation can never shuffle the garden.
@@ -177,17 +191,96 @@ describe('computeGardenMapLayout (deterministic digital-twin layout)', () => {
     expect(again).toEqual(before);
     expect(before.plots.map((p) => p.plantId)).toEqual([1, 2, 3]); // area desc, id asc
   });
+
+  // ── No slivers: the free soil is a treemap cell, so a small plant next to
+  // large ones pairs with it instead of stretching along a whole column.
+  it('draws a small plant beside large ones as a bed, not a sliver', () => {
+    // The reported garden: 50 m² with 22 + 22 + 0.6 m². With the free soil as
+    // a fixed strip the 0.6 m² fern drew as a ~4 m × 15 cm bar (aspect ~27).
+    const layout = computeGardenMapLayout(garden(50), [plant(1, 22), plant(2, 22), plant(3, 0.6)]);
+    const fern = layout.plots.find((p) => p.plantId === 3)!;
+    expect(fern.w * fern.h).toBeCloseTo(0.6, 9); // still exactly its m²
+    expect(Math.max(fern.w / fern.h, fern.h / fern.w)).toBeLessThan(4);
+  });
+
+  it('keeps room to grow toward the bottom-right, even when it is the largest cell', () => {
+    // Squarify places the largest cell first (top-left). In a young garden
+    // that is the free soil; unmirrored, both beds were shoved against the far
+    // fence with nowhere to drag them.
+    const layout = computeGardenMapLayout(garden(30), [plant(1, 5), plant(2, 2)]);
+    const free = layout.freeBand!;
+    expect(free.x + free.w).toBeCloseTo(layout.width, 9); // touches the right fence
+    expect(free.x + free.w / 2).toBeGreaterThanOrEqual(layout.width / 2);
+    expect(free.y + free.h / 2).toBeGreaterThanOrEqual(layout.height / 2 - 1e-9);
+    // The beds share a block in the top-left corner (a young garden, 23% full)
+    expect(Math.min(...layout.plots.map((p) => p.x))).toBeCloseTo(0, 9);
+    expect(Math.min(...layout.plots.map((p) => p.y))).toBeCloseTo(0, 9);
+    for (const p of layout.plots) {
+      expect(p.w * p.h).toBeCloseTo(p.requiredArea, 9); // mirroring never changes area
+    }
+  });
+
+  it('mirrors vertically too when the free cell lands in the top half', () => {
+    // 20 m²: Tomato 8 + Basil 4 + Thyme 2 packs the 6 m² free cell top-right.
+    const layout = computeGardenMapLayout(garden(20), [plant(1, 8), plant(2, 4), plant(3, 2)]);
+    const free = layout.freeBand!;
+    expect(free.y + free.h).toBeCloseTo(layout.height, 9); // touches the bottom fence
+    expect(free.x + free.w).toBeCloseTo(layout.width, 9);
+  });
+
+  it('places the free cell inside the surface without overlapping any bed', () => {
+    const layout = computeGardenMapLayout(garden(50), [plant(1, 22), plant(2, 22), plant(3, 0.6)]);
+    const free = layout.freeBand!;
+    expect(free.x).toBeGreaterThanOrEqual(-1e-9);
+    expect(free.y).toBeGreaterThanOrEqual(-1e-9);
+    expect(free.x + free.w).toBeLessThanOrEqual(layout.width + 1e-9);
+    expect(free.y + free.h).toBeLessThanOrEqual(layout.height + 1e-9);
+    for (const p of layout.plots) {
+      const apart =
+        p.x + p.w <= free.x + 1e-9 ||
+        free.x + free.w <= p.x + 1e-9 ||
+        p.y + p.h <= free.y + 1e-9 ||
+        free.y + free.h <= p.y + 1e-9;
+      expect(apart).toBe(true);
+    }
+  });
+
+  it('draws a young garden as near-square beds in the corner, never full-height slivers', () => {
+    // 25 m² with 2 + 0.3 m² once drew both beds as one
+    // 0.58 m × 3.95 m column beside a single, huge free cell.
+    const layout = computeGardenMapLayout(garden(25), [plant(1, 2), plant(2, 0.3)]);
+    for (const p of layout.plots) {
+      expect(p.w * p.h).toBeCloseTo(p.requiredArea, 9); // still exactly its m²
+      expect(Math.max(p.w / p.h, p.h / p.w)).toBeLessThan(2.5);
+      expect(p.h).toBeLessThan(layout.height * 0.6); // not a fence-to-fence bar
+    }
+    // Beds and free cells still tile the surface exactly, with no overlaps.
+    const cells: Box[] = [...layout.plots, ...layout.freeCells];
+    expect(cells.reduce((sum, c) => sum + c.w * c.h, 0)).toBeCloseTo(25, 9);
+    cells.forEach((a, i) => cells.slice(i + 1).forEach((b) => expect(overlaps(a, b)).toBe(false)));
+    // The largest open ground is labelled "room to grow"
+    expect(layout.freeBand!.w * layout.freeBand!.h).toBe(
+      Math.max(...layout.freeCells.map((c) => c.w * c.h)),
+    );
+  });
+
+  it('keeps the whole-surface treemap once a garden is 70% full', () => {
+    // 14 of 20 m²: exactly the block threshold — one free cell, beds fill the rest
+    const layout = computeGardenMapLayout(garden(20), [plant(1, 8), plant(2, 4), plant(3, 2)]);
+    expect(layout.freeCells).toHaveLength(1);
+    expect(freeAreaOf(layout)).toBeCloseTo(6, 9);
+  });
 });
 
 /**
- * F-05 guard: the map must never compute capacity independently.
+ * Guard: the map must never compute capacity independently.
  *
  * The drawn "used" region is the part of the surface not covered by the free
  * band. If the layout re-derives used area itself, these ratios drift from
  * `garden-insights` — the single authority the HUD, the forms and the server's
  * overcrowding rule all share.
  */
-describe('capacity single source of truth (F-05)', () => {
+describe('capacity single source of truth', () => {
   const cases: ReadonlyArray<{ label: string; total: number; areas: readonly number[] }> = [
     { label: '0% — empty garden', total: 20, areas: [] },
     { label: '50% — half planted', total: 20, areas: [6, 4] },
@@ -203,8 +296,7 @@ describe('capacity single source of truth (F-05)', () => {
       const plants = areas.map((area, i) => plant(i + 1, area));
       const layout = computeGardenMapLayout(g, plants);
 
-      const drawnUsedWidth = layout.width - (layout.freeBand?.w ?? 0);
-      const drawnOccupancy = drawnUsedWidth / layout.width;
+      const drawnOccupancy = 1 - freeAreaOf(layout) / (layout.width * layout.height);
       // Over-capacity gardens clamp at 100% drawn; the domain ratio may exceed 1.
       const expected = Math.min(1, occupancyRatio(g, plants));
 
@@ -223,7 +315,7 @@ describe('capacity single source of truth (F-05)', () => {
     // the same 100%, not to some independently derived number.
     const afterEdit = [plant(1, 15), plant(2, 5)];
     const layout = computeGardenMapLayout(g, afterEdit);
-    const drawnOccupancy = (layout.width - (layout.freeBand?.w ?? 0)) / layout.width;
+    const drawnOccupancy = 1 - freeAreaOf(layout) / 20;
 
     expect(usedSurfaceArea(afterEdit)).toBe(20);
     expect(drawnOccupancy).toBeCloseTo(occupancyRatio(g, afterEdit), 9);
@@ -247,14 +339,75 @@ describe('applyPositions / findOverlappingPlots (planner extensions)', () => {
     );
   });
 
-  it('clamps positions to the gutter inset so a plot never sits on the fence', async () => {
+  it('clamps positions inside the garden: a bed may touch the fence, never cross it', async () => {
     const { applyPositions } = await import('./garden-map-layout');
     const layout = base();
-    const inset = layout.width * 0.035; // mirrors GUTTER_RATIO — the auto-layout's own padding
-    const moved = applyPositions(layout, { 1: { x: 999, y: -50 } });
-    const plot = moved.plots.find((p) => p.plantId === 1)!;
-    expect(plot.x + plot.w).toBeLessThanOrEqual(layout.width - inset + 1e-9);
-    expect(plot.y).toBeCloseTo(inset, 9); // never flush at 0: shadow/outline/label stay on the lawn
+    for (const pos of [
+      { x: 999, y: -50 },
+      { x: -50, y: 999 },
+      { x: 999, y: 999 },
+    ]) {
+      const plot = applyPositions(layout, { 1: pos }).plots.find((p) => p.plantId === 1)!;
+      expect(plot.x).toBeGreaterThanOrEqual(0);
+      expect(plot.y).toBeGreaterThanOrEqual(0);
+      expect(plot.x + plot.w).toBeLessThanOrEqual(layout.width + 1e-9);
+      expect(plot.y + plot.h).toBeLessThanOrEqual(layout.height + 1e-9);
+    }
+  });
+
+  it('never moves an untouched bed: its own position is already legal (first-drag jump)', async () => {
+    // Regression: the clamp used an inner gutter the auto-layout never packs
+    // with, so the first drag of a full-height bed shoved it past the fence.
+    const { applyPositions } = await import('./garden-map-layout');
+    const layout = computeGardenMapLayout(garden(50), [plant(1, 22), plant(2, 22), plant(3, 0.6)]);
+    for (const plot of layout.plots) {
+      const applied = applyPositions(layout, { [plot.plantId]: { x: plot.x, y: plot.y } });
+      const after = applied.plots.find((p) => p.plantId === plot.plantId)!;
+      // The old gutter moved beds by ~0.31 m; float noise at the far edge is ~1e-15.
+      expect(after.x).toBeCloseTo(plot.x, 9);
+      expect(after.y).toBeCloseTo(plot.y, 9);
+      expect(after.w).toBe(plot.w);
+      expect(after.h).toBe(plot.h);
+    }
+  });
+
+  it('settles a drop against a neighbouring bed edge within the threshold', async () => {
+    const { settleDrop } = await import('./garden-map-layout');
+    const layout = base();
+    const [a, b] = layout.plots;
+    // Drop plot b so its left edge lands 0.08 short of plot a's right edge.
+    const settled = settleDrop(layout, b.plantId, { x: a.x + a.w - 0.08, y: b.y }, 0.2);
+    expect(settled.x).toBeCloseTo(Math.min(a.x + a.w, layout.width - b.w), 9);
+  });
+
+  it('settles to the grid when no edge is within reach, and stays inside the garden', async () => {
+    const { settleDrop, PLANNER_SNAP } = await import('./garden-map-layout');
+    const layout = computeGardenMapLayout(garden(200), [plant(1, 4)]);
+    const [p] = layout.plots;
+    const mid = settleDrop(layout, p.plantId, { x: 3.13, y: 2.61 }, 0.01);
+    expect(mid.x % PLANNER_SNAP).toBeCloseTo(0, 9);
+    expect(mid.y % PLANNER_SNAP).toBeCloseTo(0, 9);
+
+    const flung = settleDrop(layout, p.plantId, { x: 999, y: 999 }, 0.01);
+    expect(flung.x).toBeCloseTo(layout.width - p.w, 9);
+    expect(flung.y).toBeCloseTo(layout.height - p.h, 9);
+  });
+
+  it('snaps to the grid for a plant it no longer knows', async () => {
+    const { settleDrop } = await import('./garden-map-layout');
+    expect(settleDrop(base(), 99, { x: 1.13, y: 2.61 }, 0.2)).toMatchObject({ x: 1.25, y: 2.5 });
+  });
+
+  it('beds that merely touch are not reported as overlapping', async () => {
+    const { applyPositions, findOverlappingPlots } = await import('./garden-map-layout');
+    const layout = base();
+    const [a, b] = layout.plots;
+    const touching = applyPositions(layout, { [b.plantId]: { x: a.x + a.w, y: a.y } });
+    const moved = touching.plots.find((p) => p.plantId === b.plantId)!;
+    // Only meaningful if the clamp let it sit flush against a.
+    if (Math.abs(moved.x - (a.x + a.w)) < 1e-9) {
+      expect(findOverlappingPlots(touching.plots).has(b.plantId)).toBe(false);
+    }
   });
 
   it('snaps drop positions to tidy quarter-unit steps', async () => {

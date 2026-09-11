@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
 /**
- * Designed empty state (CODING-GUIDELINES §7: empty result is not an error).
+ * Designed empty state: an empty result is not an error.
  * Sprout illustration in grays with a single green accent, one line of copy,
  * and a projected CTA.
  */
@@ -79,7 +79,7 @@ export class EmptyState {
   /**
    * Semantic level only — the visual size is fixed by `.title`, so callers
    * place the heading correctly in the document outline without changing how
-   * it looks (F-08).
+   * it looks.
    *
    * - `1` — the empty state IS the page (404, an unloadable route).
    * - `2` — a page-level empty state sitting directly under the page `h1`.

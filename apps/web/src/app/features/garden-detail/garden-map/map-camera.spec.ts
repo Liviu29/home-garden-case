@@ -1,4 +1,14 @@
-import { MAX_ZOOM, MIN_ZOOM, fitCamera, focusOn, panBy, viewBoxOf, zoomBy } from './map-camera';
+import {
+  MAX_ZOOM,
+  MIN_ZOOM,
+  clampCamera,
+  fitCamera,
+  focusOn,
+  isFitted,
+  panBy,
+  viewBoxOf,
+  zoomBy,
+} from './map-camera';
 
 const content = { width: 16, height: 10 };
 
@@ -91,5 +101,21 @@ describe('MapCamera (pure pan/zoom math)', () => {
     const near = panBy(zoomed, box, -999, -999);
     expect(near.cx).toBeCloseTo(1, 6);
     expect(near.cy).toBeCloseTo(0.5, 6);
+  });
+
+  it('isFitted recognises only the exact Fit view (what a resize may re-frame)', () => {
+    expect(isFitted(fitCamera(content), content)).toBe(true);
+    expect(isFitted(zoomBy(fitCamera(content), content, 1.4), content)).toBe(false);
+    expect(isFitted({ ...fitCamera(content), cx: 9 }, content)).toBe(false);
+    expect(isFitted({ ...fitCamera(content), cy: 6 }, content)).toBe(false);
+  });
+
+  it('clampCamera pulls a stale view back inside a frame that shrank under it', () => {
+    // A view kept across a resize must still obey the new frame's bounds.
+    expect(clampCamera({ cx: 100, cy: 100, zoom: 2 }, content)).toEqual({
+      cx: 12,
+      cy: 7.5,
+      zoom: 2,
+    });
   });
 });

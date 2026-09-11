@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { PercentPipe } from '@angular/common';
+import { DecimalPipe, PercentPipe } from '@angular/common';
 
 type CapacityLevel = 'ok' | 'warn' | 'full';
 
@@ -11,22 +11,22 @@ type CapacityLevel = 'ok' | 'warn' | 'full';
 @Component({
   selector: 'app-capacity-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PercentPipe],
+  imports: [DecimalPipe, PercentPipe],
   template: `
     <div class="wrap">
       @if (showLabel()) {
         <div class="label">
-          <span>{{ used() }} / {{ total() }} m²</span>
+          <span>{{ used() | number: '1.0-2' }} / {{ total() | number: '1.0-2' }} m²</span>
           <span class="pct tabular">{{ ratio() | percent: '1.0-0' }}</span>
         </div>
       }
       <div
         class="track"
         role="progressbar"
-        [attr.aria-valuenow]="used()"
+        [attr.aria-valuenow]="usedRounded()"
         [attr.aria-valuemin]="0"
         [attr.aria-valuemax]="total()"
-        [attr.aria-label]="'Surface used: ' + used() + ' of ' + total() + ' square meters'"
+        [attr.aria-label]="'Surface used: ' + usedRounded() + ' of ' + total() + ' square meters'"
       >
         <div class="fill" [class]="level()" [style.transform]="'scaleX(' + clamped() + ')'"></div>
       </div>
@@ -62,7 +62,7 @@ type CapacityLevel = 'ok' | 'warn' | 'full';
       border-radius: inherit;
       transform-origin: left center;
       // Grows from 0 to the bound value on first paint, then follows changes.
-      transition: transform var(--dur-slow) var(--ease-out) 150ms;
+      transition: transform var(--dur-slow) var(--ease-out);
 
       @starting-style {
         transform: scaleX(0) !important;
@@ -93,6 +93,13 @@ export class CapacityBar {
   });
 
   protected readonly clamped = computed(() => Math.min(1, Math.max(0, this.ratio())));
+
+  /**
+   * `used` is a SUM of plant areas, and binary floats do not add decimals
+   * exactly (1.2 + 3 + 0.6 = 4.800000000000001). Everything shown or
+   * announced goes through two decimals — the same precision as the forms.
+   */
+  protected readonly usedRounded = computed(() => Math.round(this.used() * 100) / 100);
 
   protected readonly level = computed<CapacityLevel>(() => {
     const r = this.ratio();

@@ -14,7 +14,7 @@ interface MiniPlantView {
 
 /**
  * Static botanical snapshot of a garden for dashboard cards — the visual
- * bridge to the Garden Planner (feature brief §12–13). Reuses the SAME
+ * bridge to the Garden Planner. Reuses the SAME
  * resolved artwork symbols and palettes the map draws, so a garden looks like
  * itself everywhere, but this is deliberately NOT a map: no layout algorithm
  * duplication, no camera, no interaction. Plants line up on a soil strip,

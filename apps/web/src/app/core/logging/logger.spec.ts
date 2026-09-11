@@ -1,7 +1,7 @@
 import { Logger } from './logger';
 
 /**
- * The logging policy is a product decision, not a detail (ERROR-HANDLING.md):
+ * The logging policy is a product decision, not a detail (ARCHITECTURE.md §4.4):
  * expected unhappy paths stay out of a production console, genuine technical
  * failures always appear, and neither carries a payload.
  *

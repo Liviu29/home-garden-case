@@ -9,7 +9,7 @@ export interface ValuePresetOption {
 }
 
 /**
- * Quick-pick chips for a numeric form field (feature brief §13–15). These are
+ * Quick-pick chips for a numeric form field. These are
  * PRODUCT-LEVEL suggestions, never backend rules: choosing one only writes the
  * value into the form control the parent owns, so every validator (and the
  * server's own verdicts) still applies unchanged. A custom value typed into

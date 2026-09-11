@@ -77,7 +77,7 @@ describe('garden insights (mirrors plant.service.ts server rules)', () => {
     });
   });
 
-  describe('garden shrink guard (REM-002)', () => {
+  describe('garden shrink guard', () => {
     it('warns when the new total drops below used area, boundary-exact', () => {
       const plants = [
         plant({ surfaceAreaRequired: 7.5 }),

@@ -1,5 +1,5 @@
 /**
- * DTO → domain mappers — pure functions (CODING-GUIDELINES §2).
+ * DTO → domain mappers — pure functions.
  * The seam where generated clients would plug in on a larger contract (ADR-006).
  */
 

@@ -1,0 +1,376 @@
+// Planner inspector — plain DOM beside the plan. The host is a grid so the
+// aside fills the cell the map shell gives it (the stage's height on desktop).
+:host {
+  display: grid;
+}
+
+.map-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border-radius: var(--radius-m);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-1);
+  min-height: 13rem;
+}
+
+.tool-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-2);
+  font: 600 var(--fs-body) var(--font-ui);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--surface-2);
+    color: var(--text-1);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+}
+
+.inspector-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+
+  h3 {
+    margin: 0;
+    font-size: var(--fs-emphasis);
+    font-weight: 650;
+    color: var(--text-1);
+  }
+
+  .species {
+    margin: 0;
+    font-size: var(--fs-caption);
+    color: var(--text-3);
+    font-style: italic;
+  }
+
+  .inspector-title {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.inspector-thumb {
+  --thumb-size: 3.75rem;
+}
+
+// ── Chips: zone, placement, and the way back to the automatic spot ─────────
+.inspector-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-2);
+}
+
+.zone-chip,
+.place-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.125rem var(--sp-2);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.zone-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--zone-balanced);
+  flex: none;
+}
+
+[data-zone='dry'] .zone-dot,
+.zone-dot[data-zone='dry'] {
+  background: var(--zone-dry);
+}
+
+[data-zone='humid'] .zone-dot,
+.zone-dot[data-zone='humid'] {
+  background: var(--zone-humid);
+}
+
+.chip-action {
+  padding: 0.125rem var(--sp-1);
+  border: none;
+  border-radius: var(--radius-s);
+  background: none;
+  font: 600 0.6875rem var(--font-ui);
+  color: var(--brand-600);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+
+  &:hover {
+    color: var(--brand-500);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+}
+
+// Grouped stat tiles: caption over value, two columns. The idle
+// (garden overview) state reuses the same grid.
+.inspector-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-2);
+  margin: 0;
+
+  .fact {
+    display: grid;
+    gap: 0.1rem;
+    align-content: start;
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--radius-s);
+    background: var(--surface-2);
+
+    dt {
+      font-size: 0.6563rem;
+      font-weight: 650;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-3);
+    }
+
+    dd {
+      margin: 0;
+      font-size: var(--fs-emphasis);
+      font-weight: 650;
+      color: var(--text-1);
+    }
+
+    .fact-sub {
+      display: block;
+      font-size: 0.6875rem;
+      font-weight: 500;
+      color: var(--text-3);
+
+      &.above {
+        color: var(--info-blue);
+      }
+
+      &.below {
+        color: var(--accent-amber);
+      }
+    }
+
+    .type-name {
+      text-transform: capitalize;
+      font-weight: 500;
+    }
+  }
+}
+
+.contribution {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+
+  .contribution-label {
+    font-size: 0.6875rem;
+    color: var(--text-3);
+  }
+
+  .contribution-bar {
+    flex: 1;
+    height: 0.3rem;
+    border-radius: var(--radius-pill);
+    background: var(--surface-3);
+    overflow: hidden;
+  }
+
+  .contribution-fill {
+    display: block;
+    height: 100%;
+    border-radius: var(--radius-pill);
+    background: var(--gradient-brand);
+    transform-origin: left center;
+    transition: transform var(--dur-slow) var(--ease-out);
+  }
+
+  .contribution-value {
+    font-size: var(--fs-caption);
+    font-weight: 650;
+    color: var(--text-1);
+  }
+}
+
+// ── Neighbour watering clash ─────────────────────────────────────────────────
+.clash-note {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-s);
+  background: var(--amber-soft);
+  color: var(--accent-amber);
+
+  .clash-icon {
+    font-weight: 800;
+    line-height: 1.4;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.6875rem;
+  }
+
+  .clash-title {
+    font-weight: 700;
+  }
+}
+
+.drag-hint {
+  margin: 0;
+  font-size: 0.6875rem;
+  color: var(--text-3);
+}
+
+.inspector-actions {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: auto;
+
+  .danger {
+    color: var(--danger);
+  }
+}
+
+// ── Idle: the garden overview ───────────────────────────────────────────────
+.inspector-idle {
+  display: grid;
+  gap: var(--sp-3);
+  align-content: start;
+
+  .inspector-hint {
+    margin: 0;
+    font-size: var(--fs-caption);
+    color: var(--text-3);
+  }
+}
+
+.zones-card {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-radius: var(--radius-s);
+  border: 1px solid var(--border);
+}
+
+.zones-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.zones-title {
+  margin: 0;
+  font-size: 0.6563rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+}
+
+.zones-bar {
+  display: flex;
+  gap: 2px;
+  height: 0.45rem;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  background: var(--surface-3);
+}
+
+.zones-seg {
+  flex-basis: 0;
+  background: var(--zone-balanced);
+
+  &[data-zone='dry'] {
+    background: var(--zone-dry);
+  }
+
+  &[data-zone='humid'] {
+    background: var(--zone-humid);
+  }
+}
+
+.zones-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.6875rem;
+  color: var(--text-2);
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .zones-count {
+    font-weight: 700;
+    color: var(--text-1);
+  }
+}
+
+.zones-clashes {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--accent-amber);
+
+  &.clear {
+    color: var(--text-3);
+    font-weight: 500;
+  }
+}
+
+.arrange-btn {
+  justify-self: start;
+}
+
+.arrange-note {
+  margin: 0;
+  font-size: 0.6875rem;
+  color: var(--accent-amber);
+}
+
+.inspector-ghost {
+  display: grid;
+  gap: var(--sp-3);
+
+  .ghost-head {
+    display: flex;
+    gap: var(--sp-3);
+    align-items: center;
+  }
+
+  .ghost-head-text {
+    flex: 1;
+    display: grid;
+    gap: var(--sp-2);
+  }
+}

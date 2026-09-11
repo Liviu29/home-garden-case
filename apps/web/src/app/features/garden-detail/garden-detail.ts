@@ -8,7 +8,7 @@ import {
   numberAttribute,
   signal,
 } from '@angular/core';
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe, NgTemplateOutlet, TitleCasePipe } from '@angular/common';
 import { Title } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -16,6 +16,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatMenuModule } from '@angular/material/menu';
 import { Garden, Plant } from '../../core/api/models';
 import { plantHumidityDelta } from '../../shared/utils/garden-insights';
+import { WateringZone, wateringZone } from '../../shared/utils/garden-planner';
 import { CapacityBar } from '../../shared/ui/capacity-bar/capacity-bar';
 import { CapacityStatusChip } from '../../shared/ui/capacity-status/capacity-status';
 import { ConfirmService } from '../../shared/ui/confirm-dialog/confirm-dialog';
@@ -33,6 +34,23 @@ import { GardenMap } from './garden-map/garden-map';
 import { GardenMapSkeleton } from './garden-map/garden-map-skeleton';
 import { PlantFormDialog } from './plant-form-dialog';
 
+type PlantSortKey = 'name' | 'planted' | 'area' | 'humidity';
+type SortDir = 'asc' | 'desc';
+
+interface PlantSort {
+  readonly key: PlantSortKey;
+  readonly dir: SortDir;
+}
+
+const SORT_VALUE: Readonly<Record<PlantSortKey, (p: Plant) => string | number>> = {
+  name: (p) => p.plantName.toLocaleLowerCase(),
+  planted: (p) => Date.parse(p.plantationDate) || 0,
+  area: (p) => p.surfaceAreaRequired,
+  humidity: (p) => p.idealHumidityLevel,
+};
+
+const DAY_MS = 86_400_000;
+
 /**
  * One garden in full: header with humidity gauge, the interactive Garden Map
  * (a deferred digital twin — ADR-007), and the plants table with per-plant
@@ -46,6 +64,8 @@ import { PlantFormDialog } from './plant-form-dialog';
     RouterLink,
     DatePipe,
     DecimalPipe,
+    NgTemplateOutlet,
+    TitleCasePipe,
     MatButtonModule,
     MatMenuModule,
     Skeleton,
@@ -70,7 +90,7 @@ export class GardenDetail {
   /** Shared map↔table selection — Garden Detail UI state, never global. */
   protected readonly selectedPlantId = signal<number | null>(null);
 
-  // ── Planner UI state (feature brief §15–20, §62): local to this screen.
+  // ── Planner UI state: local to this screen.
   // Positions are browser-local VISUAL preferences (GardenLayoutRepository);
   // history is a bounded stack; none of it ever touches business stores.
   private readonly layoutRepo = inject(GardenLayoutRepository);
@@ -113,11 +133,11 @@ export class GardenDetail {
         this.layoutFuture.set([]);
       } else {
         // Malformed deep link (/gardens/abc, /gardens/-1): designed not-found
-        // state, no request issued (REM-001).
+        // state, no request issued.
         this.store.markMissing();
       }
     });
-    // Route title refines from 'Garden · HomeGarden' to the actual name (REM-006).
+    // Route title refines from 'Garden · HomeGarden' to the actual name.
     effect(() => {
       const garden = this.store.garden();
       if (garden) {
@@ -149,7 +169,7 @@ export class GardenDetail {
       maxWidth: '96vw',
       data: { garden, plants: this.store.plants(), plant, store: this.store },
     });
-    // §30: a freshly planted bed becomes the selection, so the map centers
+    // A freshly planted bed becomes the selection, so the map centers
     // it and the inspector invites the user to drag it into place.
     ref.afterClosed().subscribe((saved) => {
       const createdId = this.store.lastCreatedPlantId();
@@ -173,6 +193,91 @@ export class GardenDetail {
 
   protected humidityDeltaOf(plant: Plant, garden: Garden): number {
     return plantHumidityDelta(garden, plant);
+  }
+
+  protected zoneOf(plant: Plant): WateringZone {
+    return wateringZone(plant.idealHumidityLevel);
+  }
+
+  // ── Plants table sorting: presentation only — the store order is untouched ─
+  protected readonly sortColumns: readonly {
+    readonly key: PlantSortKey;
+    readonly label: string;
+    readonly num: boolean;
+  }[] = [
+    { key: 'name', label: 'Plant', num: false },
+    { key: 'planted', label: 'Planted', num: false },
+    { key: 'area', label: 'Area', num: true },
+    { key: 'humidity', label: 'Humidity', num: true },
+  ];
+  protected readonly plantSort = signal<PlantSort | null>(null);
+
+  protected readonly sortedPlants = computed(() => {
+    const plants = this.store.plants();
+    const sort = this.plantSort();
+    if (!sort) {
+      return plants;
+    }
+    const value = SORT_VALUE[sort.key];
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    return [...plants].sort((a, b) => {
+      const va = value(a);
+      const vb = value(b);
+      return (va < vb ? -1 : va > vb ? 1 : a.plantId - b.plantId) * dir;
+    });
+  });
+
+  /** Each header cycles: its natural direction → reversed → the original order. */
+  protected sortBy(key: PlantSortKey): void {
+    const current = this.plantSort();
+    const natural: SortDir = key === 'name' ? 'asc' : 'desc';
+    if (current?.key !== key) {
+      this.plantSort.set({ key, dir: natural });
+    } else if (current.dir === natural) {
+      this.plantSort.set({ key, dir: natural === 'asc' ? 'desc' : 'asc' });
+    } else {
+      this.plantSort.set(null);
+    }
+  }
+
+  protected ariaSort(key: PlantSortKey): 'ascending' | 'descending' | null {
+    const sort = this.plantSort();
+    return sort?.key === key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : null;
+  }
+
+  /**
+   * "3 days ago" — how long a plant has been in the ground, in calendar days.
+   * A plantation date is stored as UTC midnight of the chosen day, so its day
+   * is read in UTC; "today" is the viewer's LOCAL calendar day. (Reading both
+   * in UTC labelled a plant set today "Tomorrow" east of Greenwich, from local
+   * midnight until the UTC offset had passed.)
+   */
+  protected plantedAgo(plant: Plant): string {
+    const planted = Date.parse(plant.plantationDate);
+    if (!Number.isFinite(planted)) {
+      return '';
+    }
+    const now = new Date();
+    const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / DAY_MS;
+    const days = today - Math.floor(planted / DAY_MS);
+    if (days < 0) {
+      return days === -1 ? 'Tomorrow' : `In ${-days} days`;
+    }
+    if (days === 0) {
+      return 'Today';
+    }
+    if (days === 1) {
+      return 'Yesterday';
+    }
+    if (days < 14) {
+      return `${days} days ago`;
+    }
+    if (days < 60) {
+      return `${Math.round(days / 7)} weeks ago`;
+    }
+    return days < 730
+      ? `${Math.round(days / 30)} months ago`
+      : `${Math.round(days / 365)} years ago`;
   }
 
   /** Table row → map selection (the map centers it; two-way via model). */
@@ -201,11 +306,32 @@ export class GardenDetail {
     );
   }
 
-  protected onPositionChange(move: { plantId: number; x: number; y: number }): void {
-    const past = [...this.layoutPast(), this.positions()].slice(-20); // bounded history
-    this.layoutPast.set(past);
+  /** Every layout change is one step on a bounded stack; a new step clears redo. */
+  private pushHistory(): void {
+    this.layoutPast.set([...this.layoutPast(), this.positions()].slice(-20));
     this.layoutFuture.set([]);
+  }
+
+  protected onPositionChange(move: { plantId: number; x: number; y: number }): void {
+    this.pushHistory();
     this.persistPositions({ ...this.positions(), [move.plantId]: { x: move.x, y: move.y } });
+  }
+
+  /** One bed back to its automatic spot — undoable like any move. */
+  protected onResetPosition(plantId: number): void {
+    if (!this.positions()[plantId]) {
+      return;
+    }
+    this.pushHistory();
+    const rest: Record<number, { x: number; y: number }> = { ...this.positions() };
+    delete rest[plantId];
+    this.persistPositions(rest);
+  }
+
+  /** "Group by water needs": a whole new arrangement, committed as ONE undoable step. */
+  protected onArrange(next: LayoutPositions): void {
+    this.pushHistory();
+    this.persistPositions({ ...next });
   }
 
   protected undoLayout(): void {
@@ -253,7 +379,7 @@ export class GardenDetail {
     document.body.style.overflow = next ? 'hidden' : '';
   }
 
-  /** Fullscreen search (§43): Enter focuses the first matching plant. */
+  /** Fullscreen search: Enter focuses the first matching plant. */
   protected focusSearchMatch(): void {
     const q = this.plannerQuery().trim().toLowerCase();
     if (!q) {

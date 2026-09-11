@@ -3,7 +3,7 @@ import { sessionGuard } from './core/auth/session-guard';
 import { Shell } from './core/layout/shell';
 
 /**
- * Feature = route = chunk (CODING-GUIDELINES §2): everything below the shell
+ * Feature = route = chunk: everything below the shell
  * is lazy-loaded; the guard keeps session-less visitors in onboarding.
  */
 export const routes: Routes = [

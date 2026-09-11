@@ -51,7 +51,7 @@ interface GardenInsight {
  * mini botanical preview (the visual bridge to the Garden Planner).
  * Reuses GardensStore + PlantsIndexStore — no duplicate fetching, all SWR.
  * Every number is derived from existing data via computed(); nothing here is
- * stored, persisted or invented (feature brief §42–44).
+ * stored, persisted or invented.
  */
 @Component({
   selector: 'app-dashboard',
@@ -82,7 +82,7 @@ export class Dashboard {
 
   constructor() {
     void this.gardens.load();
-    // Declare the source once — see PlantsIndexStore.ensureForGardens (F-02).
+    // Declare the source once — see PlantsIndexStore.ensureForGardens.
     this.plantsIndex.ensureForGardens(this.gardenIds, { injector: inject(Injector) });
   }
 
@@ -114,7 +114,9 @@ export class Dashboard {
         status,
         statusLabel:
           plants === undefined
-            ? '…'
+            ? this.plantsIndex.failed()[garden.gardenId]
+              ? 'Unavailable'
+              : '' // still loading: the template shows a badge-sized ghost
             : known.length === 0
               ? 'No plants yet'
               : attention.humidityDrift && !attention.nearCapacity
@@ -129,7 +131,7 @@ export class Dashboard {
         needsAttention,
         attentionKind: kind,
         // Reuse the semantic status vocabulary — a 100% garden says "Full",
-        // not "almost" (spotted in the final screenshot pass).
+        // not "almost".
         attentionReason: attention.nearCapacity
           ? CAPACITY_STATUS_LABEL[status]
           : 'Humidity drifting from target',
@@ -179,8 +181,26 @@ export class Dashboard {
     return total > 0 ? Math.round((this.usedArea() / total) * 100) : 0;
   });
 
-  /** True once every garden's plant list has arrived (KPIs are then exact). */
+  /**
+   * True once every garden's plant list has arrived — or definitively failed.
+   * A failed garden must settle too, or its ghosts would wait forever.
+   */
   protected readonly plantsSettled = computed(() =>
-    this.gardens.gardens().every((g) => this.plantsIndex.byGarden()[g.gardenId] !== undefined),
+    this.gardens
+      .gardens()
+      .every(
+        (g) =>
+          this.plantsIndex.byGarden()[g.gardenId] !== undefined ||
+          this.plantsIndex.failed()[g.gardenId] === true,
+      ),
   );
+
+  /** At least one garden's plants could not load (KPIs are then partial). */
+  protected readonly plantsFailed = computed(() =>
+    this.gardens.gardens().some((g) => this.plantsIndex.failed()[g.gardenId] === true),
+  );
+
+  protected plantsFailedFor(gardenId: number): boolean {
+    return this.plantsIndex.failed()[gardenId] === true;
+  }
 }

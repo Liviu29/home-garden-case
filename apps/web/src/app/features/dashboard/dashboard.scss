@@ -17,7 +17,7 @@
   color: var(--text-on-dark);
   box-shadow: var(--shadow-2);
 
-  // Subtle garden-grid motif over the gradient (§35) — barely-there texture
+  // Subtle garden-grid motif over the gradient — barely-there texture
   &::before {
     content: '';
     position: absolute;
@@ -65,6 +65,12 @@
 
 .hero-ghost {
   display: inline-block;
+}
+
+// A word inside the sentence: sits on the text's middle, not its baseline.
+.hero-count-ghost {
+  display: inline-block;
+  vertical-align: -0.05em;
 }
 
 .hero-status {
@@ -127,37 +133,30 @@
   }
 }
 
-// Hero micro-stagger (§4): three steps, 150ms apart, fade+4px rise only
+// Hero micro-stagger: the shared entrance, three steps on the stagger
+// token. (Reduced motion is handled globally — no local override needed.)
 .hero-step-1,
 .hero-step-2,
 .hero-step-3 {
-  animation: hero-enter 0.4s var(--ease-out) both;
+  animation: fade-up-in var(--dur-base) var(--ease-out) backwards;
 }
 
 .hero-step-2 {
-  animation-delay: 120ms;
+  animation-delay: calc(var(--stagger-step) * 2);
 }
 
 .hero-step-3 {
-  animation-delay: 240ms;
+  animation-delay: calc(var(--stagger-step) * 4);
 }
 
-@keyframes hero-enter {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
+// The subtitle holds its line boxes from the first frame — ghost or text —
+// so the dashboard below never jumps when the sentence lands (one line when
+// wide, two where it wraps).
+.hero-sub {
+  min-height: 1lh;
 
-@media (prefers-reduced-motion: reduce) {
-  .hero-step-1,
-  .hero-step-2,
-  .hero-step-3 {
-    animation: none;
+  @media (max-width: 40rem) {
+    min-height: 2lh;
   }
 }
 
@@ -202,7 +201,7 @@
   margin-bottom: var(--sp-3);
 }
 
-// ── Attention Center (§8): compact rich cards, semantic left accent ─────────
+// ── Attention Center: compact rich cards, semantic left accent ─────────
 .attention-list {
   display: grid;
   gap: var(--sp-3);
@@ -324,7 +323,7 @@
   transition: color var(--dur-fast) var(--ease-out);
 }
 
-// Humidity mini-scale (§40): target vs average on a 0–100 track
+// Humidity mini-scale: target vs average on a 0–100 track
 .humidity-scale {
   position: relative;
   display: block;
@@ -357,7 +356,7 @@
   }
 }
 
-// Positive empty state (§10)
+// Positive empty state
 .all-healthy {
   display: flex;
   align-items: center;
@@ -393,7 +392,7 @@
   color: var(--text-2);
 }
 
-// ── Garden Health cards (§11–14): the compact portfolio ─────────────────────
+// ── Garden Health cards: the compact portfolio ─────────────────────
 .health-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
@@ -431,10 +430,6 @@
 
 .mini-preview {
   transition: transform var(--dur-fast) var(--ease-out);
-
-  @media (prefers-reduced-motion: reduce) {
-    transition: none;
-  }
 }
 
 .health-top {
@@ -455,7 +450,7 @@
   white-space: nowrap;
 }
 
-// Status chip visuals live in the shared StatusBadge (§30) — only layout here
+// Status chip visuals live in the shared StatusBadge — only layout here
 .health-status {
   flex: none;
 }
@@ -509,19 +504,80 @@
   }
 }
 
-// ── Content-shaped skeleton layout (§22–26) — primitives do the shimmer ─────
+// ── Content-shaped skeleton layout — primitives do the shimmer ─────
+// Block, not a gapped grid: the stats grid brings its own bottom margin, and
+// a 24px gap on top of it dropped the whole overview 24px below its content.
 .dash-skeleton {
-  display: grid;
-  gap: var(--sp-6);
+  display: block;
 }
 
+// Shared ghost line boxes: a skeleton padded out to the text it stands in for
+.ghost-text {
+  padding-block: calc((var(--fs-caption) * 1.5 - 0.7rem) / 2);
+}
+
+.ghost-body {
+  padding-block: calc((var(--fs-body) * 1.5 - 0.8rem) / 2);
+}
+
+.ghost-section-title {
+  padding-block: calc((var(--fs-caption) * 1.5 - 0.75rem) / 2);
+  margin-bottom: var(--sp-3); // = .section-title
+}
+
+.ghost-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.ghost-top {
+  min-height: 1.625rem; // name + status badge row
+}
+
+.ghost-humidity {
+  min-height: 1.5rem; // target + delta chip row
+}
+
+.ghost-cta {
+  justify-self: end;
+}
+
+// Row-for-row the real stat card (stat-card.ts): same gap, padding, border,
+// and each ghost padded out to the line box it stands in for — so the
+// cards land without moving the grid (it jumped ~17px per card before).
 .kpi-ghost {
   display: grid;
-  gap: var(--sp-2);
+  gap: var(--sp-1);
+  align-content: start;
   padding: var(--sp-6);
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: var(--radius-l);
+
+  .ghost-icon {
+    margin-bottom: var(--sp-2);
+  }
+
+  .ghost-value {
+    padding-block: calc((var(--fs-display) * 1.1 - 2.2rem) / 2);
+  }
+
+  .ghost-context {
+    margin-top: var(--sp-1);
+  }
+
+  .ghost-strip {
+    margin-top: var(--sp-2);
+  }
+}
+
+// Shown instead of "Everything looks healthy" when some plants never loaded.
+.attention-note {
+  margin: 0;
+  color: var(--text-3);
+  font-size: var(--fs-caption);
 }
 
 .ghost-stack {
@@ -529,19 +585,31 @@
   gap: var(--sp-3);
 }
 
+// = .all-healthy: padding, border, radius, icon, a body line + a caption line
 .attention-ghost {
   display: flex;
+  align-items: center;
   gap: var(--sp-3);
-  padding: var(--sp-4);
+  padding: var(--sp-5);
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: var(--radius-m);
+  container-type: inline-size;
 }
 
 .ghost-lines {
   flex: 1;
   display: grid;
-  gap: var(--sp-2);
+}
+
+// The healthy caption (~323px) wraps to a second line once the text column
+// runs out — on phones and in the narrow two-column range alike.
+.ghost-wrap {
+  display: none;
+
+  @container (width < 23.25rem) {
+    display: block;
+  }
 }
 
 .ghost-cards {
@@ -550,11 +618,22 @@
   gap: var(--sp-4);
 }
 
+// = .health-card chrome; its preview keeps the mini preview's 100:36 strip
 .health-ghost {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-2);
   padding: var(--sp-4);
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: var(--radius-m);
+  box-shadow: var(--shadow-1);
+}
+
+.ghost-preview {
+  aspect-ratio: 100 / 36;
+
+  > app-skeleton {
+    height: 100%;
+  }
 }

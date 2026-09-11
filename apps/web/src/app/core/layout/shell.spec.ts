@@ -16,7 +16,6 @@ const CONFIG = {
   apiBaseUrl: '/api',
   retry: { maxAttempts: 1, baseDelayMs: 1, backoffFactor: 1, maxDelayMs: 1 },
   cache: { freshTtlMs: 30_000 },
-  skeleton: { appearDelayMs: 0, minDisplayMs: 0 },
   toastDurationMs: 5000,
 } as AppConfig;
 
@@ -89,6 +88,18 @@ describe('Shell', () => {
       const el = render().nativeElement as HTMLElement;
       expect(el.querySelector('.brand')?.getAttribute('aria-label')).toBe('ItpHomeGarden home');
     });
+
+    it('ends every page with the case brief’s garden — decorative and lazy', () => {
+      const el = render().nativeElement as HTMLElement;
+      const backdrop = el.querySelector('.page-backdrop')!;
+      expect(backdrop.getAttribute('aria-hidden')).toBe('true');
+      expect(backdrop.previousElementSibling?.tagName).toBe('MAIN'); // after the content
+      const img = backdrop.querySelector('img')!;
+      expect(img.getAttribute('src')).toContain('garden-backdrop-1600.webp');
+      expect(img.getAttribute('srcset')).toContain('garden-backdrop-800.webp 800w');
+      expect(img.getAttribute('loading')).toBe('lazy');
+      expect(img.getAttribute('alt')).toBe('');
+    });
   });
 
   describe('session revalidation on boot', () => {
@@ -159,6 +170,27 @@ describe('Shell', () => {
       release();
       await first;
       expect(usersApi.delete).toHaveBeenCalledTimes(1);
+    });
+
+    it('ghosts the profile chip while the delete is in flight — inert and announced', async () => {
+      const fixture = render();
+      await confirmWith(true);
+      let release = (): void => undefined;
+      usersApi.delete.mockImplementation(() => new Promise<void>((r) => (release = () => r())));
+
+      const pending = api(fixture).deleteProfile();
+      await vi.waitFor(() => expect(api(fixture).deleting()).toBe(true));
+      fixture.detectChanges();
+
+      const el: HTMLElement = fixture.nativeElement;
+      const chip = el.querySelector('button.profile');
+      expect(chip?.classList).toContain('mutation-ghost');
+      expect(chip?.getAttribute('aria-busy')).toBe('true');
+      expect(chip?.hasAttribute('inert')).toBe(true);
+      expect(el.textContent).toContain('Deleting profile…');
+
+      release();
+      await pending;
     });
 
     it('aborts when the confirmation is declined', async () => {

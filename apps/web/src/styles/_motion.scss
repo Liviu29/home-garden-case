@@ -1,6 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Motion presets (docs/DESIGN-SYSTEM.md §5)
-// transform/opacity only; everything collapses under prefers-reduced-motion.
+// transform/opacity only, token timing only; loading loops live in
+// _skeleton.scss. Everything collapses under prefers-reduced-motion.
 // ─────────────────────────────────────────────────────────────────────────────
 
 @keyframes fade-up-in {
@@ -8,9 +9,10 @@
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
@@ -18,72 +20,37 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
 }
 
-@keyframes shimmer-sweep {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(100%);
-  }
-}
-
-@keyframes skeleton-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.55;
-  }
-}
-
-@keyframes bar-grow {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
-}
-
-@keyframes dialog-pop {
-  from {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-// Utility classes
+// Entrance utilities. Fill mode is `backwards`, not `both`: `both` kept the
+// final `transform` applied after the entrance, and an animated value beats a
+// normal declaration — so every `.lift-hover` card that entered with a
+// stagger silently lost its hover lift.
 .anim-fade-up {
-  animation: fade-up-in var(--dur-base) var(--ease-out) both;
+  animation: fade-up-in var(--dur-base) var(--ease-out) backwards;
 }
 
 .anim-fade-in {
-  animation: fade-in var(--dur-base) var(--ease-out) both;
+  animation: fade-in var(--dur-base) var(--ease-out) backwards;
 }
 
-// Staggered children — cap at 8 per DESIGN-SYSTEM §5
+// Staggered children — capped at 8 steps per DESIGN-SYSTEM §5
 .stagger-children > * {
-  animation: fade-up-in var(--dur-base) var(--ease-out) both;
+  animation: fade-up-in var(--dur-base) var(--ease-out) backwards;
 }
 
-@for $i from 1 through 8 {
+@for $i from 2 through 8 {
   .stagger-children > *:nth-child(#{$i}) {
-    animation-delay: #{($i - 1) * 40}ms;
+    animation-delay: calc(var(--stagger-step) * #{$i - 1});
   }
 }
 
 .stagger-children > *:nth-child(n + 9) {
-  animation-delay: 320ms;
+  animation-delay: calc(var(--stagger-step) * 8);
 }
 
 // Interactive card lift
@@ -101,21 +68,21 @@
 // Button press feedback
 .press-feedback:active {
   transform: scale(0.98);
-  transition: transform 90ms var(--ease-out);
+  transition: transform var(--dur-instant) var(--ease-out);
 }
 
 @media (prefers-reduced-motion: reduce) {
+  // State changes land instantly and exactly once: nothing travels, nothing
+  // waits, nothing loops (an unbounded loop at 1ms would strobe). The skeleton
+  // engine re-enables its slow pulse and appear delay explicitly.
   *,
   *::before,
   *::after {
     animation-duration: 1ms !important;
     animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
-  }
-
-  .skeleton-shimmer::after,
-  .mutation-ghost::before,
-  .btn-ghost::after {
-    animation: skeleton-pulse 2.5s ease-in-out infinite !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -75,6 +75,25 @@ describe('GardensStore (behaviour, not implementation)', () => {
     expect(store.hasFailed()).toBe(true);
   });
 
+  it('load: a failed refresh keeps the stale list on screen and says so quietly', async () => {
+    vi.useFakeTimers();
+    try {
+      TestBed.inject(QueryCache).set(cacheKeys.gardens, [garden(1)]);
+      vi.advanceTimersByTime(31_000); // past the 30 s freshness window: stale, not gone
+      api.getAll.mockRejectedValue(new ApiError('technical', 'boom', 500));
+
+      await store.load();
+
+      expect(store.gardens()).toEqual([garden(1)]);
+      expect(store.hasFailed()).toBe(false);
+      expect(
+        toasts.toasts().some((t) => t.tone === 'info' && t.message.includes('cached gardens')),
+      ).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('create: functional verdict is returned to the form, not toasted as error', async () => {
     const verdict = new ApiError('functional', 'Garden name is required', 400);
     api.create.mockRejectedValue(verdict);
@@ -90,7 +109,7 @@ describe('GardensStore (behaviour, not implementation)', () => {
   });
 
   it('create: never renders a duplicate when a slow revalidation already delivered the new garden', async () => {
-    // Runtime-reproduced race (STAB pass): a list fetch that hit the server
+    // The race: a list fetch that hit the server
     // AFTER the insert resolves while create() is still awaiting the POST —
     // the store then already contains the created garden.
     api.getAll.mockResolvedValue([garden(1)]);
@@ -113,6 +132,13 @@ describe('GardensStore (behaviour, not implementation)', () => {
     resolveCreate(garden(2, 'New'));
     await creating;
     expect(store.gardens().map((g) => g.gardenId)).toEqual([1, 2]); // no duplicate card
+    expect(store.lastCreatedId()).toBe(2); // the list points this one out
+    // …and its plants are known to be none: fresh, no GET to wait on
+    const seeded = TestBed.inject(QueryCache).swr(cacheKeys.plantsOfGarden(2), () =>
+      Promise.reject(new Error('must not fetch')),
+    );
+    expect(seeded.cached).toEqual([]);
+    expect(seeded.revalidate).toBeFalsy();
   });
 
   it('remove: ghost-confirmed — the garden stays as a ghost until the server answers', async () => {
@@ -159,8 +185,8 @@ describe('GardensStore (behaviour, not implementation)', () => {
   });
 });
 
-describe('GardensStore — remediation behaviours', () => {
-  it('re-entrant remove for the same garden issues exactly one DELETE (REM-009)', async () => {
+describe('GardensStore — concurrency and edge cases', () => {
+  it('re-entrant remove for the same garden issues exactly one DELETE', async () => {
     const api = {
       getAll: vi.fn().mockResolvedValue([garden(1), garden(2)]),
       getById: vi.fn(),
@@ -180,7 +206,7 @@ describe('GardensStore — remediation behaviours', () => {
     expect(store.pendingDeletes()).toEqual([1]);
   });
 
-  it('search persistence is debounced — 10 keystrokes, one storage write (REM-015)', () => {
+  it('search persistence is debounced — 10 keystrokes, one storage write', () => {
     vi.useFakeTimers();
     TestBed.configureTestingModule({
       providers: [{ provide: GardensApi, useValue: { getAll: vi.fn() } }],

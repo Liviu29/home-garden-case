@@ -47,6 +47,8 @@ export class Onboarding {
   protected readonly status = signal<Status>('loading');
   protected readonly creating = signal(false);
   protected readonly showCreate = signal(false);
+  /** The backdrop photo has decoded — it fades in then, instead of popping. */
+  protected readonly photoReady = signal(false);
   protected readonly serverError = signal<string | null>(null);
   /**
    * Set when POST /users answers 409 (verified: "User with email x already

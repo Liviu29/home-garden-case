@@ -75,7 +75,7 @@ describe('GardenDetailStore (derived capacity state + mutation behaviour)', () =
     await vi.waitFor(() => expect(store.garden()).not.toBeNull());
   });
 
-  // ── Slow-API race conditions (BACKEND-API-AUDIT: every response is delayed
+  // ── Slow-API race conditions (the API delays every response
   // 200–2000 ms, so overlapping loads are the norm, not an edge case).
   it('discards a slow response for a garden the user has already left', async () => {
     const other: Garden = { ...garden, gardenId: 4, gardenName: 'Newer Garden' };
@@ -200,7 +200,7 @@ describe('GardenDetailStore (derived capacity state + mutation behaviour)', () =
   });
 });
 
-describe('GardenDetailStore — remediation behaviours', () => {
+describe('GardenDetailStore — concurrency and edge cases', () => {
   let plantsApi: {
     getByGarden: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
@@ -226,13 +226,13 @@ describe('GardenDetailStore — remediation behaviours', () => {
     store = TestBed.inject(GardenDetailStore);
   });
 
-  it('markMissing renders the not-found state without issuing any request (REM-001)', () => {
+  it('markMissing renders the not-found state without issuing any request', () => {
     store.markMissing();
     expect(store.gardenMissing()).toBe(true);
     expect(plantsApi.getByGarden).not.toHaveBeenCalled();
   });
 
-  it('plants are a view into the single owner — PlantsIndexStore (REM-005)', async () => {
+  it('plants are a view into the single owner — PlantsIndexStore', async () => {
     store.load(3);
     await vi.waitFor(() => expect(store.plants()).toHaveLength(2));
 
@@ -240,7 +240,7 @@ describe('GardenDetailStore — remediation behaviours', () => {
     expect(store.plants()).toBe(index.byGarden()[3]); // same reference, one owner
   });
 
-  it('re-entrant removePlant for the same plant issues exactly one DELETE (REM-009)', async () => {
+  it('re-entrant removePlant for the same plant issues exactly one DELETE', async () => {
     store.load(3);
     await vi.waitFor(() => expect(store.plants()).toHaveLength(2));
     plantsApi.delete.mockReturnValue(new Promise(() => undefined)); // never resolves
@@ -363,6 +363,25 @@ describe('GardenDetailStore — plant create/update paths', () => {
       expect(store.saving()).toBe(false);
     });
 
+    it('a first plant in flight is not an empty garden — its creation ghost must render', async () => {
+      plantsApi['getByGarden'].mockResolvedValue([]);
+      await loaded();
+      expect(store.plantsEmpty()).toBe(true);
+      let release = (): void => undefined;
+      plantsApi['create'].mockImplementation(
+        () => new Promise((r) => (release = () => r(mkPlant(2)))),
+      );
+
+      const pending = store.createPlant(INPUT);
+      await vi.waitFor(() => expect(store.pendingCreateArea()).toBe(3));
+      // Regression: "Nothing planted yet" used to stay up here, hiding the ghost row.
+      expect(store.plantsEmpty()).toBe(false);
+
+      release();
+      await pending;
+      expect(store.plantsEmpty()).toBe(false); // it now has its first plant
+    });
+
     it('returns a technical failure AND toasts it', async () => {
       await loaded();
       plantsApi['create'].mockRejectedValue(new ApiError('technical', 'Server exploded', 500));
@@ -417,6 +436,10 @@ describe('GardenDetailStore — plant create/update paths', () => {
       plantsApi['getByGarden'].mockRejectedValue(new ApiError('technical', 'boom', 500));
       store.load(1);
       await vi.waitFor(() => expect(store.plantsStatus()).toBe('error'));
+      // Exposed as a retryable failure — never an empty garden, never "loading".
+      expect(store.plantsFailed()).toBe(true);
+      expect(store.plantsEmpty()).toBe(false);
+      expect(store.arePlantsLoading()).toBe(false);
     });
 
     it('keeps cached plants when only the refresh fails', async () => {

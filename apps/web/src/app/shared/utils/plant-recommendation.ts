@@ -3,7 +3,7 @@ import { PlantPreset } from '../config/plant-catalog';
 import { remainingCapacity } from './garden-insights';
 
 /**
- * Deterministic, transparent recommendation scoring (feature brief §7–8).
+ * Deterministic, transparent recommendation scoring.
  * No machine learning, no fake percentages — three explainable ingredients:
  *
  *   1. humidity match  — how close the preset's ideal humidity sits to the

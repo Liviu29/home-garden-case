@@ -21,7 +21,7 @@ interface GardenFormData {
 /**
  * Create/edit garden dialog. Validation mirrors the backend contract exactly
  * (garden.schema.ts): name required, area ≥ 0, humidity 0–100, lat/lng
- * together-or-neither. Server verdicts render inline (CODING-GUIDELINES §6).
+ * together-or-neither. Server verdicts render inline.
  */
 @Component({
   selector: 'app-garden-form-dialog',
@@ -52,7 +52,7 @@ export class GardenFormDialog {
 
   constructor() {
     // Shrink-warning needs this garden's plants; loads through the SWR cache,
-    // so a warm cache costs nothing (REM-002).
+    // so a warm cache costs nothing.
     const existing = this.data.garden;
     if (existing) {
       this.plantsIndex.ensureForGardens([existing.gardenId]);
@@ -124,7 +124,7 @@ export class GardenFormDialog {
   });
 
   /**
-   * REM-002: warn (never block — the server permits it) when the edited total
+   * Warn (never block — the server permits it) when the edited total
    * would drop below what plants already occupy.
    */
   protected readonly shrinksBelowUsed = computed(() => {

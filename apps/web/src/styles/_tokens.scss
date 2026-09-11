@@ -72,6 +72,7 @@
   --sp-2: 0.5rem;
   --sp-3: 0.75rem;
   --sp-4: 1rem;
+  --sp-5: 1.25rem; // was referenced (healthy block, welcome panel) but never defined → 0
   --sp-6: 1.5rem;
   --sp-8: 2rem;
   --sp-12: 3rem;
@@ -88,11 +89,21 @@
   --fs-h1: 2rem; // 32
   --fs-display: 2.75rem; // 44
 
-  // Motion
-  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  // Motion — one timing system (DESIGN-SYSTEM §5). Durations are semantic:
+  // instant = press, fast = hover/state change, base = enter/reveal,
+  // slow = data bars and gauges settling. Loops exist only for loading.
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1); // everything entering or settling
+  --ease-in-out: cubic-bezier(0.45, 0, 0.55, 1); // loading loops only
+  --dur-instant: 90ms;
   --dur-fast: 160ms;
   --dur-base: 240ms;
   --dur-slow: 500ms;
+  --stagger-step: 40ms;
+  --dur-shimmer: 1.4s;
+  --dur-pulse: 2.5s;
+  // A cold-load skeleton stays invisible this long: responses that beat it
+  // never flash a ghost (ASYNC-UX.md, "Timing").
+  --skeleton-delay: 150ms;
 
   // Focus
   --focus-ring: 0 0 0 2px var(--surface-0), 0 0 0 4px var(--brand-500);
@@ -116,6 +127,19 @@
   --map-selected: var(--brand-500);
   --map-humidity: #0ea5e9;
   --map-hud-glass: rgb(255 255 255 / 0.85);
+  --map-wood: #c9a074; // raised-bed timber frame
+  --map-wood-border: #a27a4e;
+  --map-soil: #8a6a4b; // dark, crumbly bed soil — the plants read against it
+  --map-soil-speck: rgb(40 28 18 / 0.35);
+  --map-soil-grit: rgb(255 244 225 / 0.28);
+  --map-grass: rgb(64 110 52 / 0.28); // blades on the lawn beyond the fence
+  --map-guide: #db2777; // smart guides: a colour the scene uses nowhere else
+  --map-dimension: #475569;
+
+  // Watering zones (planner) — a plant's configured preference, not a sensor
+  --zone-dry: #d6a041;
+  --zone-balanced: #5aa86c;
+  --zone-humid: #3d8ed9;
 
   // Skeleton system — NEUTRAL GRAY, never theme-tinted (ASYNC-UX.md)
   --skeleton-base: #e4e7e7;
@@ -190,6 +214,18 @@
   --map-free-text: #8a7f63; // labels/markers on tilled free soil (moonlit)
   --map-humidity: #38bdf8;
   --map-hud-glass: rgb(28 25 23 / 0.85);
+  --map-wood: #5a4431;
+  --map-wood-border: #3f2f21;
+  --map-soil: #33261a;
+  --map-soil-speck: rgb(0 0 0 / 0.35);
+  --map-soil-grit: rgb(255 240 215 / 0.12);
+  --map-grass: rgb(150 200 130 / 0.14);
+  --map-guide: #f472b6;
+  --map-dimension: #cbd5e1;
+
+  --zone-dry: #e0b35c;
+  --zone-balanced: #6cc083;
+  --zone-humid: #5aaaf0;
 
   --skeleton-base: #2b2e2e;
   --skeleton-highlight: #3b3f3f;

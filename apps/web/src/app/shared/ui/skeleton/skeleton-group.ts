@@ -1,72 +1,51 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  effect,
-  inject,
-  input,
-  signal,
-} from '@angular/core';
-import { APP_CONFIG } from '../../../core/config/app-config';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
 /**
- * Skeleton timing wrapper (DESIGN-SYSTEM §4):
- * - appears only after a short delay → no flash on instant cache hits
- * - once visible, stays a minimum time → no blink when data lands quickly
+ * Cold-load wrapper (ASYNC-UX.md, DESIGN-SYSTEM §4). While `loading`, it
+ * renders the projected `[ghost]` layout in place of the content:
+ *
+ * - The ghost is in the layout from the first frame but only becomes visible
+ *   after `--skeleton-delay` (`.skeleton-appear`, pure CSS). A fast response
+ *   never flashes a skeleton, a slow one fades it in, and nothing shifts when
+ *   it appears — the space was already reserved.
+ * - Real content is never held back to "show off" the skeleton: when data
+ *   lands, it renders. (The old timer pair kept a ghost up for a 300ms
+ *   minimum and rendered the real — still empty — branch during the delay,
+ *   which flashed "Everything looks healthy" before the dashboard loaded.)
+ * - The host is `aria-busy`; a persistent polite live region announces the
+ *   load (live regions inserted together with their text are often missed);
+ *   the ghost itself is hidden from assistive tech.
  *
  * Usage:
  * ```html
- * <app-skeleton-group [loading]="store.isLoading()">
- *   <ng-content-projected-skeletons slot="ghost" />
- *   real content
+ * <app-skeleton-group [loading]="store.isLoading()" label="Loading gardens">
+ *   <div ghost>…content-shaped skeletons…</div>
+ *   …real content…
  * </app-skeleton-group>
  * ```
  */
 @Component({
   selector: 'app-skeleton-group',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[attr.aria-busy]': 'loading() || null' },
   template: `
-    @if (showGhost()) {
-      <div class="ghost-slot" role="status" aria-live="polite">
-        <span class="visually-hidden">Loading…</span>
+    <span class="visually-hidden" role="status">{{ loading() ? label() : '' }}</span>
+    @if (loading()) {
+      <div class="ghost-slot skeleton-appear" aria-hidden="true">
         <ng-content select="[ghost]" />
       </div>
     } @else {
       <ng-content />
     }
   `,
+  styles: `
+    :host {
+      display: block;
+    }
+  `,
 })
 export class SkeletonGroup {
-  private readonly config = inject(APP_CONFIG);
-
   readonly loading = input.required<boolean>();
-
-  private readonly delayedVisible = signal(false);
-  private shownAt = 0;
-
-  protected readonly showGhost = computed(() => this.delayedVisible());
-
-  constructor() {
-    let appearTimer: ReturnType<typeof setTimeout> | undefined;
-    let minTimer: ReturnType<typeof setTimeout> | undefined;
-
-    effect(() => {
-      const isLoading = this.loading();
-      clearTimeout(appearTimer);
-      clearTimeout(minTimer);
-
-      if (isLoading) {
-        appearTimer = setTimeout(() => {
-          this.shownAt = Date.now();
-          this.delayedVisible.set(true);
-        }, this.config.skeleton.appearDelayMs);
-      } else if (this.delayedVisible()) {
-        const shownFor = Date.now() - this.shownAt;
-        const remaining = Math.max(0, this.config.skeleton.minDisplayMs - shownFor);
-        minTimer = setTimeout(() => this.delayedVisible.set(false), remaining);
-      } else {
-        this.delayedVisible.set(false);
-      }
-    });
-  }
+  /** What is loading — the screen-reader announcement. */
+  readonly label = input('Loading…');
 }

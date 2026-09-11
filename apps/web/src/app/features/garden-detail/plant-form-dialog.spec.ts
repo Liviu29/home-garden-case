@@ -54,7 +54,7 @@ async function mount(data: Omit<PlantFormData, 'store'> & { store: ReturnType<ty
   return fixture;
 }
 
-describe('PlantFormDialog (capacity behaviour, the reviewer-facing rule)', () => {
+describe('PlantFormDialog (capacity behaviour — the core business rule)', () => {
   it('shows the live garden-fit breakdown: available / this plant / remaining', async () => {
     const store = storeStub();
     const fixture = await mount({ garden, plants: [existingPlant], plant: null, store });
@@ -272,6 +272,20 @@ describe('PlantFormDialog — catalog search, presets and submit paths', () => {
       fixture.detectChanges();
 
       expect(vm.remainingAfterSave()).toBe(garden.totalSurfaceArea - 5);
+    });
+
+    it('states the free area to two decimals — never raw float noise', async () => {
+      // 0.1 + 0.2 = 0.30000000000000004: a summed area is never exact in binary
+      // floats, and the hint once read "5.800000000000001 m² available".
+      const { fixture } = await mountWith({
+        plant: null,
+        plants: [
+          { ...existingPlant, plantId: 1, surfaceAreaRequired: 0.1 },
+          { ...existingPlant, plantId: 2, surfaceAreaRequired: 0.2 },
+        ],
+      });
+      const hint = (fixture.nativeElement as HTMLElement).querySelector('mat-hint');
+      expect(hint?.textContent?.trim()).toBe('9.7 m² available in this garden');
     });
   });
 

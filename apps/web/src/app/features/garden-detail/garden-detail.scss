@@ -21,16 +21,103 @@
   }
 }
 
-.header-ghost {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--sp-8);
-  margin-block: var(--sp-6);
+// ── Cold-load ghosts ─────────────────────────────────────────────────────────
+// The ghost markup reuses the real .detail-header / .panel-head classes, so
+// chrome, margins and the responsive layout are the real ones. These rules
+// only pad each skeleton out to the line box of the text it stands in for.
+.header-ghost .location {
+  height: calc(var(--fs-caption) * 1.5);
+}
 
-  &-text {
-    flex: 1;
-    display: grid;
-    gap: var(--sp-3);
+// the h1's line box: on phones the name takes a row of its own
+.ghost-title {
+  padding-block: calc((var(--fs-h2) * 1.5 - 1.6rem) / 2);
+}
+
+.ghost-stat-value {
+  padding-block: calc((var(--fs-h2) * 1.5 - 1.5rem) / 2);
+}
+
+.ghost-caption {
+  display: flex;
+  align-items: center;
+  min-height: calc(var(--fs-caption) * 1.5);
+}
+
+.ghost-head-text {
+  display: grid;
+  gap: 0.125rem;
+}
+
+// The plan's subtitle is one line wide, two where it wraps on phones
+.ghost-sub {
+  display: flex;
+  align-items: center;
+  min-height: calc(var(--fs-caption) * 1.5);
+
+  @media (max-width: 560px) {
+    min-height: calc(var(--fs-caption) * 3);
+  }
+}
+
+.ghost-hint {
+  @media (max-width: 640px) {
+    display: none; // as .panel-hint
+  }
+}
+
+// Table ghost: the real table's columns, cell padding and row heights
+.table-ghost-head,
+.table-ghost-row {
+  display: grid;
+  grid-template-columns: minmax(0, 4.5fr) minmax(0, 3fr) minmax(0, 1.5fr) minmax(0, 1.5fr) 3rem;
+  align-items: center;
+  padding-inline: var(--sp-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.table-ghost-head {
+  min-height: calc(var(--fs-caption) * 1.5 + 2 * var(--sp-2));
+}
+
+.table-ghost-row {
+  min-height: 4.5rem;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.ghost-plant {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.ghost-name {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.ghost-end {
+  justify-self: end;
+}
+
+@media (max-width: 480px) {
+  // phones: the real table scrolls sideways and its rows wrap taller
+  .table-ghost-head,
+  .table-ghost-row {
+    grid-template-columns: minmax(0, 1fr) 3rem;
+  }
+
+  .table-ghost-row {
+    min-height: 5.75rem;
+  }
+
+  .ghost-mid {
+    display: none;
   }
 }
 
@@ -221,8 +308,7 @@
 }
 
 .table-ghost {
-  display: grid;
-  gap: var(--sp-2);
+  display: block;
 }
 
 .table-wrap {
@@ -298,7 +384,69 @@
   font-size: var(--fs-caption);
 }
 
+// Sortable headers: the whole label is the button; the arrow names the order
+.sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-s);
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+
+  .sort-icon {
+    font-size: 0.75em;
+    opacity: 0.45;
+  }
+
+  &:hover,
+  &.active {
+    color: var(--text-1);
+
+    .sort-icon {
+      opacity: 1;
+    }
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+}
+
+.planted-cell {
+  display: grid;
+  gap: 0.05rem;
+}
+
+.planted-ago {
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+
+.zone-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.25rem;
+  border-radius: 50%;
+  background: var(--zone-balanced);
+  vertical-align: 0.05em;
+
+  &[data-zone='dry'] {
+    background: var(--zone-dry);
+  }
+
+  &[data-zone='humid'] {
+    background: var(--zone-humid);
+  }
+}
+
 .humidity-cell {
+  white-space: nowrap;
   border-radius: var(--radius-pill);
   padding: 0.125rem var(--sp-2);
 
@@ -313,7 +461,7 @@
   }
 }
 
-// ── Fullscreen planner (feature brief §20/§59) ───────────────────────────────
+// ── Fullscreen planner ───────────────────────────────
 .map-panel.planner-fullscreen {
   position: fixed;
   inset: 0;

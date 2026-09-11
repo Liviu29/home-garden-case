@@ -1,10 +1,10 @@
 import { Injectable, isDevMode } from '@angular/core';
 
 /**
- * Logging seam (CODING-GUIDELINES: log context, never payloads).
+ * Logging seam: log context, never payloads.
  *
  * Console-backed today; this is the single place a real sink (Sentry,
- * OpenTelemetry) plugs in without touching call sites — see ERROR-HANDLING.md.
+ * OpenTelemetry) plugs in without touching call sites — see ARCHITECTURE.md §4.4.
  * Production policy is deliberate: expected unhappy paths stay quiet so the
  * browser console is not noise, while genuine technical failures are always
  * reported. Messages carry a context tag and a human sentence only — never a

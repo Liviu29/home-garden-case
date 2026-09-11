@@ -81,12 +81,13 @@ import { ToastStore } from '../../core/errors/toast-store';
         [disabled]="saving()"
         [attr.aria-busy]="saving() ? true : null"
       >
-        @if (saving()) {
-          <span class="btn-ghost" aria-hidden="true"></span>
-          <span class="visually-hidden">Saving profile</span>
-        } @else {
-          Save changes
-        }
+        <span class="btn-stack" [class.is-pending]="saving()">
+          <span class="btn-label">Save changes</span>
+          @if (saving()) {
+            <span class="btn-ghost" aria-hidden="true"></span>
+            <span class="visually-hidden">Saving profile</span>
+          }
+        </span>
       </button>
     </mat-dialog-actions>
   `,

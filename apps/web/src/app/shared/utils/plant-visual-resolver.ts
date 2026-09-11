@@ -103,6 +103,23 @@ const KEYWORDS: ReadonlyArray<readonly [PlantVisualCategory, readonly string[]]>
       'bloom',
     ],
   ],
+  // After fruit and flower, so "blueberry bush" and "rose bush" keep theirs.
+  [
+    'shrub',
+    [
+      'boxwood',
+      'buxus',
+      'hedge',
+      'hydrangea',
+      'azalea',
+      'rhododendron',
+      'juniper',
+      'holly',
+      'privet',
+      'shrub',
+      'bush',
+    ],
+  ],
   [
     'tree',
     [

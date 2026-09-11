@@ -29,7 +29,6 @@ const TEST_CONFIG: AppConfig = {
   apiBaseUrl: '/api',
   retry: { maxAttempts: 3, baseDelayMs: 1, backoffFactor: 1, maxDelayMs: 1 },
   cache: { freshTtlMs: 30_000 },
-  skeleton: { appearDelayMs: 0, minDisplayMs: 0 },
   toastDurationMs: 5000,
 };
 
@@ -78,6 +77,42 @@ describe('GardenList (screen states a user notices)', () => {
     expect(text).toContain('Backyard');
     expect(text).toContain('Patio');
     expect((fixture.nativeElement as HTMLElement).querySelectorAll('article.card')).toHaveLength(2);
+  });
+
+  it('holds a card’s capacity rows with ghosts while its plants load', async () => {
+    TestBed.overrideProvider(PlantsApi, {
+      useValue: { getByGarden: vi.fn().mockReturnValue(new Promise(() => undefined)) },
+    });
+    gardensApi.getAll.mockResolvedValue([garden(1, 'Backyard')]);
+    const fixture = await mount();
+
+    const card = (fixture.nativeElement as HTMLElement).querySelector('article.card')!;
+    const ghost = card.querySelector('.plants-ghost')!;
+    expect(ghost.getAttribute('aria-hidden')).toBe('true');
+    // Row for row app-capacity-bar: the caption's two halves, then the track
+    expect(ghost.querySelectorAll('app-skeleton')).toHaveLength(3);
+    // …then the status chip beside the total that is already known
+    expect(card.querySelector('.meta app-skeleton')).not.toBeNull();
+    expect(card.querySelector('.meta')?.textContent).toContain('20 m² total');
+  });
+
+  it('points out a garden created from this screen — and only that one', async () => {
+    gardensApi.getAll.mockResolvedValue([garden(1, 'Backyard')]);
+    Object.assign(gardensApi, { create: vi.fn().mockResolvedValue(garden(2, 'Herb Spiral')) });
+    const fixture = await mount();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('article.card.is-new')).toBeNull();
+
+    await TestBed.inject(GardensStore).create({
+      gardenName: 'Herb Spiral',
+      totalSurfaceArea: 20,
+      targetHumidityLevel: 50,
+    });
+    fixture.detectChanges();
+
+    const fresh = el.querySelectorAll('article.card.is-new');
+    expect(fresh).toHaveLength(1);
+    expect(fresh[0].getAttribute('data-garden-id')).toBe('2');
   });
 
   it('renders the designed empty state with a create CTA when there are no gardens', async () => {

@@ -1,0 +1,211 @@
+<aside
+  class="map-inspector"
+  aria-label="Plant inspector"
+  [attr.aria-busy]="plant() && mutating() ? true : null"
+>
+  @if (plant(); as plant) {
+    @if (mutating()) {
+      <div class="inspector-ghost" aria-hidden="true">
+        <div class="ghost-head">
+          <app-skeleton variant="circle" w="3rem" h="3rem" />
+          <div class="ghost-head-text">
+            <app-skeleton variant="title" w="70%" h="1.1rem" />
+            <app-skeleton variant="line" w="50%" />
+          </div>
+        </div>
+        <app-skeleton variant="line" w="100%" />
+        <app-skeleton variant="line" w="88%" />
+        <app-skeleton variant="line" w="92%" />
+      </div>
+      <span class="visually-hidden">
+        {{ deleting() ? 'Removing' : 'Saving changes to' }} {{ plant.plantName }}
+      </span>
+    } @else {
+      <header class="inspector-head">
+        <app-plant-thumb class="inspector-thumb" [plant]="plant" />
+        <div class="inspector-title">
+          <h3>{{ plant.plantName }}</h3>
+          <p class="species">{{ plant.species }}</p>
+        </div>
+        <button
+          class="tool-btn press-feedback"
+          type="button"
+          aria-label="Clear selection"
+          (click)="clear.emit()"
+        >
+          ✕
+        </button>
+      </header>
+
+      <div class="inspector-chips">
+        @if (zone(); as z) {
+          <span class="zone-chip" [attr.data-zone]="z.zone">
+            <span class="zone-dot" aria-hidden="true"></span>
+            {{ z.label }} zone
+          </span>
+        }
+        <span class="place-chip">{{ customPosition() ? 'Placed by you' : 'Auto-placed' }}</span>
+        @if (customPosition()) {
+          <button
+            class="chip-action press-feedback"
+            type="button"
+            (click)="returnHome.emit(plant.plantId)"
+          >
+            Return to auto spot
+          </button>
+        }
+      </div>
+
+      <dl class="inspector-facts">
+        <div class="fact">
+          <dt>Required surface</dt>
+          <dd class="tabular">
+            {{ plant.surfaceAreaRequired }} m²
+            <span class="fact-sub">{{ share() | number: '1.0-0' }}% of garden</span>
+          </dd>
+        </div>
+        <div class="fact">
+          <dt>Ideal humidity</dt>
+          <dd class="tabular">
+            {{ plant.idealHumidityLevel }}%
+            <span
+              class="fact-sub"
+              [class.above]="humidityDelta() > 5"
+              [class.below]="humidityDelta() < -5"
+            >
+              {{ humidityDelta() > 0 ? '+' : '' }}{{ humidityDelta() }} vs
+              {{ garden().targetHumidityLevel }}% target
+            </span>
+          </dd>
+        </div>
+        <div class="fact">
+          <dt>Planted</dt>
+          <dd>{{ plant.plantationDate | date: 'MMM d, y' : 'UTC' }}</dd>
+        </div>
+        <div class="fact">
+          <dt>Type</dt>
+          <dd class="type-name">{{ plant.plantType }}</dd>
+        </div>
+      </dl>
+
+      <div class="contribution">
+        <span class="contribution-label">Capacity contribution</span>
+        <span class="contribution-bar" aria-hidden="true">
+          <span class="contribution-fill" [style.transform]="'scaleX(' + shareRatio() + ')'"></span>
+        </span>
+        <span class="contribution-value tabular">{{ share() | number: '1.0-0' }}%</span>
+      </div>
+
+      @if (neighbours().length > 0) {
+        <div class="clash-note" role="note">
+          <span class="clash-icon" aria-hidden="true">≠</span>
+          <div class="clash-text">
+            <p class="clash-title">Watering clash</p>
+            @for (n of neighbours(); track n.plantId) {
+              <p class="clash-line">
+                {{ n.name }}, right next to it, prefers {{ n.humidity }}% — {{ n.delta }} points
+                apart.
+              </p>
+            }
+          </div>
+        </div>
+      }
+
+      <p class="drag-hint">Drag its bed, or use the arrow keys, to reposition it.</p>
+      <div class="inspector-actions">
+        <button
+          matButton="outlined"
+          class="press-feedback"
+          type="button"
+          aria-label="Focus this plant on the plan"
+          (click)="focusPlant.emit()"
+        >
+          Focus
+        </button>
+        <button
+          matButton="outlined"
+          class="press-feedback"
+          type="button"
+          (click)="editPlant.emit(plant)"
+        >
+          Edit
+        </button>
+        <button
+          matButton="outlined"
+          class="press-feedback danger"
+          type="button"
+          (click)="removePlant.emit(plant)"
+        >
+          Remove
+        </button>
+      </div>
+    }
+  } @else {
+    <div class="inspector-idle">
+      <p class="inspector-hint">Select a plant on the map to inspect it.</p>
+      <dl class="inspector-facts">
+        <div class="fact">
+          <dt>Plants</dt>
+          <dd class="tabular">{{ plants().length }}</dd>
+        </div>
+        <div class="fact">
+          <dt>Space used</dt>
+          <dd class="tabular">{{ utilizationPct() | number: '1.0-0' }}%</dd>
+        </div>
+        <div class="fact">
+          <dt>Room to grow</dt>
+          <dd class="tabular">{{ freeArea() | number: '1.0-1' }} m²</dd>
+        </div>
+      </dl>
+
+      @if (plants().length > 0) {
+        <section class="zones-card" aria-label="Watering zones">
+          <div class="zones-head">
+            <h4 class="zones-title">Watering zones</h4>
+            <button class="chip-action press-feedback" type="button" (click)="showZones.emit()">
+              Show on plan
+            </button>
+          </div>
+          <div class="zones-bar" aria-hidden="true">
+            @for (z of zones(); track z.zone) {
+              <span class="zones-seg" [attr.data-zone]="z.zone" [style.flex-grow]="z.share"></span>
+            }
+          </div>
+          <ul class="zones-legend">
+            @for (z of zones(); track z.zone) {
+              <li>
+                <span class="zone-dot" [attr.data-zone]="z.zone" aria-hidden="true"></span>
+                {{ z.label }}
+                <span class="tabular zones-count">{{ z.plants }}</span>
+              </li>
+            }
+          </ul>
+          <p class="zones-clashes" [class.clear]="conflicts().length === 0">
+            @if (conflicts().length === 0) {
+              No watering clashes between neighbours.
+            } @else {
+              {{ conflicts().length }}
+              {{ conflicts().length === 1 ? 'watering clash' : 'watering clashes' }} between
+              neighbouring beds.
+            }
+          </p>
+        </section>
+
+        <button
+          matButton="outlined"
+          class="press-feedback arrange-btn"
+          type="button"
+          [disabled]="!canArrange()"
+          (click)="arrange.emit()"
+        >
+          Group by water needs
+        </button>
+        @if (arrangeBlocked()) {
+          <p class="arrange-note" role="status">
+            Not enough open ground to regroup these beds without overlaps.
+          </p>
+        }
+      }
+    </div>
+  }
+</aside>

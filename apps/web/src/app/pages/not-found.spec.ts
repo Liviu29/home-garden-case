@@ -3,7 +3,7 @@ import { provideRouter } from '@angular/router';
 import { NotFound } from './not-found';
 
 /**
- * Deep-link misses get a page, not a toast (CODING-GUIDELINES §7). The 404 is
+ * Deep-link misses get a page, not a toast. The 404 is
  * a standalone page, so it must own the document's single `h1` — a nested
  * heading level here would leave the route with no top-level heading at all.
  */

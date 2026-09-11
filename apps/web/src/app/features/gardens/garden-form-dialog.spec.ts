@@ -36,7 +36,7 @@ const plants: Plant[] = [
   },
 ];
 
-describe('GardenFormDialog (shrink-below-used warning, REM-002)', () => {
+describe('GardenFormDialog (shrink-below-used warning)', () => {
   async function mount(data: { garden: Garden | null }) {
     TestBed.configureTestingModule({
       imports: [GardenFormDialog],
@@ -433,10 +433,21 @@ describe('GardenFormDialog — every validation message renders', () => {
 
   it('the submit button ghosts while the store is saving — never a spinner', async () => {
     const { fixture, el } = await mountBlank();
+    // A real in-flight create: the API never settles, so `saving` stays true
+    // and the signal change re-renders the OnPush view (a spy would not).
+    const api = TestBed.inject(GardensApi) as unknown as { create: ReturnType<typeof vi.fn> };
+    api.create.mockReturnValue(new Promise(() => undefined));
     const store = TestBed.inject(GardensStore);
-    vi.spyOn(store, 'saving').mockReturnValue(true);
+    void store.create({ gardenName: 'Bed' } as never);
+    expect(store.saving()).toBe(true);
     fixture.detectChanges();
 
     expect(el.querySelector('mat-spinner, .mat-mdc-progress-spinner')).toBeNull();
+    // The label stays in the flow (only hidden) so the button keeps its width
+    // while the ghost bar covers it.
+    const stack = el.querySelector('button[type="submit"] .btn-stack');
+    expect(stack?.classList).toContain('is-pending');
+    expect(stack?.querySelector('.btn-label')).not.toBeNull();
+    expect(stack?.querySelector('.btn-ghost')).not.toBeNull();
   });
 });

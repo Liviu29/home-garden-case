@@ -8,7 +8,7 @@ const apiError = (kind: ApiError['kind'], status: number, message: string): ApiE
   new ApiError(kind, message, status, 'raw');
 
 /**
- * The last line of defence (CODING-GUIDELINES §7). Its job is triage: nothing
+ * The last line of defence. Its job is triage: nothing
  * disappears silently, but only alarm-worthy things reach the user.
  */
 describe('GlobalErrorHandler', () => {

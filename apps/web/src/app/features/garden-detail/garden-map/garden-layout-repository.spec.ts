@@ -1,7 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { GardenLayoutRepository } from './garden-layout-repository';
 
-const KEY = (gardenId: number) => `homeGarden.visualLayout.v1.${gardenId}`;
+const KEY = (gardenId: number) => `homeGarden.visualLayout.v2.${gardenId}`;
+const LEGACY_KEY = (gardenId: number) => `homeGarden.visualLayout.v1.${gardenId}`;
 
 /**
  * Planner layout persistence. Two invariants matter beyond round-tripping:
@@ -37,17 +38,28 @@ describe('GardenLayoutRepository', () => {
     });
 
     it('ignores a payload from a different schema version', () => {
-      localStorage.setItem(KEY(1), JSON.stringify({ v: 2, positions: { 10: { x: 1, y: 1 } } }));
+      localStorage.setItem(KEY(1), JSON.stringify({ v: 1, positions: { 10: { x: 1, y: 1 } } }));
       expect(repo.load(1)).toEqual({});
     });
 
+    it('discards and deletes a v1 save — it was measured against the previous auto-layout', () => {
+      // Replayed over today's arrangement, a v1 position lands a bed on top of
+      // its neighbours; the auto-layout is the honest starting point.
+      localStorage.setItem(
+        LEGACY_KEY(1),
+        JSON.stringify({ v: 1, positions: { 10: { x: 0.25, y: 0.25 } } }),
+      );
+      expect(repo.load(1)).toEqual({});
+      expect(localStorage.getItem(LEGACY_KEY(1))).toBeNull();
+    });
+
     it('ignores a payload whose positions are not an object', () => {
-      localStorage.setItem(KEY(1), JSON.stringify({ v: 1, positions: 'nope' }));
+      localStorage.setItem(KEY(1), JSON.stringify({ v: 2, positions: 'nope' }));
       expect(repo.load(1)).toEqual({});
     });
 
     it('ignores a payload whose positions are null', () => {
-      localStorage.setItem(KEY(1), JSON.stringify({ v: 1, positions: null }));
+      localStorage.setItem(KEY(1), JSON.stringify({ v: 2, positions: null }));
       expect(repo.load(1)).toEqual({});
     });
 
@@ -61,7 +73,7 @@ describe('GardenLayoutRepository', () => {
       localStorage.setItem(
         KEY(1),
         JSON.stringify({
-          v: 1,
+          v: 2,
           positions: {
             10: { x: 1, y: 2 }, // good
             11: { x: 'a', y: 2 }, // wrong type
@@ -78,7 +90,7 @@ describe('GardenLayoutRepository', () => {
     it('drops entries whose key is not a number', () => {
       localStorage.setItem(
         KEY(1),
-        JSON.stringify({ v: 1, positions: { abc: { x: 1, y: 2 }, 10: { x: 3, y: 4 } } }),
+        JSON.stringify({ v: 2, positions: { abc: { x: 1, y: 2 }, 10: { x: 3, y: 4 } } }),
       );
       expect(repo.load(1)).toEqual({ 10: { x: 3, y: 4 } });
     });

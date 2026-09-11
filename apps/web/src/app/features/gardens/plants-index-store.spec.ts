@@ -36,6 +36,26 @@ describe('PlantsIndexStore (fan-out ownership + loop regression guard)', () => {
     await vi.waitFor(() => expect(store.byGarden()[5]).toHaveLength(1));
   });
 
+  it('records a failed load with nothing cached, so cards stop showing a loading ghost', async () => {
+    api.getByGarden.mockRejectedValue(new Error('boom'));
+
+    store.ensureForGardens([5]);
+
+    await vi.waitFor(() => expect(store.failed()[5]).toBe(true));
+    expect(store.byGarden()[5]).toBeUndefined();
+  });
+
+  it('clears the failure as soon as that garden’s plants arrive', async () => {
+    api.getByGarden.mockRejectedValue(new Error('boom'));
+    store.ensureForGardens([5]);
+    await vi.waitFor(() => expect(store.failed()[5]).toBe(true));
+
+    store.setPlants(5, [plant(1, 5)]);
+
+    expect(store.failed()[5]).toBeUndefined();
+    expect(store.byGarden()[5]).toHaveLength(1);
+  });
+
   it('identical warm-cache data is not re-patched (no useless renders)', () => {
     const plants = [plant(1, 5)];
     cache.set(cacheKeys.plantsOfGarden(5), plants);

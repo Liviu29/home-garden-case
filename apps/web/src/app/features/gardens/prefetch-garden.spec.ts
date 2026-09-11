@@ -10,7 +10,6 @@ const CONFIG = {
   apiBaseUrl: '/api',
   retry: { maxAttempts: 1, baseDelayMs: 1, backoffFactor: 1, maxDelayMs: 1 },
   cache: { freshTtlMs: 30_000 },
-  skeleton: { appearDelayMs: 0, minDisplayMs: 0 },
   toastDurationMs: 5000,
 } as AppConfig;
 

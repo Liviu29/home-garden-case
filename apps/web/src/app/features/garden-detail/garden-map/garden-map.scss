@@ -1,10 +1,11 @@
 // Garden Map — digital twin scene (ADR-007 + visual layer).
 // Token-only colors; motion gated by prefers-reduced-motion.
-// Layers: lawn → texture → grid → fence → free soil → beds → vegetation → HUD.
+// Layers: lawn → fence → open soil (mask) → grid → beds (frame, soil, art) →
+// clashes → drop/guides → dimensions → HUD. The inspector styles itself.
 
 .map-shell {
   display: grid;
-  // Planner ratio ≈ 72/28 on wide desktops (§16): the inspector earns real
+  // Planner ratio ≈ 72/28 on wide desktops: the inspector earns real
   // room for its grouped stats instead of being squeezed to a sidebar strip.
   grid-template-columns: minmax(0, 1fr) clamp(17rem, 26%, 21rem);
   gap: var(--sp-4);
@@ -44,16 +45,19 @@
   border: 1px solid var(--map-border);
   overflow: hidden;
   min-height: 19rem;
+  // The overlays (toolbar, HUD) adapt to the STAGE's width, not the window's:
+  // the stage is narrower than the viewport on desktop (inspector beside it).
+  container: map-stage / inline-size;
+  // A drag across a name plate must move the bed, not select its text.
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .map-svg {
   display: block;
   width: 100%;
   // The garden world is drawn at a fixed 1.6 aspect. Giving the stage the same
-  // shape is what makes zoom 1 mean "the plan fills this panel" — a shorter box
-  // just letterboxes the plan and pads it with dead lawn on both sides. The
-  // camera still adapts to whatever shape the stage ends up (fullscreen,
-  // mobile, max-height), this simply makes the common case exact.
+  // shape is what makes zoom 1 mean "the plan fills this panel".
   aspect-ratio: 1.6;
   height: auto;
   min-height: 19rem;
@@ -82,6 +86,13 @@
 
 .speckle {
   fill: var(--map-lawn-speckle);
+}
+
+.blade {
+  fill: none;
+  stroke: var(--map-grass);
+  stroke-width: 1px;
+  stroke-linecap: round;
 }
 
 .grid-line {
@@ -114,11 +125,18 @@
   vector-effect: non-scaling-stroke;
 }
 
+// Hit-testable lawn beyond the fence: a click there deselects.
+.surround {
+  opacity: 0.9;
+}
+
+.humidity-overlay,
+.soil-grid-fill {
+  pointer-events: none;
+}
+
 .free-band {
   fill: var(--map-free-soil);
-  stroke: var(--map-free-border);
-  stroke-width: 1.5px;
-  stroke-dasharray: 6 6;
 }
 
 .free-label {
@@ -128,9 +146,12 @@
   paint-order: stroke;
   stroke: var(--map-free-soil);
   stroke-width: 0.12em;
+  pointer-events: none;
 }
 
 .free-marker {
+  pointer-events: none;
+
   circle {
     fill: var(--map-free-soil);
     stroke: var(--map-free-border);
@@ -147,10 +168,8 @@
   }
 }
 
-.free-furrows .furrow,
-.free-furrows path {
-  stroke: var(--map-furrow);
-  stroke-width: 1px;
+.free-furrows {
+  pointer-events: none;
 }
 
 .furrow {
@@ -167,6 +186,7 @@
 }
 
 // ── Creation ghost bed (in-flight POST — ASYNC-UX) ───────────────────────────
+// Its pulse is the skeleton engine's `.skeleton-pulse` (set in the template).
 .ghost-bed rect {
   fill: var(--skeleton-base);
   stroke: var(--border-strong);
@@ -175,35 +195,25 @@
   opacity: 0.85;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .ghost-bed rect {
-    animation: ghost-breathe 1.6s var(--ease-out) infinite alternate;
-  }
-
-  @keyframes ghost-breathe {
-    from {
-      opacity: 0.6;
-    }
-
-    to {
-      opacity: 0.9;
-    }
-  }
-}
-
-// ── Plant beds & vegetation ─────────────────────────────────────────────────
+// ── Plant beds: wooden frame, crumbly soil, vegetation ──────────────────────
 .plot {
-  cursor: pointer;
+  cursor: grab; // beds are draggable — say so before the first press
   outline: none;
 
   .plot-bed {
-    fill: var(--map-bed);
-    stroke: var(--map-bed-border);
+    fill: var(--map-wood);
+    stroke: var(--map-wood-border);
     stroke-width: 1.5px;
-    filter: drop-shadow(0 0.06px 0.12px rgb(28 25 23 / 0.28));
-    transition: filter var(--dur-fast) var(--ease-out);
+    filter: drop-shadow(0 0.06px 0.12px rgb(28 25 23 / 0.32));
   }
 
+  .plot-soil {
+    fill: var(--map-soil);
+  }
+
+  .plot-soil,
+  .plot-soil-speck,
+  .zone-tint,
   .veg {
     pointer-events: none;
   }
@@ -227,10 +237,15 @@
       opacity: 0.45;
     }
 
-    .plot-bed {
+    .plot-bed,
+    .plot-soil {
       fill: var(--skeleton-base);
       stroke: var(--border-strong);
       stroke-dasharray: 5 5;
+    }
+
+    .plot-soil-speck {
+      display: none;
     }
 
     .plot-label rect {
@@ -240,6 +255,35 @@
     .plot-name {
       opacity: 0.4;
     }
+  }
+
+  // Timeline: a bed not yet planted on the chosen day is a dashed promise
+  &.future {
+    .plot-bed {
+      fill: transparent;
+      stroke: var(--map-free-border);
+      stroke-dasharray: 4 4;
+      filter: none;
+    }
+
+    // visibility, not only opacity: the "recede when something is selected"
+    // opacity rule is more specific and would otherwise bring the art back.
+    .plot-soil,
+    .plot-soil-speck,
+    .zone-tint,
+    .veg,
+    .plot-label {
+      opacity: 0;
+      visibility: hidden;
+    }
+  }
+}
+
+.soil-speck {
+  fill: var(--map-soil-speck);
+
+  &.light {
+    fill: var(--map-soil-grit);
   }
 }
 
@@ -265,9 +309,7 @@
     fill: var(--map-hud-glass);
     stroke: color-mix(in srgb, var(--border) 80%, transparent);
     // Without non-scaling-stroke this is 0.5 MAP UNITS, not 0.5 screen px:
-    // ~69px of border at fit on a 5.7-unit-wide garden, and ten times that
-    // zoomed in — every name-plate ballooned into a white blob. Every other
-    // stroke in this scene is already screen-constant; this one was missed.
+    // every name-plate ballooned into a white blob when zoomed in.
     stroke-width: 1px;
     vector-effect: non-scaling-stroke;
   }
@@ -279,9 +321,12 @@
   }
 }
 
-// Grow-in on insertion + one-shot selection pulse + selected sway — gated
+// Grow-in on insertion, one-shot selection ring, timeline fades — gated.
 @media (prefers-reduced-motion: no-preference) {
-  .plot .veg {
+  .plot .veg,
+  .plot .plot-label,
+  .plot .plot-soil,
+  .plot .plot-soil-speck {
     transform-box: fill-box;
     transform-origin: center;
     transition: opacity var(--dur-base) var(--ease-out);
@@ -305,36 +350,38 @@
     }
   }
 
+  // A bed being planted on the timeline grows in from its dashed outline.
+  .is-replaying .plot:not(.future) .veg {
+    animation: sprout var(--dur-slow) var(--ease-out);
+  }
+
   .selection-ring {
     transform-box: fill-box;
     transform-origin: center;
-    animation: ring-pulse 420ms var(--ease-out) 1;
-  }
-
-  // The selected plant alone gets a barely-there living sway
-  .plot.selected .veg {
-    animation: leaf-sway 5.5s ease-in-out infinite alternate;
+    animation: ring-pulse var(--dur-base) var(--ease-out);
   }
 
   @keyframes ring-pulse {
-    0% {
+    from {
       transform: scale(1.06);
       opacity: 0;
     }
 
-    100% {
+    to {
       transform: scale(1);
       opacity: 1;
     }
   }
 
-  @keyframes leaf-sway {
+  @keyframes sprout {
     from {
-      transform: rotate(-0.7deg);
+      transform: scale(0.6);
+      opacity: 0;
     }
 
     to {
-      transform: rotate(0.7deg);
+      transform: scale(1);
+      opacity: 1;
     }
   }
 }
@@ -342,6 +389,193 @@
 // Foliage reads slightly muted under moonlight
 :host-context([data-theme='dark']) .veg {
   filter: brightness(0.88) saturate(0.92);
+}
+
+// ── Planner overlays ─────────────────────────────────────────────────────────
+.plot.overlapping .plot-bed {
+  stroke: var(--accent-amber);
+  stroke-dasharray: 4 3;
+}
+
+.humidity-pref {
+  fill: var(--map-lawn);
+  opacity: 0.25;
+  pointer-events: none;
+
+  &.wants-more {
+    fill: var(--map-humidity);
+  }
+
+  &.wants-less {
+    fill: var(--accent-amber);
+  }
+}
+
+// Watering zones: the soil takes the zone's tint; plants stay true-colour
+.zone-tint {
+  fill: var(--zone-balanced);
+  opacity: 0.42;
+
+  &[data-zone='dry'] {
+    fill: var(--zone-dry);
+  }
+
+  &[data-zone='humid'] {
+    fill: var(--zone-humid);
+  }
+}
+
+.clash {
+  pointer-events: none;
+}
+
+// The shared edge of two clashing beds, marked in amber
+.clash-edge {
+  stroke: var(--accent-amber);
+  stroke-width: 3px;
+  stroke-dasharray: 5 4;
+  stroke-linecap: round;
+}
+
+.clash-badge {
+  fill: var(--amber-soft);
+  stroke: var(--accent-amber);
+  stroke-width: 1.5px;
+}
+
+.clash-mark {
+  fill: var(--accent-amber);
+  font-family: var(--font-ui);
+  font-weight: 800;
+}
+
+.plot-area-detail {
+  fill: var(--text-2);
+  font-family: var(--font-ui);
+  font-weight: 550;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: var(--map-hud-glass);
+  // em, NOT px: px here means SVG user units (the "white patches" bug).
+  stroke-width: 0.18em;
+}
+
+// Layer visibility (CSS-only — the scene never re-renders for a toggle)
+.layer-no-labels .plot-label {
+  display: none;
+}
+
+.layer-no-footprints {
+  .plot-bed {
+    fill: transparent;
+    stroke: color-mix(in srgb, var(--map-bed-border) 40%, transparent);
+    filter: none;
+  }
+
+  .plot-soil,
+  .plot-soil-speck {
+    display: none;
+  }
+}
+
+.layer-no-grid .soil-grid-fill {
+  display: none;
+}
+
+.layer-no-free .free-soil {
+  display: none;
+}
+
+// Dragging: the moving bed rises above its neighbours (it is also painted
+// last); the dashed target shows exactly where it will settle, the home slot
+// where it came from, and smart guides which edges line up.
+.is-dragging {
+  .map-svg,
+  .plot {
+    cursor: grabbing;
+  }
+}
+
+.plot.dragging {
+  .plot-bed {
+    filter: drop-shadow(0 0.12px 0.3px rgb(28 25 23 / 0.45));
+  }
+
+  .veg,
+  .plot-label {
+    opacity: 0.92;
+  }
+}
+
+.drop {
+  pointer-events: none;
+}
+
+.drop-preview {
+  fill: color-mix(in srgb, var(--map-selected) 10%, transparent);
+  stroke: var(--map-selected);
+  stroke-width: 1.5px;
+  stroke-dasharray: 6 4;
+
+  &.at-home {
+    fill: color-mix(in srgb, var(--map-selected) 22%, transparent);
+    stroke-dasharray: none;
+    stroke-width: 2.5px;
+  }
+}
+
+.home-slot {
+  pointer-events: none;
+
+  rect {
+    fill: color-mix(in srgb, var(--map-selected) 7%, transparent);
+    stroke: var(--map-selected);
+    stroke-width: 1.5px;
+    stroke-dasharray: 2 5;
+    stroke-linecap: round;
+  }
+
+  text {
+    fill: var(--map-selected);
+    font-family: var(--font-ui);
+    font-weight: 650;
+    opacity: 0.85;
+  }
+}
+
+.align-guide {
+  stroke: var(--map-guide);
+  stroke-width: 1.5px;
+  stroke-dasharray: 4 3;
+}
+
+.drop-readout,
+.dimension text {
+  font-family: var(--font-ui);
+  font-weight: 650;
+  paint-order: stroke;
+  stroke-width: 0.32em;
+  stroke-linejoin: round;
+}
+
+.drop-readout {
+  fill: var(--text-1);
+  stroke: var(--map-hud-glass);
+}
+
+.dimension {
+  pointer-events: none;
+
+  path {
+    fill: none;
+    stroke: var(--map-dimension);
+    stroke-width: 1.25px;
+  }
+
+  text {
+    fill: var(--map-dimension);
+    stroke: var(--map-lawn);
+  }
 }
 
 // ── Toolbar ──────────────────────────────────────────────────────────────────
@@ -383,6 +617,11 @@
     color: var(--text-1);
   }
 
+  &[aria-pressed='true'] {
+    background: var(--brand-soft);
+    color: var(--brand-600);
+  }
+
   &:disabled {
     color: var(--text-3);
     opacity: 0.5;
@@ -408,21 +647,25 @@
   margin: 0 var(--sp-1);
 }
 
-// ── HUD: one glass panel ─────────────────────────────────────────────────────
-.map-hud {
+// ── HUD and timeline: one glass panel in the bottom band ────────────────────
+.map-hud,
+.map-timeline {
   position: absolute;
   left: var(--sp-3);
   bottom: var(--sp-3);
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-2) var(--sp-4);
   border-radius: var(--radius-m);
   background: var(--map-hud-glass);
   backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-2);
   max-width: calc(100% - var(--sp-6));
+}
+
+.map-hud {
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-4);
   pointer-events: none;
   transition: opacity var(--dur-fast) var(--ease-out);
 
@@ -433,10 +676,36 @@
   }
 }
 
+.map-timeline {
+  right: var(--sp-3);
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-2);
+  animation: fade-in var(--dur-fast) var(--ease-out);
+
+  .timeline-range {
+    flex: 1;
+    min-width: 5rem;
+    accent-color: var(--brand-500);
+  }
+
+  .timeline-readout {
+    display: grid;
+    font-size: 0.6875rem;
+    color: var(--text-2);
+    white-space: nowrap;
+
+    strong {
+      font-size: var(--fs-caption);
+      color: var(--text-1);
+    }
+  }
+}
+
 .hud-stat {
   display: flex;
   align-items: baseline;
   gap: var(--sp-1);
+  white-space: nowrap; // "5.4 m² free" must never break mid-stat
 
   .hud-value {
     font-size: var(--fs-emphasis);
@@ -478,12 +747,14 @@
   align-self: center;
   margin-left: var(--sp-1);
 
+  // transform, not width: the fill settles without re-laying out the HUD.
   .hud-bar-fill {
     display: block;
     height: 100%;
     border-radius: var(--radius-pill);
     background: var(--gradient-brand);
-    transition: width var(--dur-slow) var(--ease-out);
+    transform-origin: left center;
+    transition: transform var(--dur-slow) var(--ease-out);
 
     &.warn {
       background: var(--accent-amber);
@@ -543,236 +814,18 @@
     color: var(--text-1);
   }
 
-  .tip-meta {
+  .tip-meta,
+  .tip-hint {
     font-size: 0.6875rem;
     color: var(--text-2);
   }
 
   .tip-hint {
-    font-size: 0.6875rem;
     color: var(--text-3);
   }
 }
 
-// ── Inspector ────────────────────────────────────────────────────────────────
-.map-inspector {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  padding: var(--sp-4);
-  border-radius: var(--radius-m);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-1);
-  min-height: 13rem;
-}
-
-.inspector-head {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--sp-3);
-
-  h3 {
-    margin: 0;
-    font-size: var(--fs-emphasis);
-    font-weight: 650;
-    color: var(--text-1);
-  }
-
-  .species {
-    margin: 0;
-    font-size: var(--fs-caption);
-    color: var(--text-3);
-    font-style: italic;
-  }
-
-  .inspector-title {
-    flex: 1;
-    min-width: 0;
-  }
-}
-
-.inspector-thumb {
-  --thumb-size: 3.75rem;
-}
-
-// Grouped stat tiles (§14): caption over value, two columns — no more
-// tiny dashed rows. The idle (garden overview) state reuses the same grid.
-.inspector-facts {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--sp-2);
-  margin: 0;
-
-  .fact {
-    display: grid;
-    gap: 0.1rem;
-    align-content: start;
-    padding: var(--sp-2) var(--sp-3);
-    border-radius: var(--radius-s);
-    background: var(--surface-2);
-
-    dt {
-      font-size: 0.6563rem;
-      font-weight: 650;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--text-3);
-    }
-
-    dd {
-      margin: 0;
-      font-size: var(--fs-emphasis);
-      font-weight: 650;
-      color: var(--text-1);
-    }
-
-    .fact-sub {
-      display: block;
-      font-size: 0.6875rem;
-      font-weight: 500;
-      color: var(--text-3);
-
-      &.above {
-        color: var(--info-blue);
-      }
-
-      &.below {
-        color: var(--accent-amber);
-      }
-    }
-
-    .type-name {
-      text-transform: capitalize;
-      font-weight: 500;
-    }
-  }
-}
-
-.contribution {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-
-  .contribution-label {
-    font-size: 0.6875rem;
-    color: var(--text-3);
-  }
-
-  .contribution-bar {
-    flex: 1;
-    height: 0.3rem;
-    border-radius: var(--radius-pill);
-    background: var(--surface-3);
-    overflow: hidden;
-  }
-
-  .contribution-fill {
-    display: block;
-    height: 100%;
-    border-radius: var(--radius-pill);
-    background: var(--gradient-brand);
-    transition: width var(--dur-slow) var(--ease-out);
-  }
-
-  .contribution-value {
-    font-size: var(--fs-caption);
-    font-weight: 650;
-    color: var(--text-1);
-  }
-}
-
-.inspector-actions {
-  display: flex;
-  gap: var(--sp-2);
-  margin-top: auto;
-
-  .danger {
-    color: var(--danger);
-  }
-}
-
-.inspector-idle {
-  display: grid;
-  gap: var(--sp-3);
-  align-content: start;
-
-  .inspector-hint {
-    margin: 0;
-    font-size: var(--fs-caption);
-    color: var(--text-3);
-  }
-}
-
-.inspector-ghost {
-  display: grid;
-  gap: var(--sp-3);
-
-  .ghost-head {
-    display: flex;
-    gap: var(--sp-3);
-    align-items: center;
-  }
-
-  .ghost-head-text {
-    flex: 1;
-    display: grid;
-    gap: var(--sp-2);
-  }
-}
-
-// ── Planner additions (§14–19, §37–41) ──────────────────────────────────────
-.plot.overlapping .plot-bed {
-  stroke: var(--accent-amber);
-  stroke-dasharray: 4 3;
-}
-
-.humidity-pref {
-  fill: var(--map-lawn);
-  opacity: 0.25;
-  pointer-events: none;
-
-  &.wants-more {
-    fill: var(--map-humidity);
-  }
-
-  &.wants-less {
-    fill: var(--accent-amber);
-  }
-}
-
-.plot-area-detail {
-  fill: var(--text-2);
-  font-family: var(--font-ui);
-  font-weight: 550;
-  pointer-events: none;
-  paint-order: stroke;
-  stroke: var(--map-hud-glass);
-  // em, NOT px: px here means SVG user units, and this text is ~0.09 units
-  // tall — a 2.5px stroke turned every glyph into a giant white slab the
-  // moment the zoom-LOD revealed it (the "white patches at 140%" bug).
-  stroke-width: 0.18em;
-}
-
-// Layer visibility (CSS-only — the scene never re-renders for a toggle)
-.layer-no-labels .plot-label {
-  display: none;
-}
-
-.layer-no-footprints .plot-bed {
-  fill: transparent;
-  stroke: color-mix(in srgb, var(--map-bed-border) 40%, transparent);
-  filter: none;
-}
-
-.layer-no-grid .soil-grid-fill {
-  display: none;
-}
-
-.layer-no-free .free-soil {
-  display: none;
-}
-
+// ── Layers popover ───────────────────────────────────────────────────────────
 .layers-panel {
   position: absolute;
   top: calc(var(--sp-3) + 2.6rem);
@@ -801,6 +854,52 @@
   }
 }
 
+.zone-legend {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: var(--sp-2) 0 0;
+  border-top: 1px solid var(--border);
+  list-style: none;
+  font-size: 0.6875rem;
+  color: var(--text-1);
+  max-width: 12rem;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .zone-range {
+    color: var(--text-3);
+  }
+}
+
+.zone-swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 0.2rem;
+  background: var(--zone-balanced);
+  flex: none;
+
+  &[data-zone='dry'] {
+    background: var(--zone-dry);
+  }
+
+  &[data-zone='humid'] {
+    background: var(--zone-humid);
+  }
+}
+
+.clash-swatch {
+  width: 0.7rem;
+  flex: none;
+  font-weight: 800;
+  text-align: center;
+  color: var(--accent-amber);
+}
+
 .layers-note {
   margin: 0;
   font-size: 0.6563rem;
@@ -808,15 +907,88 @@
   max-width: 11rem;
 }
 
-// Dragging: the moving bed rises above its neighbors
-@media (prefers-reduced-motion: no-preference) {
-  .plot:active .plot-bed {
-    filter: drop-shadow(0 0.12px 0.28px rgb(28 25 23 / 0.4));
+// ── Wheel hint: a bare wheel scrolls the page; this names the zoom gesture ──
+.wheel-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: rgb(28 25 23 / 0.18);
+  animation: fade-in var(--dur-fast) var(--ease-out);
+
+  span {
+    padding: var(--sp-2) var(--sp-4);
+    border-radius: var(--radius-pill);
+    background: rgb(28 25 23 / 0.78);
+    color: #fff;
+    font-size: var(--fs-caption);
+    font-weight: 600;
   }
 }
 
-.drag-hint {
-  margin: 0;
-  font-size: 0.6875rem;
-  color: var(--text-3);
+// ── Narrow stages (phones, the stacked tablet layout) ───────────────────────
+// The toolbar, HUD and timeline span the stage instead of floating in a
+// corner, shed their dividers and shrink a notch, so nothing is clipped.
+@container map-stage (max-width: 34rem) {
+  .map-toolbar {
+    top: var(--sp-2);
+    left: var(--sp-2);
+    right: var(--sp-2);
+    justify-content: space-between;
+  }
+
+  .toolbar-divider {
+    display: none;
+  }
+
+  .tool-btn {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+
+  .zoom-level {
+    min-width: 2.4rem;
+  }
+
+  .layers-panel {
+    top: calc(var(--sp-2) + 2.5rem);
+    right: var(--sp-2);
+  }
+
+  .map-hud,
+  .map-timeline {
+    left: var(--sp-2);
+    right: var(--sp-2);
+    bottom: var(--sp-2);
+    max-width: none;
+  }
+
+  .map-hud {
+    justify-content: space-between;
+    gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+  }
+
+  .hud-bar {
+    display: none;
+  }
+
+  .hud-stat .hud-value {
+    font-size: var(--fs-body);
+  }
+}
+
+// Phone-narrow: drop what has another route (Fit + Escape reset the view;
+// the zoom level is announced to AT and implied by the picture).
+@container map-stage (max-width: 24rem) {
+  .tool-secondary,
+  .zoom-level {
+    display: none;
+  }
+
+  .map-timeline .timeline-readout span {
+    display: none;
+  }
 }

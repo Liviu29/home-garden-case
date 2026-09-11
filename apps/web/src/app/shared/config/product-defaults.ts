@@ -1,8 +1,8 @@
 import { ValuePresetOption } from '../ui/value-presets/value-presets';
 
 /**
- * Product-level default suggestions for the create/edit forms (feature brief
- * §13–14). These are UX conveniences — NOT backend constraints and NOT
+ * Product-level default suggestions for the create/edit forms.
+ * These are UX conveniences — NOT backend constraints and NOT
  * botanical facts. The API accepts any garden area ≥ 0 and any humidity 0–100;
  * these chips just make the common cases one click. The capacity domain rule
  * (Σ surfaceAreaRequired ≤ totalSurfaceArea) remains the only authority.

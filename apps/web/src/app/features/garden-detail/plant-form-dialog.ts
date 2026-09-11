@@ -99,7 +99,7 @@ export class PlantFormDialog {
   protected readonly areaPresets = PLANT_AREA_PRESETS;
   protected readonly currentArea = this.requestedArea;
 
-  // ── Plant discovery (feature brief §3–8): local catalog, ranked for THIS
+  // ── Plant discovery: local catalog, ranked for THIS
   // garden; selecting a card prefills — every value stays editable and every
   // validator stays authoritative. Custom plants remain first-class.
   private readonly catalog = inject(PlantCatalogFacade);

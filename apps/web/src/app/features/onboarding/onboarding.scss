@@ -1,4 +1,4 @@
-// Welcome / profile selection — the entrance to the product (upgrade brief).
+// Welcome / profile selection — the entrance to the product.
 // Layered dark botanical atmosphere + split composition; panel and cards use
 // the shared tokens/motion/skeleton systems (no local duplicates).
 
@@ -13,6 +13,9 @@ $ring-room: 5px;
   padding: var(--sp-6);
   overflow: hidden;
   background: var(--gradient-hero);
+  // Own stacking context: the photo (z-index -1) sits above this gradient and
+  // beneath the glow, the plan grid and the vignette below.
+  isolation: isolate;
 
   // Depth layer 2: soft emerald radial glow
   &::before {
@@ -41,6 +44,31 @@ $ring-room: 5px;
       2.75rem 2.75rem,
       2.75rem 2.75rem;
     pointer-events: none;
+  }
+}
+
+// Depth layer 1: the case brief's garden photo. A MASK fades it out toward the
+// brand copy (left on desktop, top on phones) so the words stay on calm dark.
+.page-photo {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 70% 60%;
+  filter: saturate(0.9) brightness(0.78);
+  mask-image: linear-gradient(100deg, transparent 22%, rgb(0 0 0 / 0.5) 52%, #000 88%);
+  opacity: 0;
+  transition: opacity var(--dur-slow) var(--ease-out);
+
+  &.is-ready {
+    opacity: 0.85;
+  }
+
+  @media (max-width: 880px) {
+    object-position: center 70%;
+    mask-image: linear-gradient(to bottom, transparent 30%, #000 100%);
   }
 }
 
@@ -76,7 +104,7 @@ $ring-room: 5px;
   }
 }
 
-// ── Split composition (§2): brand left, profile experience right ────────────
+// ── Split composition: brand left, profile experience right ────────────
 .split {
   position: relative;
   z-index: 1;
@@ -159,11 +187,11 @@ $ring-room: 5px;
   }
 
   @media (max-width: 880px) {
-    display: none; // mobile keeps the entrance compact (§46)
+    display: none; // mobile keeps the entrance compact
   }
 }
 
-// ── Profile panel (§29–30) ──────────────────────────────────────────────────
+// ── Profile panel ──────────────────────────────────────────────────
 .panel {
   width: 100%;
   background: var(--surface-1);
@@ -173,6 +201,14 @@ $ring-room: 5px;
   padding: clamp(var(--sp-6), 4vw, var(--sp-8));
   display: grid;
   gap: var(--sp-5);
+}
+
+// One view of the panel (profile list or create form): swapping them fades
+// the new one in rather than cutting.
+.panel-view {
+  display: grid;
+  gap: var(--sp-5);
+  animation: fade-in var(--dur-base) var(--ease-out) backwards;
 }
 
 .panel-head {
@@ -189,12 +225,12 @@ $ring-room: 5px;
   font-size: var(--fs-caption);
 }
 
-// ── Profile cards (§7–8): premium, whole-card interactive ───────────────────
+// ── Profile cards: premium, whole-card interactive ───────────────────
 .profiles {
   list-style: none;
   display: grid;
   gap: var(--sp-3);
-  // Many profiles (§10): the list scrolls locally, the page does not
+  // Many profiles: the list scrolls locally, the page does not
   max-height: min(21rem, 48dvh);
   overflow-y: auto;
   scrollbar-width: thin;
@@ -302,7 +338,7 @@ $ring-room: 5px;
     color var(--dur-fast) var(--ease-out);
 }
 
-// Secondary action card (§12)
+// Secondary action card
 .create-card {
   border-style: dashed;
   border-color: var(--border-strong);
@@ -337,7 +373,7 @@ $ring-room: 5px;
   }
 }
 
-// ── Zero-profile onboarding (§13) ───────────────────────────────────────────
+// ── Zero-profile onboarding ───────────────────────────────────────────
 .zero-state {
   display: grid;
   justify-items: center;
@@ -358,7 +394,7 @@ $ring-room: 5px;
   max-width: 24rem;
 }
 
-// ── Error state (§42): branding stays, panel content swaps ──────────────────
+// ── Error state: branding stays, panel content swaps ──────────────────
 .error-state {
   display: grid;
   justify-items: center;

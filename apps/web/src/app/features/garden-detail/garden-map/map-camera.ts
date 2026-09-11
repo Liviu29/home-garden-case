@@ -52,12 +52,27 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 /**
+ * True when `state` is exactly the Fit view of `content`. The map uses it to
+ * decide what a resize means: a camera still at Fit follows the new frame; a
+ * camera the gardener zoomed or panned keeps its view (only re-clamped).
+ */
+export function isFitted(state: CameraState, content: ContentSize): boolean {
+  const fit = fitCamera(content);
+  const eps = 1e-9 * Math.max(1, content.width, content.height);
+  return (
+    Math.abs(state.zoom - 1) < 1e-9 &&
+    Math.abs(state.cx - fit.cx) < eps &&
+    Math.abs(state.cy - fit.cy) < eps
+  );
+}
+
+/**
  * Keeps the view center inside the content so panning can't strand the user.
  * Zoomed out beyond fit (< 1×) the visible span exceeds the garden — the
  * axis locks to the garden's center instead of oscillating between an
  * inverted min/max pair.
  */
-function clampState(state: CameraState, content: ContentSize): CameraState {
+export function clampCamera(state: CameraState, content: ContentSize): CameraState {
   const zoom = clamp(state.zoom, MIN_ZOOM, MAX_ZOOM);
   const halfW = content.width / zoom / 2;
   const halfH = content.height / zoom / 2;
@@ -77,7 +92,7 @@ export function panBy(
   dx: number,
   dy: number,
 ): CameraState {
-  return clampState({ ...state, cx: state.cx + dx, cy: state.cy + dy }, content);
+  return clampCamera({ ...state, cx: state.cx + dx, cy: state.cy + dy }, content);
 }
 
 /**
@@ -95,12 +110,12 @@ export function zoomBy(
     return state;
   }
   if (!anchor) {
-    return clampState({ ...state, zoom }, content);
+    return clampCamera({ ...state, zoom }, content);
   }
   // Keep the anchor's screen position constant: the center moves toward the
   // anchor proportionally to how much the visible span shrank.
   const ratio = state.zoom / zoom;
-  return clampState(
+  return clampCamera(
     {
       zoom,
       cx: anchor.x - (anchor.x - state.cx) * ratio,
@@ -117,5 +132,5 @@ export function focusOn(
   point: { readonly x: number; readonly y: number },
   minZoom = 1.6,
 ): CameraState {
-  return clampState({ cx: point.x, cy: point.y, zoom: Math.max(state.zoom, minZoom) }, content);
+  return clampCamera({ cx: point.x, cy: point.y, zoom: Math.max(state.zoom, minZoom) }, content);
 }

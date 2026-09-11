@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 /**
  * Presentation tone of a status chip. DOMAIN code decides which tone a state
  * maps to (e.g. capacityStatus → tone); the badge only renders it — one chip
- * implementation for the whole app (cleanup pass §30).
+ * implementation for the whole app.
  */
 export type StatusTone = 'success' | 'neutral' | 'warning' | 'critical';
 

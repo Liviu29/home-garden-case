@@ -4,7 +4,7 @@ import { Logger } from '../logging/logger';
 import { ToastStore } from './toast-store';
 
 /**
- * Last line of defense (CODING-GUIDELINES §7): no error ever disappears
+ * Last line of defense: no error ever disappears
  * silently. Anything a screen didn't handle lands here — logged with context,
  * surfaced once as a toast for technical failures.
  */

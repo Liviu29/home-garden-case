@@ -10,7 +10,7 @@ class Host {
   value: number | null = null;
 }
 
-describe('HumidityGauge (no-data honesty, REM-008)', () => {
+describe('HumidityGauge (no-data honesty)', () => {
   async function mount(value: number | null) {
     const fixture = TestBed.createComponent(Host);
     fixture.componentInstance.value = value;

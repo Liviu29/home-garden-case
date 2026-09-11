@@ -1,9 +1,52 @@
 <app-plant-artwork-defs />
 
+<!-- One table ghost for both the cold page and a plants reload: the header
+     row and three rows on the real table's columns and line boxes (thumb,
+     name + species, planted, area, humidity, actions). -->
+<ng-template #tableGhost>
+  <div class="table-ghost">
+    <div class="table-ghost-head">
+      <app-skeleton class="ghost-caption" variant="line" w="3rem" h="0.7rem" />
+      <app-skeleton class="ghost-caption ghost-mid" variant="line" w="3.5rem" h="0.7rem" />
+      <app-skeleton
+        class="ghost-caption ghost-mid ghost-end"
+        variant="line"
+        w="2.5rem"
+        h="0.7rem"
+      />
+      <app-skeleton class="ghost-caption ghost-mid ghost-end" variant="line" w="4rem" h="0.7rem" />
+    </div>
+    @for (i of [1, 2, 3]; track i) {
+      <div class="table-ghost-row">
+        <span class="ghost-plant">
+          <app-skeleton variant="circle" w="2.4rem" h="2.4rem" />
+          <span class="ghost-name">
+            <app-skeleton variant="line" w="6rem" h="0.8rem" />
+            <app-skeleton variant="line" w="8.5rem" h="0.65rem" />
+          </span>
+        </span>
+        <app-skeleton class="ghost-mid" variant="line" w="5.5rem" h="0.75rem" />
+        <app-skeleton class="ghost-mid ghost-end" variant="line" w="2.5rem" h="0.75rem" />
+        <app-skeleton class="ghost-mid ghost-end" variant="line" w="2.5rem" h="0.75rem" />
+        <app-skeleton class="ghost-end" variant="circle" w="1.5rem" h="1.5rem" />
+      </div>
+    }
+  </div>
+</ng-template>
+
 <nav class="breadcrumb anim-fade-in" aria-label="Breadcrumb">
   <a routerLink="/gardens">Gardens</a>
   <span aria-hidden="true">/</span>
-  <span>{{ store.garden()?.gardenName ?? '…' }}</span>
+  @if (store.garden(); as current) {
+    <span>{{ current.gardenName }}</span>
+  } @else if (store.gardenMissing()) {
+    <span>Not found</span>
+  } @else if (store.gardenFailed()) {
+    <span>Garden</span>
+  } @else {
+    <!-- The name is loading: a ghost of its size, never a "…" -->
+    <app-skeleton class="skeleton-appear" variant="line" w="7rem" h="0.75rem" />
+  }
 </nav>
 
 @if (store.gardenMissing()) {
@@ -25,40 +68,72 @@
     <button matButton="filled" class="press-feedback" (click)="retryGarden()">Try again</button>
   </app-empty-state>
 } @else {
-  <app-skeleton-group [loading]="store.isGardenLoading()">
+  <app-skeleton-group [loading]="store.isGardenLoading()" label="Loading garden">
     <div ghost>
-      <!-- Content-shaped cold-load skeleton: header + garden plan + rows
-           (ASYNC-UX: a GET always renders the full silhouette, never less) -->
-      <div class="header-ghost">
-        <div class="header-ghost-text">
-          <app-skeleton variant="title" w="40%" h="2rem" />
-          <app-skeleton variant="line" w="60%" />
-          <app-skeleton variant="rect" h="3rem" />
+      <!-- Content-shaped cold-load skeleton, built on the REAL header, panel
+           and table classes, so every ghost holds its content's exact
+           footprint at every width (ASYNC-UX: a GET always renders the full
+           silhouette, never less) -->
+      <div class="detail-header header-ghost">
+        <div class="header-info">
+          <div class="title-row">
+            <app-skeleton class="ghost-title" variant="title" w="12rem" h="1.6rem" />
+            <app-skeleton variant="line" w="7rem" h="1.5rem" />
+            <app-skeleton variant="circle" w="2.5rem" h="2.5rem" />
+          </div>
+          <p class="location"><app-skeleton variant="line" w="9rem" h="0.75rem" /></p>
+          <div class="header-stats">
+            @for (i of [1, 2, 3]; track i) {
+              <div class="header-stat">
+                <app-skeleton class="ghost-stat-value" variant="title" w="3.25rem" h="1.5rem" />
+                <app-skeleton class="ghost-caption" variant="line" w="3.25rem" h="0.7rem" />
+              </div>
+            }
+          </div>
+          <app-skeleton variant="rect" h="0.5rem" />
         </div>
-        <app-skeleton variant="circle" w="10rem" h="6rem" />
+        <div class="gauge-panel">
+          <app-skeleton variant="circle" w="13rem" h="9.125rem" />
+          <app-skeleton variant="line" w="6.5rem" h="1.5rem" />
+        </div>
       </div>
       <div class="panel">
-        <app-skeleton variant="line" w="8rem" />
-        <div style="height: 0.75rem"></div>
+        <div class="panel-head">
+          <div class="ghost-head-text">
+            <app-skeleton class="ghost-caption" variant="line" w="7rem" h="0.75rem" />
+            <app-skeleton class="ghost-sub" variant="line" w="min(24rem, 100%)" h="0.7rem" />
+          </div>
+          <app-skeleton class="ghost-caption ghost-hint" variant="line" w="11rem" h="0.7rem" />
+        </div>
         <app-garden-map-skeleton />
       </div>
-      <div class="panel table-ghost">
-        @for (i of [1, 2, 3, 4, 5]; track i) {
-          <app-skeleton variant="rect" h="3.25rem" />
-        }
+      <div class="panel">
+        <div class="panel-head">
+          <app-skeleton class="ghost-caption" variant="line" w="4.5rem" h="0.75rem" />
+          <app-skeleton variant="line" w="8.5rem" h="2.5rem" />
+        </div>
+        <ng-container [ngTemplateOutlet]="tableGhost" />
       </div>
     </div>
 
     @if (store.garden(); as garden) {
+      <!-- The garden can arrive (or be cached) before its plants: every number
+           derived from plants is a ghost until they land — never a fake zero -->
+      @let plantsPending = store.arePlantsLoading();
       <header
         class="detail-header anim-fade-up"
         [class.mutation-ghost]="gardenUpdating(garden.gardenId)"
-        [attr.aria-busy]="gardenUpdating(garden.gardenId) ? true : null"
+        [attr.aria-busy]="gardenUpdating(garden.gardenId) || plantsPending ? true : null"
+        [attr.inert]="gardenUpdating(garden.gardenId) ? '' : null"
       >
         <div class="header-info">
           <div class="title-row">
             <h1>{{ garden.gardenName }}</h1>
-            <app-capacity-status [garden]="garden" [plants]="store.plants()" />
+            @if (plantsPending) {
+              <app-skeleton class="skeleton-appear" variant="line" w="7rem" h="1.5rem" />
+            } @else {
+              <app-capacity-status [garden]="garden" [plants]="store.plants()" />
+            }
             <button
               matIconButton
               [matMenuTriggerFor]="gardenMenu"
@@ -85,27 +160,66 @@
           }
           <div class="header-stats">
             <div class="header-stat">
-              <span class="stat-value tabular">{{ store.usedArea() | number: '1.0-1' }}</span>
+              @if (plantsPending) {
+                <app-skeleton
+                  class="ghost-stat-value skeleton-appear"
+                  variant="title"
+                  w="3.25rem"
+                  h="1.5rem"
+                />
+              } @else {
+                <span class="stat-value tabular">{{ store.usedArea() | number: '1.0-1' }}</span>
+              }
               <span class="stat-label">m² used</span>
             </div>
             <div class="header-stat">
-              <span class="stat-value tabular">{{ store.freeArea() | number: '1.0-1' }}</span>
+              @if (plantsPending) {
+                <app-skeleton
+                  class="ghost-stat-value skeleton-appear"
+                  variant="title"
+                  w="3.25rem"
+                  h="1.5rem"
+                />
+              } @else {
+                <span class="stat-value tabular">{{ store.freeArea() | number: '1.0-1' }}</span>
+              }
               <span class="stat-label">m² free</span>
             </div>
             <div class="header-stat">
-              <span class="stat-value tabular">{{ store.plants().length }}</span>
+              @if (plantsPending) {
+                <app-skeleton
+                  class="ghost-stat-value skeleton-appear"
+                  variant="title"
+                  w="2rem"
+                  h="1.5rem"
+                />
+              } @else {
+                <span class="stat-value tabular">{{ store.plants().length }}</span>
+              }
               <span class="stat-label">plants</span>
             </div>
           </div>
-          <app-capacity-bar
-            [used]="store.usedArea()"
-            [total]="garden.totalSurfaceArea"
-            [showLabel]="false"
-          />
+          @if (plantsPending) {
+            <app-skeleton class="skeleton-appear" variant="rect" h="0.5rem" />
+          } @else {
+            <app-capacity-bar
+              [used]="store.usedArea()"
+              [total]="garden.totalSurfaceArea"
+              [showLabel]="false"
+            />
+          }
         </div>
 
         <div class="gauge-panel">
-          <app-humidity-gauge [value]="store.avgHumidity()" [target]="garden.targetHumidityLevel" />
+          @if (plantsPending) {
+            <!-- The average humidity is computed from the plants -->
+            <app-skeleton class="skeleton-appear" variant="circle" w="13rem" h="9.125rem" />
+          } @else {
+            <app-humidity-gauge
+              [value]="store.avgHumidity()"
+              [target]="garden.targetHumidityLevel"
+            />
+          }
           @if (store.humidityDrift(); as drift) {
             <p class="drift" [class.above]="drift > 0" [class.below]="drift < 0">
               {{ drift > 0 ? '▲' : '▼' }} {{ drift > 0 ? '+' : '' }}{{ drift | number: '1.0-0' }}
@@ -136,7 +250,7 @@
               (keydown.enter)="focusSearchMatch()"
             />
           } @else {
-            <p class="panel-hint">Drag to pan · scroll to zoom</p>
+            <p class="panel-hint">Drag to pan · Ctrl/⌘ + scroll to zoom</p>
           }
         </div>
         @if (store.plantsStatus() === 'ready') {
@@ -163,6 +277,8 @@
               (editPlant)="openPlantForm($event)"
               (removePlant)="removePlant($event)"
               (positionChange)="onPositionChange($event)"
+              (resetPosition)="onResetPosition($event)"
+              (arrangePositions)="onArrange($event)"
               (undoLayout)="undoLayout()"
               (redoLayout)="redoLayout()"
               (resetLayout)="resetLayout()"
@@ -171,6 +287,18 @@
           } @placeholder {
             <app-garden-map-skeleton />
           }
+        } @else if (store.plantsFailed()) {
+          <!-- The plan is drawn from the plant list: without it, say so and
+               offer the retry — never a map skeleton that loads forever. -->
+          <app-empty-state
+            [headingLevel]="3"
+            title="Couldn't load the plan"
+            message="The plan is drawn from this garden's plants, and they didn't arrive."
+          >
+            <button matButton="filled" class="press-feedback" (click)="retryGarden()">
+              Try again
+            </button>
+          </app-empty-state>
         } @else {
           <app-garden-map-skeleton />
         }
@@ -184,14 +312,22 @@
           </button>
         </div>
 
-        <app-skeleton-group [loading]="store.arePlantsLoading()">
-          <div ghost class="table-ghost">
-            @for (i of [1, 2, 3, 4, 5]; track i) {
-              <app-skeleton variant="rect" h="3.25rem" />
-            }
+        <app-skeleton-group [loading]="store.arePlantsLoading()" label="Loading plants">
+          <div ghost>
+            <ng-container [ngTemplateOutlet]="tableGhost" />
           </div>
 
-          @if (store.plantsEmpty()) {
+          @if (store.plantsFailed()) {
+            <app-empty-state
+              [headingLevel]="3"
+              title="Couldn't load the plants"
+              message="The greenhouse network is acting up. Your plants are still there."
+            >
+              <button matButton="filled" class="press-feedback" (click)="retryGarden()">
+                Try again
+              </button>
+            </app-empty-state>
+          } @else if (store.plantsEmpty()) {
             <app-empty-state
               title="Nothing planted yet"
               message="Add your first plant and watch the bed layout fill up."
@@ -205,17 +341,34 @@
               <table class="plants-table">
                 <thead>
                   <tr>
-                    <th scope="col">Plant</th>
-                    <th scope="col">Planted</th>
-                    <th scope="col" class="num">Area</th>
-                    <th scope="col" class="num">Humidity</th>
+                    @for (col of sortColumns; track col.key) {
+                      <th scope="col" [class.num]="col.num" [attr.aria-sort]="ariaSort(col.key)">
+                        <button
+                          class="sort-btn"
+                          type="button"
+                          [class.active]="ariaSort(col.key) !== null"
+                          (click)="sortBy(col.key)"
+                        >
+                          {{ col.label }}
+                          <span class="sort-icon" aria-hidden="true">
+                            {{
+                              ariaSort(col.key) === 'ascending'
+                                ? '↑'
+                                : ariaSort(col.key) === 'descending'
+                                  ? '↓'
+                                  : '↕'
+                            }}
+                          </span>
+                        </button>
+                      </th>
+                    }
                     <th scope="col" class="actions-col">
                       <span class="visually-hidden">Actions</span>
                     </th>
                   </tr>
                 </thead>
                 <tbody class="stagger-children">
-                  @for (plant of store.plants(); track plant.plantId) {
+                  @for (plant of sortedPlants(); track plant.plantId) {
                     @if (isMutating(plant.plantId)) {
                       <!-- Mutation ghost row: same engine, in place (ASYNC-UX) -->
                       <tr class="ghost-row" aria-busy="true">
@@ -248,15 +401,23 @@
                             </span>
                           </button>
                         </td>
-                        <td>{{ plant.plantationDate | date: 'MMM d, y' : 'UTC' }}</td>
+                        <td>
+                          <span class="planted-cell">
+                            <span>{{ plant.plantationDate | date: 'MMM d, y' : 'UTC' }}</span>
+                            <span class="planted-ago">{{ plantedAgo(plant) }}</span>
+                          </span>
+                        </td>
                         <td class="num tabular">{{ plant.surfaceAreaRequired }} m²</td>
                         <td class="num">
                           <span
                             class="humidity-cell tabular"
                             [class.above]="humidityDeltaOf(plant, garden) > 5"
                             [class.below]="humidityDeltaOf(plant, garden) < -5"
+                            [attr.title]="(zoneOf(plant) | titlecase) + ' watering zone'"
                           >
+                            <span class="zone-dot" [attr.data-zone]="zoneOf(plant)"></span>
                             {{ plant.idealHumidityLevel }}%
+                            <span class="visually-hidden">, {{ zoneOf(plant) }} watering zone</span>
                           </span>
                         </td>
                         <td class="actions-col">

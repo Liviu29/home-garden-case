@@ -269,12 +269,54 @@ describe('GardenMap — direct manipulation', () => {
       const before = Number(el.querySelector('.zoom-level')?.textContent?.replace(/\D/g, '') ?? 0);
 
       svg().dispatchEvent(
-        new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -300 }),
+        new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -300, ctrlKey: true }),
       );
       host.detectChanges();
 
       const after = Number(el.querySelector('.zoom-level')?.textContent?.replace(/\D/g, '') ?? 0);
       expect(after).toBeGreaterThan(before);
+    });
+
+    it('a bare wheel leaves the zoom alone, lets the page scroll, and names the gesture', () => {
+      // Regression: every wheel notch over the embedded map zoomed it, so
+      // scrolling the page past the plan trapped the scroll and shrank the map.
+      vi.useFakeTimers();
+      try {
+        mount();
+        const event = new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -300 });
+        svg().dispatchEvent(event);
+        host.detectChanges();
+
+        expect(el.querySelector('.zoom-level')?.textContent).toContain('100');
+        expect(event.defaultPrevented).toBe(false);
+        expect(el.querySelector('.wheel-hint')?.textContent).toMatch(/scroll to zoom/);
+
+        svg().dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaY: -300 }));
+        vi.advanceTimersByTime(1500);
+        host.detectChanges();
+        expect(el.querySelector('.wheel-hint')).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it.each([
+      ['Ctrl', { ctrlKey: true }],
+      ['⌘', { metaKey: true }],
+    ])('%s + wheel zooms and keeps the browser from zooming the page', (_key, mods) => {
+      mount();
+      const event = new WheelEvent('wheel', {
+        bubbles: true,
+        cancelable: true,
+        deltaY: -300,
+        ...mods,
+      });
+      svg().dispatchEvent(event);
+      host.detectChanges();
+
+      expect(el.querySelector('.zoom-level')?.textContent).not.toContain('100');
+      expect(event.defaultPrevented).toBe(true);
+      expect(el.querySelector('.wheel-hint')).toBeNull();
     });
 
     it('the zoom buttons step in and out', () => {
@@ -577,15 +619,36 @@ describe('GardenMap — direct manipulation', () => {
     });
   });
 
-  describe('free-soil band labelling', () => {
+  describe('free-soil labelling', () => {
+    const kind = (): string | null => {
+      if (el.querySelector('.free-marker')) {
+        return 'marker';
+      }
+      const text = el.querySelector('text.free-label');
+      if (!text) {
+        return null;
+      }
+      return text.getAttribute('transform') ? 'vertical' : 'horizontal';
+    };
+
     it.each([
-      { label: 'a wide band gets a horizontal label', area: 20, used: 2 },
-      { label: 'a narrow band gets a vertical label', area: 20, used: 17 },
-      { label: 'a sliver gets a marker only', area: 20, used: 19.7 },
-      { label: 'a full garden gets no band at all', area: 20, used: 20 },
-    ])('$label', ({ area, used }) => {
-      mount([plant(1, used, 'Filler')], { totalSurfaceArea: area });
-      expect(el.querySelector('.map-svg')).not.toBeNull();
+      { label: 'a roomy cell gets a horizontal label', used: 2, expected: 'horizontal' },
+      { label: 'a tall narrow cell gets a vertical label', used: 18, expected: 'vertical' },
+      { label: 'a sliver gets a marker only', used: 19.7, expected: 'marker' },
+      { label: 'a full garden gets no free cell at all', used: 20, expected: null },
+    ])('$label', ({ used, expected }) => {
+      mount([plant(1, used, 'Filler')], { totalSurfaceArea: 20 });
+      expect(kind()).toBe(expected);
+    });
+
+    it('a 98% garden of several beds labels its 0.5 m² along the cell', () => {
+      // The e2e "area honesty at 98%" plant set. As a strip, 0.5 m² was a
+      // sliver that only fit a "+"; as a treemap cell (~0.45 × 1.13 m) the
+      // label fits along it — the exact figure beats a symbol.
+      mount([plant(1, 5), plant(2, 4), plant(3, 4), plant(4, 3), plant(5, 3.5)], {
+        totalSurfaceArea: 20,
+      });
+      expect(kind()).toBe('vertical');
     });
   });
 
@@ -596,6 +659,91 @@ describe('GardenMap — direct manipulation', () => {
       });
       const label = el.querySelector('.plot-name')?.textContent ?? '';
       expect(label.length).toBeLessThan(60);
+    });
+  });
+
+  describe('dropping a bed', () => {
+    // 20 m² garden at the fixed 1.6 aspect — the map's own world size.
+    const W = Math.sqrt(20 * 1.6);
+    const H = 20 / W;
+    const bedOf = (g: SVGGElement) => {
+      const r = g.querySelector('rect.plot-bed')!;
+      return { w: Number(r.getAttribute('width')), h: Number(r.getAttribute('height')) };
+    };
+    const drag = (g: SVGGElement, to: { clientX: number; clientY: number }) => {
+      g.dispatchEvent(pointer('pointerdown', { clientX: 200, clientY: 200 }));
+      svg().dispatchEvent(pointer('pointermove', to));
+      host.detectChanges();
+    };
+
+    it('can never leave the garden, however far it is flung (first-drag regression)', () => {
+      mount();
+      const plot = plots()[0];
+      const { w, h } = bedOf(plot);
+
+      drag(plot, { clientX: 2600, clientY: 2600 });
+      svg().dispatchEvent(pointer('pointerup', { clientX: 2600, clientY: 2600 }));
+      host.detectChanges();
+
+      const moved = host.componentInstance.moved!;
+      expect(moved.x).toBeGreaterThanOrEqual(0);
+      expect(moved.y).toBeGreaterThanOrEqual(0);
+      // Flung past the corner, it settles flush against the fence — inside it.
+      expect(moved.x + w).toBeCloseTo(W, 9);
+      expect(moved.y + h).toBeCloseTo(H, 9);
+    });
+
+    it('shows where it will land while dragging, and lands exactly there', () => {
+      mount();
+      drag(plots()[0], { clientX: 260, clientY: 250 });
+
+      const preview = el.querySelector('rect.drop-preview');
+      expect(preview).not.toBeNull();
+      const at = { x: Number(preview!.getAttribute('x')), y: Number(preview!.getAttribute('y')) };
+
+      svg().dispatchEvent(pointer('pointerup', { clientX: 260, clientY: 250 }));
+      host.detectChanges();
+
+      expect(host.componentInstance.moved!.x).toBeCloseTo(at.x, 9);
+      expect(host.componentInstance.moved!.y).toBeCloseTo(at.y, 9);
+      expect(el.querySelector('rect.drop-preview')).toBeNull();
+    });
+
+    it('paints the dragged bed above its neighbours', () => {
+      mount();
+      const grabbed = plots()[0].getAttribute('aria-label');
+      drag(plots()[0], { clientX: 260, clientY: 250 });
+
+      const top = plots().at(-1)!;
+      expect(top.getAttribute('aria-label')).toBe(grabbed);
+      expect(top.classList).toContain('dragging');
+      expect(el.querySelector('.map-stage')!.classList).toContain('is-dragging');
+    });
+
+    it('keeps the zoom the gardener chose — moving a bed never resets the view', () => {
+      // Regression: the camera was linked to a layout-derived object, so every
+      // drag step (and every drop) snapped a zoomed-in view back to Fit.
+      mount();
+      byTitle('Zoom in')!.click();
+      host.detectChanges();
+
+      drag(plots()[0], { clientX: 260, clientY: 250 });
+      svg().dispatchEvent(pointer('pointerup', { clientX: 260, clientY: 250 }));
+      host.detectChanges();
+
+      expect(el.querySelector('.zoom-level')?.textContent).toContain('140');
+    });
+
+    it('a second finger turns a bed drag into a pinch', () => {
+      mount();
+      drag(plots()[0], { clientX: 260, clientY: 250 });
+      svg().dispatchEvent(pointer('pointerdown', { pointerId: 2, clientX: 400, clientY: 250 }));
+      host.detectChanges();
+
+      expect(el.querySelector('rect.drop-preview')).toBeNull();
+      svg().dispatchEvent(pointer('pointerup', { pointerId: 2 }));
+      svg().dispatchEvent(pointer('pointerup'));
+      expect(host.componentInstance.moved).toBeNull();
     });
   });
 });
@@ -717,6 +865,19 @@ describe('GardenMap — owner-driven states', () => {
     expect(fixture.componentInstance.resets).toBe(1);
   });
 
+  it('in fullscreen the bare wheel zooms — the planner owns the viewport there', () => {
+    fixture.componentInstance.isFullscreen.set(true);
+    fixture.detectChanges();
+
+    el.querySelector('svg.map-svg')!.dispatchEvent(
+      new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -300 }),
+    );
+    fixture.detectChanges();
+
+    expect(el.querySelector('.zoom-level')?.textContent).not.toContain('100');
+    expect(el.querySelector('.wheel-hint')).toBeNull();
+  });
+
   it('offers Exit fullscreen instead of Expand when already fullscreen', () => {
     fixture.componentInstance.isFullscreen.set(true);
     fixture.detectChanges();
@@ -816,7 +977,9 @@ describe('GardenMap — guards and degenerate inputs', () => {
     expect(() =>
       el
         .querySelector('svg.map-svg')!
-        .dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -100 })),
+        .dispatchEvent(
+          new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -100, ctrlKey: true }),
+        ),
     ).not.toThrow();
   });
 
@@ -950,18 +1113,86 @@ describe('GardenMap — environment-dependent paths', () => {
     expect(disconnect).toHaveBeenCalled();
   });
 
+  describe('framing the measured stage', () => {
+    let resize: (width: number, height: number) => void;
+
+    const mountMeasured = (plants: readonly Plant[] = [plant(1, 5, 'Tomato')]) => {
+      let captured: ResizeObserverCallback | null = null;
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          constructor(cb: ResizeObserverCallback) {
+            captured = cb;
+          }
+          observe = vi.fn();
+          unobserve = vi.fn();
+          disconnect = vi.fn();
+        },
+      );
+      const fixture = mountWith(plants);
+      resize = (width, height) => {
+        captured!(
+          [{ contentRect: { width, height } } as ResizeObserverEntry],
+          {} as ResizeObserver,
+        );
+        fixture.detectChanges();
+      };
+      return fixture;
+    };
+
+    const viewBoxOfEl = (el: HTMLElement) =>
+      el.querySelector('svg.map-svg')!.getAttribute('viewBox')!.split(' ').map(Number);
+
+    it('fits the garden clear of the toolbar and HUD bands, in the stage’s own shape', () => {
+      const fixture = mountMeasured();
+      resize(800, 500);
+      const el = fixture.nativeElement as HTMLElement;
+      const [x, y, w, h] = viewBoxOfEl(el);
+
+      expect(w / h).toBeCloseTo(800 / 500, 6); // `meet` never letterboxes
+      // Where the garden (0..W, 0..H in map units) lands on the 800×500 stage:
+      const W = Math.sqrt(20 * 1.6);
+      const H = 20 / W;
+      const px = 800 / w;
+      expect((0 - y) * px).toBeGreaterThanOrEqual(59.9); // below the toolbar band
+      expect((H - y) * px).toBeLessThanOrEqual(500 - 63.9); // above the HUD band
+      expect((0 - x) * px).toBeGreaterThanOrEqual(23.9);
+      expect((W - x) * px).toBeLessThanOrEqual(800 - 23.9);
+    });
+
+    it('a resize re-frames a map at Fit, but keeps a view the gardener zoomed', () => {
+      const fixture = mountMeasured();
+      const el = fixture.nativeElement as HTMLElement;
+      resize(800, 500);
+
+      el.querySelector<HTMLButtonElement>('button[aria-label="Zoom in"]')!.click();
+      fixture.detectChanges();
+      resize(600, 600);
+      expect(el.querySelector('.zoom-level')?.textContent).toContain('140');
+
+      el.querySelector<HTMLButtonElement>('button[aria-label="Fit garden"]')!.click();
+      fixture.detectChanges();
+      resize(900, 400);
+      const [, , w, h] = viewBoxOfEl(el);
+      expect(el.querySelector('.zoom-level')?.textContent).toContain('100');
+      expect(w / h).toBeCloseTo(900 / 400, 6);
+    });
+  });
+
   it('zooms out on a downward wheel as well as in on an upward one', () => {
     const fixture = mountWith();
     const el = fixture.nativeElement as HTMLElement;
     const canvas = el.querySelector('svg.map-svg')!;
 
     canvas.dispatchEvent(
-      new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -200 }),
+      new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -200, ctrlKey: true }),
     );
     fixture.detectChanges();
     const zoomedIn = el.querySelector('.zoom-level')?.textContent;
 
-    canvas.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 400 }));
+    canvas.dispatchEvent(
+      new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 400, ctrlKey: true }),
+    );
     fixture.detectChanges();
 
     expect(el.querySelector('.zoom-level')?.textContent).not.toBe(zoomedIn);

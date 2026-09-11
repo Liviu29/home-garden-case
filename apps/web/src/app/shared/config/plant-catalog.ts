@@ -1,7 +1,7 @@
 import { Plant } from '../../core/api/models';
 
 /**
- * Curated plant catalog (feature brief §4) — PRESENTATIONAL presets, not
+ * Curated plant catalog — PRESENTATIONAL presets, not
  * backend data. `suggested*` values are recommendations the user can edit
  * freely; the only authorities remain the form validators and the server's
  * capacity verdict. Visuals come from the same original artwork system as the

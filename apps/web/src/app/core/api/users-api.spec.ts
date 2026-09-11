@@ -17,7 +17,7 @@ const userDto = (userId: number, emailAddress: string) => ({
 /**
  * The /users client (ADR-005). Two properties matter beyond "it calls a URL":
  * every response is mapped to the domain shape, and every failure surfaces as
- * a typed ApiError rather than a raw HttpErrorResponse (CODING-GUIDELINES §5).
+ * a typed ApiError rather than a raw HttpErrorResponse.
  */
 describe('UsersApi', () => {
   let api: UsersApi;

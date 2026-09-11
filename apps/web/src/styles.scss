@@ -1,11 +1,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Global styles — ItpHomeGarden web
-// Order: fonts → tokens → material theme → motion → base
+// Order: fonts → tokens → material theme → motion → skeleton engine → base
 // ─────────────────────────────────────────────────────────────────────────────
 @use '@angular/material' as mat;
 
 @use 'styles/tokens';
 @use 'styles/motion';
+@use 'styles/skeleton';
 
 // Self-hosted variable fonts (docs/DESIGN-SYSTEM.md §2 — no external font CDNs)
 @use '@fontsource-variable/inter';
@@ -116,10 +117,11 @@ a {
   font-variant-numeric: tabular-nums;
 }
 
-// Material dialog: our pop animation + radius
+// Material dialog radius. (No extra entrance: Material already scales the
+// surface and fades the container in over 150ms — a second `dialog-pop` on
+// the same surface animated one open twice.)
 .mat-mdc-dialog-surface {
   border-radius: var(--radius-l) !important;
-  animation: dialog-pop 200ms var(--ease-out);
 }
 
 // Visually hidden (a11y)
@@ -132,49 +134,5 @@ a {
   white-space: nowrap;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Mutation ghosts (docs/design/ASYNC-UX.md) — the ONE skeleton engine applied
-// in place: same gray tokens, same shimmer gradient, same sweep keyframe as
-// the Skeleton primitive. variant: content stays roughly in shape, grayed,
-// while a POST/PUT/DELETE is in flight — skeleton-first, always.
-// ─────────────────────────────────────────────────────────────────────────────
-.mutation-ghost {
-  position: relative;
-  overflow: hidden;
-  pointer-events: none;
-
-  > * {
-    opacity: 0.35;
-    filter: grayscale(1);
-  }
-
-  &::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    border-radius: inherit;
-    background: var(--gradient-shimmer), color-mix(in srgb, var(--skeleton-base) 55%, transparent);
-    animation: shimmer-sweep 1.4s ease-in-out infinite;
-  }
-}
-
-// Ghost bar inside a disabled submit button (replaces "Saving…" text)
-.btn-ghost {
-  display: inline-block;
-  width: 4.25rem;
-  height: 0.6rem;
-  border-radius: var(--radius-pill);
-  background: var(--gradient-skeleton-base);
-  position: relative;
-  overflow: hidden;
-  vertical-align: middle;
-
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: var(--gradient-shimmer);
-    animation: shimmer-sweep 1.4s ease-in-out infinite;
-  }
-}
+// Mutation ghosts, the in-button ghost bar and every skeleton surface live in
+// the one skeleton engine: styles/_skeleton.scss.

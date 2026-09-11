@@ -1,8 +1,8 @@
 import { fromPlantationDate, toPlantationDate } from './plantation-date';
 
 /**
- * Regression guard for the timezone day-shift (BACKEND-API-AUDIT §Contract
- * issues #1).
+ * Regression guard for the timezone day-shift (API-INTEGRATION.md §7,
+ * contract issue 1).
  *
  * These assertions are timezone-independent on purpose: Node caches the
  * process timezone, so flipping `TZ` mid-run is unreliable. Instead we pin the

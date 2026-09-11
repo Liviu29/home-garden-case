@@ -19,6 +19,12 @@
   gap: var(--sp-4);
 }
 
+// The creation ghost's status wrapper passes the row height through, so the
+// ghost card is as tall as the real cards beside it
+.creating-ghost {
+  display: grid;
+}
+
 .card {
   position: relative;
   display: grid;
@@ -30,8 +36,10 @@
   box-shadow: var(--shadow-1);
   overflow: hidden;
 
-  // hover sheen (DESIGN-SYSTEM §2)
-  &::before {
+  // Hover sheen (DESIGN-SYSTEM §2). On ::after, deliberately: this scoped
+  // rule outranks the global `.mutation-ghost::before`, and while it sat on
+  // ::before a deleting card lost its gray veil and shimmer entirely.
+  &::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -41,7 +49,7 @@
     pointer-events: none;
   }
 
-  &:hover::before {
+  &:hover::after {
     opacity: 1;
   }
 }
@@ -96,6 +104,47 @@
   flex-wrap: wrap;
   color: var(--text-3);
   font-size: var(--fs-caption);
+}
+
+// Plants still loading: the capacity bar's caption row + track, 0.25rem apart
+// (the same boxes as app-capacity-bar), so the card never grows when it lands.
+.plants-ghost {
+  display: grid;
+  gap: var(--sp-1);
+}
+
+.ghost-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: calc(var(--fs-caption) * 1.5);
+}
+
+// A word inside the meta sentence: inline, on the text's middle
+.count-ghost {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+// A garden created from this screen lands in its SORTED place — anywhere in
+// the grid. It arrives with a brief brand glow so the eye finds it at once.
+.card.is-new {
+  animation: new-card-glow 1.8s var(--ease-out) backwards;
+}
+
+@keyframes new-card-glow {
+  0%,
+  35% {
+    border-color: var(--brand-500);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--brand-500) 35%, transparent),
+      var(--shadow-2);
+  }
+
+  100% {
+    border-color: var(--border);
+    box-shadow: var(--shadow-1);
+  }
 }
 
 .kebab {
