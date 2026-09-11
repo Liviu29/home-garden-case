@@ -20,3 +20,22 @@ Extend the API minimally: `targetHumidityLevel real not null default 50` in the 
 - Honors the requirement properly and shows comfort crossing the stack boundary.
 - The dashboard's humidity-vs-target insights (plant `idealHumidityLevel` vs garden target) become meaningful.
 - Change is deliberately tiny and isolated to one commit so reviewers can audit it in seconds.
+
+## Addendum (2026-09-11): three more small changes, and tests
+
+Two gaps found while integrating were closed on the server, where they belong, and the API got
+its own tests:
+
+1. **`GET /plants`** returns every plant in one request. The dashboard and the gardens grid used
+   to need `1 + N` requests (one `GET /plants/garden/{id}` per garden); `PlantsIndexStore` now
+   makes one. The per-garden endpoint is unchanged.
+2. **Capacity on `PUT /gardens/{id}`.** The capacity rule was only enforced when plants changed,
+   so a garden could be shrunk below the area its plants use. `GardenService.updateGarden` now
+   refuses that with the same 400 `Validation error` shape the plant rule uses.
+3. **Two environment switches for tests**, both off by default so the running API behaves exactly
+   as the case describes: `DB_PATH` picks the SQLite file (`:memory:` in tests) and
+   `API_CHAOS=off` disables the injected delays and 500s.
+
+`apps/api` now has Vitest tests (`nx test api`) that boot the real app — every route, plugin,
+schema and migration — against an in-memory database through Fastify's `inject()`: CRUD for all
+three resources, validation errors, 404s, the cascade, and the capacity rule in both directions.

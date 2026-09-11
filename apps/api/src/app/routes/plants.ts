@@ -21,6 +21,28 @@ export default async function (fastify: FastifyInstance) {
   const plantService = fastify.diContainer.resolve<PlantService>('plantService');
 
   /**
+   * GET /plants
+   * Get every plant, across all gardens
+   */
+  fastify.withTypeProvider<ZodTypeProvider>().get(
+    '/plants',
+    {
+      schema: {
+        description: 'Get every plant, across all gardens',
+        tags: ['plants'],
+        response: {
+          200: plantsResponseSchema,
+          500: internalServerErrorResponseSchema,
+        },
+      },
+    },
+    async (_, reply) => {
+      const plants = await plantService.getAllPlants();
+      return reply.send(plants);
+    },
+  );
+
+  /**
    * GET /plants/:plantId
    * Get a plant by ID
    */

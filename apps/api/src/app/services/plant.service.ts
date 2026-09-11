@@ -14,6 +14,14 @@ export class PlantService {
   }
 
   /**
+   * Get every plant, across all gardens — one request instead of one per
+   * garden for screens that summarise many gardens at once.
+   */
+  async getAllPlants(): Promise<Plant[]> {
+    return await this.plantRepository.findAll();
+  }
+
+  /**
    * Get a plant by ID
    * @throws Error if plant not found
    */

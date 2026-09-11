@@ -39,8 +39,12 @@ export async function app(fastify: FastifyInstance, opts: AppOptions) {
   fastify.setValidatorCompiler(validatorCompiler);
   fastify.setSerializerCompiler(serializerCompiler);
 
+  // Specs live next to the routes they test; they are not plugins.
+  const ignorePattern = /\.spec\.[jt]s$/;
+
   fastify.register(AutoLoad, {
     dir: path.join(__dirname, 'plugins'),
+    ignorePattern,
     options: { ...opts },
   });
 
@@ -48,6 +52,7 @@ export async function app(fastify: FastifyInstance, opts: AppOptions) {
   // define your routes in one of these
   fastify.register(AutoLoad, {
     dir: path.join(__dirname, 'routes'),
+    ignorePattern,
     options: { ...opts },
   });
 

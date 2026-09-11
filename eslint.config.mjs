@@ -6,7 +6,7 @@ export default [
   ...nx.configs['flat/typescript'],
   ...nx.configs['flat/javascript'],
   {
-    ignores: ['**/dist', '**/.angular', '**/coverage'],
+    ignores: ['**/dist', '**/out-tsc', '**/.angular', '**/coverage'],
   },
   {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],

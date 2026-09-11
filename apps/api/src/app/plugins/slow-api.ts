@@ -6,7 +6,8 @@ import fp from 'fastify-plugin';
  * Useful for testing and development.
  */
 export default fp(async function (fastify: FastifyInstance) {
-  const enabled = true;
+  // On by default, as the case requires; `API_CHAOS=off` turns it off for the API's own tests.
+  const enabled = process.env['API_CHAOS'] !== 'off';
   const minDelay = 200;
   const maxDelay = 2000;
 

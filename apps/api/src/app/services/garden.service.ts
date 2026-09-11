@@ -1,13 +1,16 @@
 import { GardenRepository } from '../database/repositories/garden.repository';
+import { PlantRepository } from '../database/repositories/plant.repository';
 import { Garden, GardenUpdate, NewGarden } from '../database/types';
 import { createGardenSchema, updateGardenSchema } from '../schemas/garden.schema';
-import { NotFoundError } from '../shared/errors';
+import { NotFoundError, ValidationError } from '../shared/errors';
 
 export class GardenService {
   private readonly gardenRepository: GardenRepository;
+  private readonly plantRepository: PlantRepository;
 
-  constructor(opts: { gardenRepository: GardenRepository }) {
+  constructor(opts: { gardenRepository: GardenRepository; plantRepository: PlantRepository }) {
     this.gardenRepository = opts.gardenRepository;
+    this.plantRepository = opts.plantRepository;
   }
 
   /**
@@ -42,7 +45,8 @@ export class GardenService {
 
   /**
    * Update a garden
-   * @throws Error if garden not found or validation fails
+   * @throws Error if garden not found, validation fails, or the new surface
+   * is smaller than the area its plants already need
    */
   async updateGarden(gardenId: number, data: GardenUpdate): Promise<Garden> {
     // Verify garden exists
@@ -53,6 +57,16 @@ export class GardenService {
 
     // Validate with Zod schema
     const validatedData = updateGardenSchema.parse(data);
+
+    // The capacity rule holds in both directions: plants may not outgrow the
+    // garden, and the garden may not shrink below its plants.
+    const plants = await this.plantRepository.findByGardenId(gardenId);
+    const usedArea = plants.reduce((sum, plant) => sum + plant.surfaceAreaRequired, 0);
+    if (validatedData.totalSurfaceArea < usedArea) {
+      throw new ValidationError(
+        `Cannot reduce the garden to ${validatedData.totalSurfaceArea}m²: its plants already require ${usedArea}m²`,
+      );
+    }
 
     return await this.gardenRepository.update(gardenId, validatedData);
   }

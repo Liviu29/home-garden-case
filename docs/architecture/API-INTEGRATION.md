@@ -120,9 +120,12 @@ the five real plant fields.
   garden total succeeds. The frontend mirrors both in `wouldOvercrowd` / `remainingCapacity`
   (`domain/garden-insights/garden-insights.ts`) for instant feedback, and renders the server verdict inline
   when it arrives.
-- **`PUT /gardens/{id}` has no capacity check** — a 20 m² garden holding 20 m² of plants accepted
-  `totalSurfaceArea: 5`. The garden dialog warns before shrinking below the used area; the planner
-  and header clamp their presentation while still showing the true numbers.
+- **`PUT /gardens/{id}` now enforces capacity too.** The original API let a 20 m² garden holding
+  20 m² of plants shrink to `totalSurfaceArea: 5`. `GardenService.updateGarden` now refuses a
+  surface below the area the garden's plants use (400, same shape as the plant rule; shrinking to
+  exactly the used area is allowed), so the rule holds in both directions
+  ([ADR-003](../adr/ADR-003-backend-extension.md)). The garden dialog still warns before the
+  request, and the planner and header still clamp their presentation for data created before.
 - **Humidity** values are 0–100 inclusive, decimals allowed (101 → 400).
 - **Cascade:** deleting a garden deletes its plants (verified with a follow-up `GET` → 404), so the
   confirmation copy says so.
@@ -139,9 +142,11 @@ the five real plant fields.
    single-flight and the 409 path is handled.
 4. **No pagination, filtering or sorting** on any endpoint — the gardens toolbar searches and sorts
    client-side by necessity.
-5. **The dashboard needs `1 + N` requests** (no plant data on `Garden`, no `?include=`). One shared
-   `PlantsIndexStore` fetches each garden's plants once — cached, de-duplicated, never per screen.
-   The production fix is server-side ([PERFORMANCE-AND-CACHING.md](./PERFORMANCE-AND-CACHING.md#production-backend-improvements)).
+5. **The dashboard used to need `1 + N` requests** (no plant data on `Garden`, no `?include=`).
+   The API now has `GET /plants` — every plant, one request — and `PlantsIndexStore` uses it
+   whenever two or more gardens need fresh plants, filing the answer under each garden's own
+   cache key so the detail screen reuses it. A single garden still reads
+   `GET /plants/garden/{id}` ([ADR-003](../adr/ADR-003-backend-extension.md)).
 
 ## 7. Contract issues found and fixed
 
