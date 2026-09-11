@@ -20,6 +20,8 @@
     "format": "nx format:write",
     "format:check": "nx format:check",
     "check:no-spinners": "node tools/check-no-spinners.mjs",
+    "seed": "node tools/seed-demo.mjs",
+    "seed:reset": "node tools/seed-demo.mjs --reset",
     "test:coverage": "nx test web --coverage"
   },
   "private": true,

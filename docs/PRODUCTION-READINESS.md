@@ -1,21 +1,30 @@
-42.39 kB | 10.67 kB || 21.49 kB || 38.87 kB || | |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Workspace | Nx 22.0.2 monorepo, npm workspaces (`apps/*`), `package-lock.json` authoritative |
-| Frontend | Angular 22.1.x — standalone, zoneless, signals, strict + `strictTemplates` |
-| Backend | Fastify 5 + Kysely + better-sqlite3 (the case's own API; extended once, [ADR-003](./adr/ADR-003-backend-extension.md)) |
-| Node | 22.22.3+ or 24.15+, pinned to 24.21.0 in `.nvmrc`. `engine-strict` stops `npm ci` early on any other version; Node 26 is out because better-sqlite3 12.4 stops at 24 |
-| TypeScript | 5.9 at the workspace root (Nx + API), 6.0 inside `apps/web` (Angular 22). Two pins on purpose — each project builds against the version its toolchain supports |
+# Production Readiness
+
+What is configured, what is deliberately _not_, and how a release candidate is
+verified. Companion reading: [ARCHITECTURE.md](./architecture/ARCHITECTURE.md) ·
+[PERFORMANCE-AND-CACHING.md](./architecture/PERFORMANCE-AND-CACHING.md) ·
+[API-INTEGRATION.md](./architecture/API-INTEGRATION.md).
+
+## Baseline
+
+|            |                                                                                                                                                                                         |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Workspace  | Nx 22.0.2 monorepo, npm workspaces (`apps/*`), `package-lock.json` authoritative                                                                                                        |
+| Frontend   | Angular 22.1.x — standalone, zoneless, signals, strict + `strictTemplates`                                                                                                              |
+| Backend    | Fastify 5 + Kysely + better-sqlite3 (the case's own API, extended in small additive steps: [ADR-003](./adr/ADR-003-backend-extension.md), [ADR-009](./adr/ADR-009-garden-ownership.md)) |
+| Node       | 22.22.3+ or 24.15+, pinned to 24.21.0 in `.nvmrc`. `engine-strict` stops `npm ci` early on any other version; Node 26 is out because better-sqlite3 12.4 stops at 24                    |
+| TypeScript | 5.9 at the workspace root (Nx + API), 6.0 inside `apps/web` (Angular 22). Two pins on purpose — each project builds against the version its toolchain supports                          |
 
 ## Development configuration
 
-| Concern     | Setting                                                                                                                                                                 |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| One command | `npm run dev` → `nx run-many -t dev -p api web` (both continuous targets, one terminal)                                                                                 |
-| Frontend    | `npm run dev:web` — Angular dev server on `:4200`, `defaultConfiguration: development`                                                                                  |
-| Backend     | `npm run dev:api` — Fastify on `:3000`; `HOST`/`PORT` env overrides; Swagger UI at `/docs`                                                                              |
-| API address | `proxy.conf.json` forwards `/api/*` → `http://localhost:3000` and strips the prefix. No app code names a host                                                           |
-| Source maps | on (`sourceMap: true`), optimization off, named chunks on                                                                                                               |
-| Database    | `db.sqlite` in the working directory, created by the migrator on first boot. Git-ignored. **A fresh clone starts empty** — no seed data; create a profile, then gardens |
+| Concern     | Setting                                                                                                                                                                                              |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| One command | `npm run dev` → `nx run-many -t dev -p api web` (both continuous targets, one terminal)                                                                                                              |
+| Frontend    | `npm run dev:web` — Angular dev server on `:4200`, `defaultConfiguration: development`                                                                                                               |
+| Backend     | `npm run dev:api` — Fastify on `:3000`; `HOST`/`PORT` env overrides; Swagger UI at `/docs`                                                                                                           |
+| API address | `proxy.conf.json` forwards `/api/*` → `http://localhost:3000` and strips the prefix. No app code names a host                                                                                        |
+| Source maps | on (`sourceMap: true`), optimization off, named chunks on                                                                                                                                            |
+| Database    | `db.sqlite` in the working directory, created by the migrator on first boot. Git-ignored. **A fresh clone starts empty**; `npm run seed` adds three demo profiles and eleven gardens through the API |
 
 ## Production configuration
 
@@ -179,17 +188,19 @@ engine — the 3D mode was evaluated and declined with written rationale
 
 ## Known considerations
 
-1. **`GET /plants` is unpaginated.** The dashboard and the gardens grid read every plant in
-   one request (it replaced one request per garden), and like `GET /gardens` it has no
-   paging or user scoping. At the scale this app runs — a handful of gardens per user —
-   that is one small response; at thousands of plants it needs paging, server-side.
+1. **`GET /plants` is unpaginated.** The dashboard and the gardens grid read the plants of
+   every visible garden in one request (it replaced one request per garden), scoped to the
+   signed-in profile with `?visibleTo=` ([ADR-009](./adr/ADR-009-garden-ownership.md)) but,
+   like `GET /gardens`, without paging. At the scale this app runs — a handful of gardens per
+   profile — that is one small response; at thousands of plants it needs paging, server-side.
 2. **Font subsets**: `@fontsource-variable` ships Cyrillic/Greek/Vietnamese `woff2` files
    alongside Latin. They are `unicode-range`-gated, so no browser downloads them for this
    app's content; trimming them would mean hand-writing `@font-face` blocks, which is not
    worth the maintenance cost.
-3. **The integration e2e project writes to the local `db.sqlite`** (uniquely named
-   entities per run). The database is git-ignored and disposable — delete the file to
-   reset.
+3. **The e2e suite brings its own API and database.** Playwright starts a built API on
+   `:3310` with a fresh SQLite file per run in the OS temp folder, so the integration
+   project never writes into the `db.sqlite` you develop against. The run files are small
+   and are not cleaned up automatically.
 4. **No PWA, service worker or SSR.** None is part of the architecture, and adding one
    would introduce caching and hydration risk for no user benefit here. Deliberate CSR
    is recorded in ADR-001.

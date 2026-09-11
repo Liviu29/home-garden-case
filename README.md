@@ -57,7 +57,8 @@ Angular (instead of the suggested React meta-framework) was agreed with the team
 ## What it does
 
 - **Profiles** — a welcome screen lists profiles and creates one inline; the active profile can be
-  edited, switched, signed out or deleted. The session survives a refresh and is revalidated on boot
+  edited, switched, signed out or deleted. Each profile sees its own gardens plus the shared ones
+  ([ADR-009](docs/adr/ADR-009-garden-ownership.md)). The session survives a refresh and is revalidated on boot
   (a profile session, not security — see [trade-offs](#deliberate-trade-offs)).
 - **Dashboard** — greeting, KPI tiles, _Needs attention_ (gardens at least 90% full or drifting from
   their humidity target), a _Garden health_ grid with a preview of each garden, and the portfolio
@@ -208,8 +209,9 @@ layout view model and camera state, swapping it later would mean one template, n
 
 - **`apps/api`** is the case's Fastify + Kysely + SQLite API, kept as provided apart from small,
   additive changes ([ADR-003](docs/adr/ADR-003-backend-extension.md)): gardens gained
-  `targetHumidityLevel`, `GET /plants` returns every plant in one request, and `PUT /gardens/{id}`
-  enforces the capacity rule. Swagger UI is served at `/docs`.
+  `targetHumidityLevel`, `GET /plants` returns every plant in one request, `PUT /gardens/{id}`
+  enforces the capacity rule, and gardens belong to the profile that created them
+  ([ADR-009](docs/adr/ADR-009-garden-ownership.md)). Swagger UI is served at `/docs`.
 - **API tests** — `npm run test:api` boots the real app (routes, plugins, schemas, migrations) on
   an in-memory SQLite database through Fastify's `inject()`, with the injected latency and errors off.
 - **`bruno/`** is the provided Bruno collection for calling every endpoint by hand.
@@ -296,7 +298,17 @@ npm run dev
 
 `npm run dev` starts the API and the web app together (`npm run dev:api` / `npm run dev:web` start
 them separately): the web app on http://localhost:4200, the API on http://localhost:3000 with Swagger
-UI at `/docs`. A fresh clone starts with an empty SQLite database: create a profile, then a garden.
+UI at `/docs`. A fresh clone starts with an empty SQLite database. For the demo data, run this in a
+second terminal while the API is up:
+
+```bash
+npm run seed
+```
+
+It adds three profiles — Liviu, Maya and Tom — each with their own gardens, plus one shared
+allotment: a full garden, humidity drifts, a garden planted over months for the timeline and an
+empty bed. It is safe to re-run; `npm run seed:reset` removes the demo data (and only that) and adds
+it again.
 
 | Command                     | Purpose                                                             |
 | --------------------------- | ------------------------------------------------------------------- |
@@ -307,6 +319,8 @@ UI at `/docs`. A fresh clone starts with an empty SQLite database: create a prof
 | `npm run test:e2e`          | Playwright, mocked and integration (starts its own API and web app) |
 | `npm run build`             | production builds of api and web, with bundle budgets               |
 | `npm run check:no-spinners` | fails if a spinner appears anywhere in the app                      |
+| `npm run seed`              | adds the demo profiles and gardens (the API must be running)        |
+| `npm run seed:reset`        | removes the demo data, then adds it again                           |
 
 ## Production build
 
@@ -342,8 +356,7 @@ are in [PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md).
 
 - **Real authentication** — OIDC through a small backend-for-frontend with httpOnly session cookies
   and owner-scoped data ([ADR-005](docs/adr/ADR-005-authentication.md)).
-- **Paging and user scoping** on `GET /gardens` and `GET /plants`, plus `ETag`s so revalidation is
-  nearly free.
+- **Paging** on `GET /gardens` and `GET /plants`, plus `ETag`s so revalidation is nearly free.
 - **Planner layouts stored by the API**, so they follow the user across devices.
 - **Telemetry** (Web Vitals, error reporting) behind the existing logging seam.
 
