@@ -104,12 +104,37 @@
             "outputPath": "src/locale"
           }
         },
+        "storybook": {
+          "builder": "@storybook/angular:start-storybook",
+          "options": {
+            "configDir": ".storybook",
+            "browserTarget": "web:build:development",
+            "tsConfig": ".storybook/tsconfig.json",
+            "styles": ["src/styles.scss"],
+            "compodoc": false,
+            "experimentalZoneless": true,
+            "port": 6006
+          }
+        },
+        "build-storybook": {
+          "builder": "@storybook/angular:build-storybook",
+          "options": {
+            "configDir": ".storybook",
+            "browserTarget": "web:build:development",
+            "tsConfig": ".storybook/tsconfig.json",
+            "styles": ["src/styles.scss"],
+            "compodoc": false,
+            "experimentalZoneless": true,
+            "outputDir": "dist/storybook"
+          }
+        },
         "test": {
           "builder": "@angular/build:unit-test",
           "options": {
             "coverageInclude": ["src/app/**/*.ts", "src/app/**/*.html"],
             "coverageExclude": [
               "src/app/**/*.spec.ts",
+              "src/app/**/*.stories.ts",
               "src/app/core/api/models.ts",
               "src/app/core/api/dtos.ts",
               "src/app/app.config.ts",
