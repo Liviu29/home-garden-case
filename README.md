@@ -18,7 +18,8 @@ Nx · Vitest · Playwright
    garden ([setup](#getting-started)).
 2. **Dashboard** — the portfolio in one line, KPI tiles, a _Needs attention_ list and a _portfolio
    map_: every planted garden by how full it is and how far its plants' humidity drifts from its
-   target, with the attention rules drawn as bands. Choose a bubble to open that garden.
+   target, with the attention rules drawn as bands. Choose a bubble to open that garden. At the
+   bottom, _Water today_ lists the beds to water, by garden and watering zone.
 3. **A garden** — the planner draws each bed at its real m², so a 98%-full garden _looks_ 98% full.
    Drag beds, regroup them by water needs, replay the planting timeline, or read the same plan as a
    list.
@@ -61,15 +62,18 @@ Angular (instead of the suggested React meta-framework) was agreed with the team
   ([ADR-009](docs/adr/ADR-009-garden-ownership.md)). The session survives a refresh and is revalidated on boot
   (a profile session, not security — see [trade-offs](#deliberate-trade-offs)).
 - **Dashboard** — greeting, KPI tiles, _Needs attention_ (gardens at least 90% full or drifting from
-  their humidity target), a _Garden health_ grid with a preview of each garden, and the portfolio
-  map.
+  their humidity target), a _Garden health_ grid with a preview of each garden, the portfolio
+  map, and _Water today_: which beds need water, by garden and watering zone, worked out from each
+  plant's zone and planting date.
 - **Gardens** — create, edit and delete with name, surface, location and target humidity; search
-  and sort; a capacity bar on every card; designed loading, empty, error and not-found states.
+  and sort; a capacity bar on every card; designed loading, empty, error and not-found states. A
+  deleted garden or plant can be brought back from the toast's _Undo_.
 - **Plants** — create, edit and delete with every property. The Add dialog opens on a catalog of 27
   common plants ranked for _this_ garden; picking one only pre-fills the form, and a live _Garden
   fit_ panel shows available, required and remaining m² while you type.
 - **Garden planner** and **humidity profile** — the centre of Garden Detail; see
-  [below](#the-garden-planner).
+  [below](#the-garden-planner). The plan, the humidity profile and the portfolio map each save
+  as a PNG, drawn in the browser.
 
 Light and dark themes; layouts from 375 to 1920 px.
 

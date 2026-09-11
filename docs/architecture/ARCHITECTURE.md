@@ -50,18 +50,21 @@ apps/web/src/
 │   │   └── resilience/        # QueryCache: SWR + in-flight de-duplication
 │   ├── state/                 # app-wide SignalStores, providedIn: 'root'
 │   │   ├── gardens-store/         # GardensStore + the list's search/sort (garden-view.ts)
+│   │   ├── garden-layout/         # saved bed positions per garden (localStorage)
 │   │   └── plants-index-store/    # PlantsIndexStore: the one writable owner of plants
 │   ├── domain/                # business rules and maths — no HTTP, no stores
 │   │   ├── garden-insights/       # capacity and humidity rules
 │   │   ├── garden-map-layout/     # the area-true treemap layout
 │   │   ├── garden-planner/        # watering zones, clashes, grouping, timeline
+│   │   ├── watering-plan/         # what needs water today, from zone and planting date
 │   │   ├── plant-recommendation/  # ranks the catalog for one garden
 │   │   ├── plantation-date/       # UTC calendar-day handling
 │   │   └── catalog/               # the plant catalog and its provider seam
 │   ├── features/              # one lazy route per folder; the files at its root are the page
 │   │   ├── onboarding/        # profile selection and creation
-│   │   ├── dashboard/         # portfolio KPIs, attention center, garden health
-│   │   │   └── garden-mini-preview/
+│   │   ├── dashboard/         # portfolio KPIs, attention center, garden health, water today
+│   │   │   ├── garden-mini-preview/
+│   │   │   └── watering-panel/
 │   │   ├── gardens/           # the garden grid
 │   │   │   ├── garden-form-dialog/
 │   │   │   └── prefetch-garden/       # hover/focus prefetch directive
@@ -69,7 +72,6 @@ apps/web/src/
 │   │   │   ├── garden-detail-store/   # GardenDetailStore (route-scoped)
 │   │   │   ├── plant-form-dialog/
 │   │   │   └── garden-map/            # the planner: SVG scene and toolbar
-│   │   │       ├── garden-layout-repository/  # saved bed positions (localStorage)
 │   │   │       ├── garden-map-skeleton/
 │   │   │       ├── map-camera/        # pan and zoom maths
 │   │   │       └── map-inspector/
@@ -78,7 +80,8 @@ apps/web/src/
 │   └── shared/ui/             # presentational kit, one folder per component: skeletons, empty
 │                              # state, stat card, capacity bar, humidity gauge, confirm dialog,
 │                              # toasts, value presets, plant artwork and its resolver,
-│                              # and <app-chart>: Highcharts, loaded on demand (ADR-008)
+│                              # <app-chart>: Highcharts, loaded on demand (ADR-008), and the
+│                              # PNG export of any on-screen SVG (drawn in the browser)
 ├── environments/              # the one build-time switch: apiBaseUrl
 └── styles/                    # design tokens, motion presets, the skeleton engine
 ```
@@ -125,7 +128,9 @@ render (the capacity rule above all). While a request is in flight the affected 
 **ghost in place** — a creation ghost where the entity will land, the edited card, row or bed
 grayed out — and the rest of the screen stays live. Deletes are **ghost-confirmed**: the item
 stays visible and inert until the server confirms, then leaves; on failure it resolves back with
-a Try again toast. Metrics change only on confirmed state.
+a Try again toast. Metrics change only on confirmed state. The confirmation toast offers Undo.
+The API has no restore, so Undo creates the item again under a new id: a plant with its bed
+position, a garden with its owner, its plants and its planner layout.
 
 Successful mutations write through the cache with what the server returned, and invalidate what
 it did not (a deleted garden's detail and plants) — see
