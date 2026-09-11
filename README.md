@@ -362,7 +362,8 @@ are in [PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md).
   and owner-scoped data ([ADR-005](docs/adr/ADR-005-authentication.md)).
 - **Paging** on `GET /gardens` and `GET /plants`, plus `ETag`s so revalidation is nearly free.
 - **Planner layouts stored by the API**, so they follow the user across devices.
-- **Telemetry** (Web Vitals, error reporting) behind the existing logging seam.
+- **An error-monitoring service** (Sentry or OpenTelemetry) as an adapter on the `LogSink` seam;
+  the Web Vitals and error reports already flow through it.
 
 ## Further documentation
 

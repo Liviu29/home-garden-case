@@ -143,8 +143,15 @@ outside dev mode; genuine technical failures (`error`) always report. Messages c
 context tag and a human sentence — never a DTO, form value or profile field. Backend
 5xx bodies never reach the user: the error taxonomy maps them to one generic sentence,
 while 4xx business verdicts are shown verbatim because they tell the user exactly what
-to change. Real observability (Sentry / OpenTelemetry) plugs into that class without
-touching call sites; it is future work rather than half-built now.
+to change.
+
+Observability is built in and off by default. The app measures its Core Web Vitals (LCP, INP,
+CLS, plus FCP and TTFB) with `PerformanceObserver` and reports them through the same `Logger`.
+Setting `telemetryEndpoint` in `environment.production.ts` sends technical errors and those
+vitals to that URL with `navigator.sendBeacon` — batched, sent when the page is hidden, each
+entry a context tag, a sentence or a number plus the route path, never a payload. Left `null`,
+nothing leaves the browser. A Sentry or OpenTelemetry SDK would be one `LogSink` adapter provided
+under `LOG_SINK`; call sites do not change.
 
 ## Verification gates
 

@@ -1,3 +1,5 @@
+import { TestBed } from '@angular/core/testing';
+import { LOG_SINK, LogEntry } from './log-sink';
 import { Logger } from './logger';
 
 /**
@@ -19,7 +21,7 @@ describe('Logger', () => {
   let error: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    logger = new Logger();
+    logger = TestBed.inject(Logger);
     warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
   });
@@ -50,5 +52,46 @@ describe('Logger', () => {
     const [message] = warn.mock.calls[0] as [string];
     expect(message).toBe('[plants] create rolled back');
     expect(warn).toHaveBeenCalledTimes(1); // no second argument carrying a DTO
+  });
+
+  it('has no sink unless a telemetry endpoint is configured', () => {
+    expect(TestBed.inject(LOG_SINK)).toBeNull();
+    expect(() => logger.metric('LCP', 1200, 'good')).not.toThrow();
+  });
+});
+
+describe('Logger — what reaches the sink', () => {
+  const written: LogEntry[] = [];
+  let logger: Logger;
+
+  beforeEach(() => {
+    written.length = 0;
+    TestBed.configureTestingModule({
+      providers: [{ provide: LOG_SINK, useValue: { write: (e: LogEntry) => written.push(e) } }],
+    });
+    logger = TestBed.inject(Logger);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(console, 'info').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('an error goes as its context and sentence — never its cause', () => {
+    logger.error('api:500', 'unhandled technical failure', new Error('a payload'));
+    expect(written).toEqual([
+      { kind: 'error', context: 'api:500', message: 'unhandled technical failure' },
+    ]);
+  });
+
+  it('a metric goes with its rating, and shows in the development console', () => {
+    logger.metric('LCP', 1830, 'good');
+    expect(written).toEqual([{ kind: 'metric', name: 'LCP', value: 1830, rating: 'good' }]);
+    expect(console.info).toHaveBeenCalledWith('[vitals] LCP 1830 (good)');
+  });
+
+  it('expected unhappy paths stay in this browser', () => {
+    logger.warn('gardens', 'refresh failed');
+    expect(written).toEqual([]);
   });
 });

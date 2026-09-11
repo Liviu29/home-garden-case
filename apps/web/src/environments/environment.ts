@@ -9,4 +9,6 @@
 export const environment = {
   production: false,
   apiBaseUrl: '/api',
+  /** Errors and Web Vitals go to the console only; see environment.production.ts. */
+  telemetryEndpoint: null as string | null,
 } as const;

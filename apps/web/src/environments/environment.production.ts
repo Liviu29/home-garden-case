@@ -14,4 +14,10 @@
 export const environment = {
   production: true,
   apiBaseUrl: '/api',
+  /**
+   * A collector URL (e.g. '/api/telemetry') makes the Logger send technical
+   * errors and Web Vitals there with `sendBeacon`, batched and without
+   * payloads. Null: nothing leaves the browser.
+   */
+  telemetryEndpoint: null as string | null,
 } as const;

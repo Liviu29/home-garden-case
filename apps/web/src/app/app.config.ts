@@ -1,5 +1,12 @@
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
-import { ApplicationConfig, ErrorHandler, provideBrowserGlobalErrorListeners } from '@angular/core';
+import {
+  ApplicationConfig,
+  ErrorHandler,
+  Injector,
+  inject,
+  provideAppInitializer,
+  provideBrowserGlobalErrorListeners,
+} from '@angular/core';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideRouter, withComponentInputBinding, withViewTransitions } from '@angular/router';
 import { routes } from './app.routes';
@@ -31,5 +38,14 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(withFetch(), withInterceptors([baseUrlInterceptor, retryInterceptor])),
     provideAnimationsAsync(),
     { provide: ErrorHandler, useClass: GlobalErrorHandler },
+    // Core Web Vitals through the Logger seam, loaded in a chunk of their own
+    // so measuring the first load never makes it heavier. The observers are
+    // buffered: they still see what happened before the chunk arrived.
+    provideAppInitializer(() => {
+      const injector = inject(Injector);
+      void import('./core/telemetry/web-vitals').then(({ WebVitals }) =>
+        injector.get(WebVitals).start(),
+      );
+    }),
   ],
 };

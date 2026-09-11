@@ -46,7 +46,8 @@ apps/web/src/
 │   │   ├── errors/            # ApiError taxonomy, global ErrorHandler, ToastStore
 │   │   ├── http/              # interceptors: base URL, retry with backoff + jitter
 │   │   ├── layout/            # the shell: top bar, navigation, profile menu, page backdrop
-│   │   ├── logging/           # the Logger seam
+│   │   ├── logging/           # the Logger seam and its optional sink (sendBeacon)
+│   │   ├── telemetry/         # Core Web Vitals, measured with PerformanceObserver
 │   │   └── resilience/        # QueryCache: SWR + in-flight de-duplication
 │   ├── state/                 # app-wide SignalStores, providedIn: 'root'
 │   │   ├── gardens-store/         # GardensStore + the list's search/sort (garden-view.ts)
@@ -158,10 +159,17 @@ Every failure is classified exactly once, in `toApiError()` (`core/errors/api-er
 
 ### 4.4 Logging
 
-All logging goes through one `Logger` (`core/logging`): console-backed today, the exact interface a
-Sentry or OpenTelemetry sink would implement — call sites would not change. Expected unhappy paths
-(`warn`) are silent outside dev mode; technical failures (`error`) always report. Messages carry
-an operation and an id, never a payload.
+All logging goes through one `Logger` (`core/logging`): the console, plus one optional `LogSink`
+(`LOG_SINK`). Expected unhappy paths (`warn`) are silent outside dev mode and never leave the
+browser; technical failures (`error`) always report, and reach the sink as their context tag and
+sentence — the cause stays in the console. Messages carry an operation and an id, never a payload.
+
+`core/telemetry/web-vitals.ts` measures LCP, FCP, CLS, INP and TTFB with the browser's own
+`PerformanceObserver` (no library), rates them against the web.dev thresholds, and reports them
+once through `Logger.metric()` when the page is first hidden. With `telemetryEndpoint` set in the
+environment, the sink is a `BeaconSink`: entries are batched and sent with `navigator.sendBeacon`
+when the page is hidden. It is unset by default, so nothing leaves the browser. A Sentry or
+OpenTelemetry adapter is the same `LogSink` interface, provided in place of the beacon.
 
 ## 5. State management
 

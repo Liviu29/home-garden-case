@@ -23,6 +23,11 @@ export interface AppConfig {
   // Skeleton timing is presentation, not config: `--skeleton-delay` in
   // styles/_tokens.scss (the one skeleton engine owns when ghosts appear).
   readonly toastDurationMs: number;
+  /**
+   * Where the Logger sends errors and Web Vitals (a `sendBeacon` collector).
+   * Unset by default: nothing leaves the browser.
+   */
+  readonly telemetryEndpoint?: string | null;
 }
 
 export const APP_CONFIG = new InjectionToken<AppConfig>('APP_CONFIG', {
