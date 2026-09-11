@@ -22,7 +22,12 @@
     "check:no-spinners": "node tools/check-no-spinners.mjs",
     "seed": "node tools/seed-demo.mjs",
     "seed:reset": "node tools/seed-demo.mjs --reset",
-    "test:coverage": "nx test web --coverage"
+    "test:coverage": "nx test web --coverage",
+    "dev:web:nl": "nx serve-nl web",
+    "i18n:extract": "nx extract-i18n web",
+    "storybook": "nx storybook web",
+    "build-storybook": "nx build-storybook web",
+    "storybook:a11y": "node tools/check-storybook-a11y.mjs"
   },
   "private": true,
   "engines": {
@@ -56,8 +61,8 @@
     "nx": "22.0.2",
     "prettier": "^3.6.2",
     "tslib": "^2.3.0",
-    "typescript": "~5.9.2",
-    "typescript-eslint": "^8.40.0"
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.70.0"
   },
   "workspaces": [
     "apps/*"
