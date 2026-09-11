@@ -107,6 +107,19 @@ describe('ProfileDialog (PUT /users/:id)', () => {
     expect(api.update).toHaveBeenCalledWith(1, expect.objectContaining({ age: null }));
   });
 
+  it('saves when the form itself is submitted, sending a blank last name as null', async () => {
+    const { fixture, vm } = render();
+    vm.form.patchValue({ lastName: '   ' });
+
+    (fixture.nativeElement as HTMLElement)
+      .querySelector('form')!
+      .dispatchEvent(new Event('submit'));
+
+    await vi.waitFor(() =>
+      expect(api.update).toHaveBeenCalledWith(1, expect.objectContaining({ lastName: null })),
+    );
+  });
+
   it('adopts the SERVER response, not the form values', async () => {
     const { vm } = render();
     vm.form.patchValue({ firstName: 'Typed' });

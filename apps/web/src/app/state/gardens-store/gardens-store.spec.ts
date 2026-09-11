@@ -331,12 +331,65 @@ describe('GardensStore — update, view state and toast policy', () => {
 });
 
 /**
- * NOT TESTED HERE, deliberately: `readPersistedView()` runs while this module
- * is being evaluated, so the only way to exercise its parsing branches is
- * `vi.resetModules()` plus a dynamic re-import. This suite runs with Vitest
- * isolation off (a deliberate speed choice), which means a module-registry
- * reset leaks into every other spec — it was tried, and it broke three
- * unrelated suites. The parsing is defensive-by-construction (every branch
- * falls back to the same defaults) and its user-visible effect — search and
- * sort surviving a reload — is covered end-to-end in the Playwright suite.
+ * The toolbar view survives a reload. The store reads it when it is created
+ * (a `withState` factory), so each test stores a value first and then asks
+ * for a fresh store — no module reloading needed.
  */
+describe('GardensStore — the persisted toolbar view', () => {
+  const VIEW_KEY = 'itp-home-garden.gardens-view';
+
+  const storeWith = (stored: string | null) => {
+    localStorage.clear();
+    if (stored !== null) {
+      localStorage.setItem(VIEW_KEY, stored);
+    }
+    TestBed.configureTestingModule({
+      providers: [{ provide: GardensApi, useValue: { getAll: vi.fn() } }],
+    });
+    return TestBed.inject(GardensStore);
+  };
+  const viewOf = (store: InstanceType<typeof GardensStore>) => [store.query(), store.sort()];
+
+  afterEach(() => {
+    vi.useRealTimers();
+    localStorage.clear();
+  });
+
+  it('restores the last search and sort order', () => {
+    expect(viewOf(storeWith(JSON.stringify({ query: 'herb', sort: 'size' })))).toEqual([
+      'herb',
+      'size',
+    ]);
+  });
+
+  it('knows every sort order it can restore', () => {
+    expect(viewOf(storeWith(JSON.stringify({ sort: 'utilization' })))).toEqual(['', 'utilization']);
+  });
+
+  it('ignores a sort order it does not know and a search that is not text', () => {
+    expect(viewOf(storeWith(JSON.stringify({ query: 42, sort: 'colour' })))).toEqual(['', 'name']);
+  });
+
+  it('starts from the defaults with nothing stored', () => {
+    expect(viewOf(storeWith(null))).toEqual(['', 'name']);
+  });
+
+  it('starts from the defaults when the stored value is corrupted', () => {
+    expect(viewOf(storeWith('{not json'))).toEqual(['', 'name']);
+  });
+
+  it('writes the view back once typing pauses', () => {
+    vi.useFakeTimers();
+    const store = storeWith(null);
+
+    store.setQuery('mint');
+    store.setSort('size');
+    expect(localStorage.getItem(VIEW_KEY)).toBeNull();
+
+    vi.advanceTimersByTime(300);
+    expect(JSON.parse(localStorage.getItem(VIEW_KEY) ?? '{}')).toEqual({
+      query: 'mint',
+      sort: 'size',
+    });
+  });
+});

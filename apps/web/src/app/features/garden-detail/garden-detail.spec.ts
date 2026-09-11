@@ -735,9 +735,84 @@ describe('GardenDetail', () => {
       await new Promise((r) => setTimeout(r, 0));
       rendered.fixture.detectChanges();
 
-      buttonWith(rendered.el, /add your first plant|plant/i)?.click();
+      buttonWith(rendered.el, /Add your first plant/)!.click();
 
       expect(dialog.open).toHaveBeenCalled();
+    });
+
+    it('answers every intent the deferred map raises', async () => {
+      const { fixture, vm } = await loaded();
+      await renderMap(fixture);
+      type Emits<T = void> = { emit: (value: T) => void };
+      const map = fixture.debugElement.query((de) => de.name === 'app-garden-map')
+        .componentInstance as {
+        addPlant: Emits;
+        editPlant: Emits<Plant>;
+        removePlant: Emits<Plant>;
+        positionChange: Emits<{ plantId: number; x: number; y: number }>;
+        resetPosition: Emits<number>;
+        arrangePositions: Emits<Record<number, { x: number; y: number }>>;
+        undoLayout: Emits;
+        redoLayout: Emits;
+        resetLayout: Emits;
+      };
+
+      map.positionChange.emit({ plantId: 11, x: 1, y: 1 });
+      expect(vm.positions()[11]).toEqual({ x: 1, y: 1 });
+      expect(vm.canUndo()).toBe(true);
+
+      map.undoLayout.emit();
+      expect(vm.positions()[11]).toBeUndefined();
+      map.redoLayout.emit();
+      expect(vm.positions()[11]).toEqual({ x: 1, y: 1 });
+
+      map.resetPosition.emit(11);
+      expect(vm.positions()[11]).toBeUndefined();
+
+      map.arrangePositions.emit({ 11: { x: 2, y: 0 }, 12: { x: 0, y: 0 } });
+      expect(vm.positions()[12]).toEqual({ x: 0, y: 0 });
+
+      map.resetLayout.emit();
+      await vi.waitFor(() => expect(confirm.confirm).toHaveBeenCalledTimes(1));
+
+      map.addPlant.emit();
+      map.editPlant.emit(PLANTS[0]);
+      expect(dialog.open).toHaveBeenCalledTimes(2);
+
+      map.removePlant.emit(PLANTS[1]);
+      await vi.waitFor(() => expect(confirm.confirm).toHaveBeenCalledTimes(2));
+    });
+
+    it('offers Try again on the plan and on the table when the plants fail, and retries', async () => {
+      plantsApi['getByGarden'].mockRejectedValue(new ApiError('technical', 'boom', 500));
+      const rendered = render(1);
+      await vi.waitFor(() => expect(rendered.store.plantsFailed()).toBe(true));
+      rendered.fixture.detectChanges();
+
+      const retries = [...rendered.el.querySelectorAll('button')].filter((b) =>
+        /Try again/.test(b.textContent ?? ''),
+      );
+      expect(retries).toHaveLength(2); // the plan's and the table's
+      const before = plantsApi['getByGarden'].mock.calls.length;
+
+      retries[0].click();
+      retries[1].click();
+
+      await vi.waitFor(() =>
+        expect(plantsApi['getByGarden'].mock.calls.length).toBeGreaterThan(before),
+      );
+    });
+
+    it('choosing a plant in the table selects it on the plan, and again clears it', async () => {
+      const { fixture, vm, el } = await loaded();
+
+      el.querySelector<HTMLButtonElement>('button.plant-name-btn')!.click();
+      fixture.detectChanges();
+      expect(vm.selectedPlantId()).toBe(11);
+
+      el.querySelector<HTMLButtonElement>('button.plant-name-btn')!.click();
+      fixture.detectChanges();
+      expect(vm.selectedPlantId()).toBeNull();
     });
   });
 });

@@ -55,7 +55,13 @@ describe('GardenList (screen states a user notices)', () => {
         provideNoopAnimations(),
         { provide: APP_CONFIG, useValue: TEST_CONFIG },
         { provide: GardensApi, useValue: gardensApi },
-        { provide: PlantsApi, useValue: { getByGarden: vi.fn().mockResolvedValue([]) } },
+        {
+          provide: PlantsApi,
+          useValue: {
+            getByGarden: vi.fn().mockResolvedValue([]),
+            getAll: vi.fn().mockResolvedValue([]),
+          },
+        },
       ],
     });
   });
@@ -113,6 +119,44 @@ describe('GardenList (screen states a user notices)', () => {
     const fresh = el.querySelectorAll('article.card.is-new');
     expect(fresh).toHaveLength(1);
     expect(fresh[0].getAttribute('data-garden-id')).toBe('2');
+  });
+
+  describe('bringing the new card into view', () => {
+    const createFromHere = async () => {
+      gardensApi.getAll.mockResolvedValue([garden(1, 'Backyard')]);
+      Object.assign(gardensApi, { create: vi.fn().mockResolvedValue(garden(2, 'Herb Spiral')) });
+      const fixture = await mount();
+      await TestBed.inject(GardensStore).create({
+        gardenName: 'Herb Spiral',
+        totalSurfaceArea: 20,
+        targetHumidityLevel: 50,
+      });
+      fixture.detectChanges();
+      await fixture.whenStable();
+    };
+    let scroll: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      scroll = vi.fn();
+      Element.prototype.scrollIntoView =
+        scroll as unknown as typeof Element.prototype.scrollIntoView;
+    });
+
+    afterEach(() => {
+      delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+      vi.unstubAllGlobals();
+    });
+
+    it('scrolls it into view smoothly', async () => {
+      await createFromHere();
+      expect(scroll).toHaveBeenCalledWith({ block: 'nearest', behavior: 'smooth' });
+    });
+
+    it('jumps instead of gliding under reduced motion', async () => {
+      vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query }));
+      await createFromHere();
+      expect(scroll).toHaveBeenCalledWith({ block: 'nearest', behavior: 'auto' });
+    });
   });
 
   it('renders the designed empty state with a create CTA when there are no gardens', async () => {
@@ -185,7 +229,13 @@ describe('GardenList — toolbar and row actions', () => {
         provideNoopAnimations(),
         { provide: APP_CONFIG, useValue: TEST_CONFIG },
         { provide: GardensApi, useValue: gardensApi },
-        { provide: PlantsApi, useValue: { getByGarden: vi.fn().mockResolvedValue([]) } },
+        {
+          provide: PlantsApi,
+          useValue: {
+            getByGarden: vi.fn().mockResolvedValue([]),
+            getAll: vi.fn().mockResolvedValue([]),
+          },
+        },
         { provide: MatDialog, useValue: dialog },
         { provide: ConfirmService, useValue: confirm },
       ],
@@ -336,7 +386,13 @@ describe('GardenList — every rendered control', () => {
         provideNoopAnimations(),
         { provide: APP_CONFIG, useValue: TEST_CONFIG },
         { provide: GardensApi, useValue: gardensApi },
-        { provide: PlantsApi, useValue: { getByGarden: vi.fn().mockResolvedValue([]) } },
+        {
+          provide: PlantsApi,
+          useValue: {
+            getByGarden: vi.fn().mockResolvedValue([]),
+            getAll: vi.fn().mockResolvedValue([]),
+          },
+        },
         { provide: MatDialog, useValue: dialog },
         { provide: ConfirmService, useValue: confirm },
       ],

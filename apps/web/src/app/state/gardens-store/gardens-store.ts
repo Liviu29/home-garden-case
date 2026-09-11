@@ -69,7 +69,9 @@ function persistView(query: string, sort: GardenSort): void {
  */
 export const GardensStore = signalStore(
   { providedIn: 'root' },
-  withState<GardensState>({
+  // A factory, not a literal: the persisted view is read when the store is
+  // created, not when this module is first imported.
+  withState<GardensState>(() => ({
     gardens: [],
     status: 'idle',
     saving: false,
@@ -78,7 +80,7 @@ export const GardensStore = signalStore(
     pendingUpdates: [],
     pendingDeletes: [],
     ...readPersistedView(),
-  }),
+  })),
   withComputed((store) => ({
     isLoading: computed(() => store.status() === 'loading'),
     hasFailed: computed(() => store.status() === 'error'),
