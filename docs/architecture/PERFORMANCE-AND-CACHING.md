@@ -4,11 +4,11 @@
 > improves **perceived** performance and **request count** — never server time.
 > Where the honest fix is server-side it is named as such.
 > Decision record: [ADR-004](../adr/ADR-004-resilience-layer.md).
-> Contract inventory: [BACKEND-API-AUDIT.md](../backend/BACKEND-API-AUDIT.md).
+> Contract inventory: [API-INTEGRATION.md](./API-INTEGRATION.md).
 
 ## Current backend behaviour
 
-Read from the source, not from the README ([backend audit §Verified behaviour](../backend/BACKEND-API-AUDIT.md)):
+Read from the source, not from the README ([API-INTEGRATION §2](./API-INTEGRATION.md#2-the-backend-at-a-glance)):
 
 | Mechanism          | File                                        | Configuration                                                                                                   | Where it fires                                                    |
 | ------------------ | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
@@ -40,8 +40,8 @@ The distribution matches the uniform `200–2000 ms` source exactly (theoretical
 
 Compounded cost, uncached:
 
-- Garden detail = 2 calls (`GET /gardens/{id}` + `GET /gardens/{id}/plants`), issued in parallel → one latency draw, ~1.9 s at p95.
-- Dashboard = `1 + N` calls (`GET /gardens`, then one `GET /gardens/{id}/plants` per garden). The fan-out is **parallel**, so wall-clock is roughly the slowest draw (~2 s), not the sum — but the _request count_ is unbounded, because the API returns every garden with no pagination and no user scoping. On the seeded database that is a handful of calls; on the database this repo accumulates during e2e runs it is 149 gardens ⇒ 150 requests, of which ~15 will be injected 500s.
+- Garden detail = 2 calls (`GET /gardens/{id}` + `GET /plants/garden/{id}`), issued in parallel → one latency draw, ~1.9 s at p95.
+- Dashboard = `1 + N` calls (`GET /gardens`, then one `GET /plants/garden/{id}` per garden). The fan-out is **parallel**, so wall-clock is roughly the slowest draw (~2 s), not the sum — but the _request count_ is unbounded, because the API returns every garden with no pagination and no user scoping. A handful of gardens is a handful of calls; 150 gardens would be 151 requests, of which ~15 would be injected 500s.
 - Failure math: a 3-call screen against a 10% failure rate fails visibly ~27% of the time. With 3 retries per call it drops below **0.1%**.
 
 ## Frontend mitigation
@@ -52,17 +52,17 @@ What we actually shipped, and what each thing does and does **not** buy:
 
 Per-GET-key entries (`gardens`, `gardens:3`, `plants:garden:3`). Fresh (< 30 s) → rendered from memory, **zero requests, zero latency**. Stale → previous data painted immediately, network refresh in the background. Miss → skeleton. This is the only mechanism here that genuinely removes network time; it removes it by not going to the network.
 
-### Retry interceptor — `core/resilience/retry-interceptor.ts`
+### Retry interceptor — `core/http/api-interceptors.ts`
 
 Exponential backoff with full jitter (250 ms base, ×3, 3 s cap, 3 retries), 5xx and network errors only — never a 4xx verdict. It converts a 27%-per-screen failure rate into <0.1%, at the cost of _adding_ latency on the unlucky path (a recovered request costs its own delay plus the backoff). That trade is correct: a slow success beats a fast error screen.
 
 ### Skeleton-first rendering — [ASYNC-UX.md](../design/ASYNC-UX.md)
 
-Every GET paints a count-realistic, dimension-matched ghost; every mutation paints a gray ghost in place. **This does not make the API faster.** It replaces a blank second with a legible one, keeps layout shift at zero, and gives the eye a stable target so the 1-second median reads as "loading this" rather than "broken". Appear-delay and min-display timings stop fast cached paths from flashing.
+Every GET paints a count-realistic, dimension-matched ghost; every mutation paints a gray ghost in place. **This does not make the API faster.** It replaces a blank second with a legible one, keeps layout shift at zero, and gives the eye a stable target so the 1-second median reads as "loading this" rather than "broken". A 150 ms appear delay keeps fast responses from flashing a skeleton, and there is no minimum display time: real data is never held back.
 
-### Optimistic delete with rollback
+### Mutations: in-place ghosts, confirmed by the server
 
-Deletes apply to the UI immediately and roll back from a snapshot on failure. The only place where the _user's_ perceived latency for a write is zero — chosen for deletes because the server has no verdict to contribute. Create and update stay pessimistic on purpose: the capacity rule lives on the server and the form must render its answer.
+No write is optimistic. A create shows a ghost where the entity will land, an update grays out only the edited element, and a delete keeps the item visible and inert until the server confirms — then it leaves; on failure it resolves back with Try again. The ghost gives feedback at once while every number stays true to confirmed state. Create and update wait for the server on purpose: the capacity rule lives there and the form must render its answer.
 
 ### Rendering budget
 
@@ -90,7 +90,7 @@ Freshness is 30 s. That is a product choice, not a technical one: garden data ch
 
 The cache stores the in-flight promise, not just the settled value, so **identical concurrent GETs collapse into one request**. This matters specifically here:
 
-- The dashboard and the gardens grid both declare a garden-id source to `PlantsIndexStore.ensureForGardens(...)`, which owns the fan-out. Without de-duplication, navigating between them mid-flight would double it. Measured on the current build: a cold session issues exactly one request per resource, client-side navigation with a fresh cache issues **zero**, and hover-prefetch followed by a click collapses to one — all asserted by `request-ownership.spec.ts` rather than claimed.
+- The dashboard and the gardens grid both declare a garden-id source to `PlantsIndexStore.ensureForGardens(...)`, which owns the fan-out. Without de-duplication, navigating between them mid-flight would double it. A cold session issues exactly one request per resource, client-side navigation with a fresh cache issues **zero**, and hover-prefetch followed by a click collapses to one — all asserted by `request-ownership.spec.ts`.
 - Hover-prefetch (below) and the subsequent real navigation ask for the same key within milliseconds. De-duplication is what makes prefetch free rather than a doubled request.
 - `GardenDetailStore` additionally guards **ordering**, not just count: each `load()` takes a monotonic token and a response whose token is stale is discarded. De-duplication prevents duplicate work; the token prevents garden A's slow response from overwriting garden B's screen — a real hazard when responses take up to 2 seconds and the user can click faster than that.
 
@@ -98,7 +98,7 @@ The cache stores the in-flight promise, not just the settled value, so **identic
 
 `features/gardens/prefetch-garden.ts` warms `gardens:{id}` and `plants:garden:{id}` through the same SWR cache on hover/focus of a garden card. On a 1-second-median API this is the difference between a skeleton and an instant screen, and it costs nothing extra when the user does click (de-duplication) — at most one wasted pair of requests when they do not. Route chunks are prefetched separately by `@defer (prefetch on idle)` and Angular's lazy loading, so code and data arrive in parallel.
 
-Prefetch is deliberately **not** applied to the dashboard's `1 + N` fan-out: warming 149 gardens' plants on hover would trade a perceived-latency win for a request storm on a rate-limit-free hobby API. The right fix for that shape is server-side.
+Prefetch is deliberately **not** applied to the dashboard's `1 + N` fan-out: warming every garden's plants on hover would trade a perceived-latency win for a request storm on a rate-limit-free hobby API. The right fix for that shape is server-side.
 
 ## Production backend improvements
 

@@ -43,10 +43,10 @@ Target: WCAG 2.2 AA. Accessibility here is architecture, not garnish — the sam
 
 **Automated verification**
 
-- @axe-core/playwright scans dashboard (both themes), gardens and garden detail in the mocked e2e project; `serious`/`critical` violations fail the suite. The first run earned its keep: four accent tokens (`--text-3`, amber, info, danger) were below AA and were re-tuned per theme (darkened in light, lightened in dark). Scans run under reduced-motion emulation so entry animations can't blend colors mid-scan.
+- @axe-core/playwright scans dashboard (both themes), gardens and garden detail in the mocked e2e project; `serious`/`critical` violations fail the suite. Accent tokens (`--text-3`, amber, info, danger) are tuned per theme to pass AA (darker in light, lighter in dark). Scans run under reduced-motion emulation so entry animations can't blend colors mid-scan.
 - Keyboard behaviour is asserted in e2e: dialog autofocus, focus containment, Escape-restore to trigger, slider arrow-key operation.
 
-## Known gaps (honest list)
+## Known gaps
 
 - The Garden Map's grid/humidity halo are purely decorative and carry no semantics (by design); a screen-reader user gets the totals from the map's group label, the HUD text and the plants table rather than a spatial rendering. The plot nodes themselves are fully operable.
 - Map wheel-zoom intercepts scroll while the pointer is over the map surface (standard map behaviour); keyboard users are unaffected (arrows/`+`/`-` operate on the focused map only).

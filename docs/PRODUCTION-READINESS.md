@@ -1,9 +1,9 @@
 # Production Readiness
 
-What is configured, what is deliberately _not_, and how the release candidate
-was verified. Companion reading: [ARCHITECTURE.md](./architecture/ARCHITECTURE.md) ·
+What is configured, what is deliberately _not_, and how a release candidate is
+verified. Companion reading: [ARCHITECTURE.md](./architecture/ARCHITECTURE.md) ·
 [PERFORMANCE-AND-CACHING.md](./architecture/PERFORMANCE-AND-CACHING.md) ·
-[BACKEND-API-AUDIT.md](./backend/BACKEND-API-AUDIT.md).
+[API-INTEGRATION.md](./architecture/API-INTEGRATION.md).
 
 ## Baseline
 
@@ -12,7 +12,7 @@ was verified. Companion reading: [ARCHITECTURE.md](./architecture/ARCHITECTURE.m
 | Workspace  | Nx 22.0.2 monorepo, npm workspaces (`apps/*`), `package-lock.json` authoritative                                                                               |
 | Frontend   | Angular 22.1.x — standalone, zoneless, signals, strict + `strictTemplates`                                                                                     |
 | Backend    | Fastify 5 + Kysely + better-sqlite3 (the case's own API; extended once, [ADR-003](./adr/ADR-003-backend-extension.md))                                         |
-| Node       | ≥ 22.22.3 (or 24 / 26), per Angular CLI                                                                                                                        |
+| Node       | 22.22.3+, 24.15+ or 26+ — the Angular CLI's `engines` range                                                                                                    |
 | TypeScript | 5.9 at the workspace root (Nx + API), 6.0 inside `apps/web` (Angular 22). Two pins on purpose — each project builds against the version its toolchain supports |
 
 ## Development configuration
@@ -30,19 +30,19 @@ was verified. Companion reading: [ARCHITECTURE.md](./architecture/ARCHITECTURE.m
 
 `npm run build:web` → `apps/web/dist/web/browser` (`defaultConfiguration: production`).
 
-| Concern        | Setting                                                                              | Why                                                                                                                                                  |
-| -------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Optimization   | `optimization: true`                                                                 | explicit rather than inherited                                                                                                                       |
-| AOT            | always on (Angular 22 application builder)                                           | —                                                                                                                                                    |
-| Source maps    | `sourceMap: false`                                                                   | verified: zero `.map` files in the output. A monitoring setup would upload private maps instead of publishing them — a future concern, not built now |
-| Output hashing | `outputHashing: "all"`                                                               | immutable asset caching                                                                                                                              |
-| Named chunks   | `namedChunks: false`                                                                 | no source-path leakage in filenames                                                                                                                  |
-| Licenses       | `extractLicenses: true` → `3rdpartylicenses.txt`                                     | attribution ships with the bundle                                                                                                                    |
-| Environment    | `fileReplacements`: `environment.ts` → `environment.production.ts`                   | the one build-time switch                                                                                                                            |
-| Budgets        | initial 500 kB warn / **600 kB error**; `anyComponentStyle` 12 kB warn / 16 kB error | a real gate: the build _fails_ on a regression, it does not merely warn                                                                              |
+| Concern        | Setting                                                                              | Why                                                                                                    |
+| -------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| Optimization   | `optimization: true`                                                                 | explicit rather than inherited                                                                         |
+| AOT            | always on (Angular 22 application builder)                                           | —                                                                                                      |
+| Source maps    | `sourceMap: false`                                                                   | no `.map` files in the output. A monitoring setup would upload private maps instead of publishing them |
+| Output hashing | `outputHashing: "all"`                                                               | immutable asset caching                                                                                |
+| Named chunks   | `namedChunks: false`                                                                 | no source-path leakage in filenames                                                                    |
+| Licenses       | `extractLicenses: true` → `3rdpartylicenses.txt`                                     | attribution ships with the bundle                                                                      |
+| Environment    | `fileReplacements`: `environment.ts` → `environment.production.ts`                   | the one build-time switch                                                                              |
+| Budgets        | initial 500 kB warn / **600 kB error**; `anyComponentStyle` 12 kB warn / 16 kB error | a real gate: the build _fails_ on a regression, it does not merely warn                                |
 
-Verified in the built output: **no `localhost` string, no source maps, no spec or fixture
-files, no `.env`, no test reports.**
+The built output contains **no `localhost` string, no source maps, no spec or fixture
+files, no `.env` and no test reports.**
 
 ## API base URL strategy
 
@@ -75,15 +75,15 @@ The build is static files. A host must do exactly two things:
 Caching: `index.html` must be served `no-cache`; every other file is content-hashed
 and can be `max-age=31536000, immutable`.
 
-`tools/serve-dist.mjs` implements all three rules in ~90 dependency-free lines and is
-how the production bundle was verified locally (`node tools/serve-dist.mjs`). It is a
-**preview harness, not a deployment target** — no platform config files were invented
-for a host this project does not have.
+`tools/serve-dist.mjs` implements all three rules in ~90 dependency-free lines and
+previews the production bundle locally (`node tools/serve-dist.mjs`). It is a
+**preview harness, not a deployment target** — the repository ships no
+platform-specific hosting configuration.
 
 ### Recommended security headers (deployment concern)
 
-The repository contains no hosting configuration, so these are documented rather
-than fabricated:
+The repository contains no hosting configuration, so these are documented here for
+whichever host serves the build:
 
 - `Content-Security-Policy: default-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'` — the app inlines its critical CSS at build time, so a strict policy needs `style-src 'self' 'unsafe-inline'` or a build-time nonce.
 - `X-Content-Type-Options: nosniff`
@@ -93,7 +93,7 @@ than fabricated:
 
 ## Backend configuration
 
-The API is the case's own; it was **not** re-architected. Facts as they stand:
+The API is the case's own and is not re-architected. Facts as they stand:
 
 - `HOST` / `PORT` env vars, defaulting to `localhost:3000`.
 - SQLite file `db.sqlite` resolved relative to the working directory; migrations run at boot.
@@ -101,19 +101,18 @@ The API is the case's own; it was **not** re-architected. Facts as they stand:
 - Swagger UI at `/docs`, advertising `http://localhost:${PORT}` as its server.
 - Artificial latency (200–2000 ms) and 10 % random 500s are **deliberate exam fixtures**, enabled in `plugins/slow-api.ts` and `plugins/random-errors.ts`.
 
-This is an assignment backend with no deployment story, and inventing enterprise
-infrastructure for it would be dishonest. The frontend consequences are measured and
-documented in [PERFORMANCE-AND-CACHING.md](./architecture/PERFORMANCE-AND-CACHING.md).
+It is an assignment backend with no deployment story of its own, so no deployment
+infrastructure is added for it. The frontend consequences are measured and documented
+in [PERFORMANCE-AND-CACHING.md](./architecture/PERFORMANCE-AND-CACHING.md).
 
 ## Secrets
 
 **None.** No API keys, tokens, passwords, credentials, `Authorization` headers or
-private URLs exist anywhere in the repository, and no `.env` file is used — so no
-`.env.example` was invented either. Anything shipped to an Angular client is public
-by definition, which is why the optional external plant provider is a documented
+private URLs exist anywhere in the repository, and no `.env` file is used, so there is
+no `.env.example` either. Anything shipped to an Angular client is public by
+definition, which is why the optional external plant provider is a documented
 **seam** (`PlantCatalogProvider`) and not an integration: the shipped catalog is
-local, deterministic and credential-free, and the app has no degraded mode to fall
-back to because it never depends on a third party.
+local, deterministic and credential-free, and the app never depends on a third party.
 
 Browser storage holds exactly three things, all non-sensitive and all safe-parsed:
 the active profile (the mock-auth session, [ADR-005](./adr/ADR-005-authentication.md)),
@@ -121,23 +120,21 @@ the gardens list view preference, and versioned per-garden planner positions.
 
 ## Dependency security
 
-`npm audit` reports 35 advisories across the workspace. They were classified rather
-than bulk-fixed, and `npm audit fix --force` was deliberately **not** run.
+`npm audit` findings sit in build tooling and in the provided backend — none in the
+shipped browser bundle. `npm audit fix --force` is deliberately not run: it rewrites
+major versions across the workspace.
 
-| Where                  | Count | What it is                                                                                                                                                                                                                  | Reaches the user?                       |
-| ---------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| Shipped browser bundle | **0** | The frontend's runtime dependencies are `@angular/*`, `@ngrx/signals`, `rxjs`, `tslib` and two self-hosted font packages. None appears in any advisory.                                                                     | No                                      |
-| Frontend build tooling | 8     | `esbuild`, `@babel/core`, `browserslist`, `picomatch`, `yaml`, `ajv`, `fast-uri` — compile-time only, never emitted                                                                                                         | No                                      |
-| Nx / lint tooling      | ~15   | `minimatch` / `brace-expansion` ReDoS reachable through `@nx/devkit`; fixed by Nx 22.7.x                                                                                                                                    | No — developer machines and CI only     |
-| Provided backend       | 12    | `fastify` (5 high, fixed in 5.12.3), `@fastify/static` via `@fastify/swagger-ui` (path traversal / route-guard bypass), `kysely` (SQL injection via unsanitised JSON path keys — this codebase builds no JSON-path queries) | Only if this exam backend were deployed |
+| Where                  | What it is                                                                                                                                                  | Reaches the user?                  |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| Shipped browser bundle | Runtime dependencies are `@angular/*`, `@ngrx/signals`, `rxjs`, `tslib` and two self-hosted font packages; none appears in any advisory                     | No                                 |
+| Frontend build tooling | `esbuild`, `@babel/core`, `browserslist`, `picomatch`, `yaml`, `ajv`, `fast-uri` — compile-time only, never emitted                                         | No                                 |
+| Nx / lint tooling      | `minimatch` / `brace-expansion` ReDoS reachable through `@nx/devkit`; fixed by Nx 22.7.x                                                                    | No — developer machines and CI     |
+| Provided backend       | `fastify` (fixed in 5.12.3), `@fastify/static` via `@fastify/swagger-ui`, `kysely` (unsanitised JSON-path keys — this codebase builds no JSON-path queries) | Only if this backend were deployed |
 
-Nothing here is dismissed as unfixable; the fixes are simply changes with real blast
-radius taken outside a release window. With more than one, the order would be: bump
-`fastify` to 5.12.x and `@fastify/swagger-ui`, re-run the contract probes in the
-backend audit; bump Nx to 22.7.x and re-run the full gate; then re-audit. Upgrading
-the case's own backend dependencies hours before submission — with no backend test
-suite to catch a regression in the deliberate latency and failure fixtures — would
-trade a real risk for an exposure that does not exist in this deployment.
+Upgrade path: bump `fastify` to 5.12.x and `@fastify/swagger-ui`, then re-run the
+integration e2e project; bump Nx to 22.7.x and re-run the full gate; then re-audit.
+The backend upgrades are kept out of this deliverable because the provided API has no
+test suite of its own to catch a regression in its latency and failure fixtures.
 
 ## Logging
 
@@ -145,44 +142,44 @@ trade a real risk for an exposure that does not exist in this deployment.
 outside dev mode; genuine technical failures (`error`) always report. Messages carry a
 context tag and a human sentence — never a DTO, form value or profile field. Backend
 5xx bodies never reach the user: the error taxonomy maps them to one generic sentence,
-while 4xx business verdicts are shown verbatim because they are the answer the user asked for.
-Real observability (Sentry / OpenTelemetry) plugs into that class without touching call
-sites; it is documented as future work rather than half-built now.
+while 4xx business verdicts are shown verbatim because they tell the user exactly what
+to change. Real observability (Sentry / OpenTelemetry) plugs into that class without
+touching call sites; it is future work rather than half-built now.
 
-## Release verification
+## Verification gates
 
-Everything below was run on the final tree, cold (`--skip-nx-cache`), against the real backend.
+| Gate               | Command                                                                          | What it enforces                                                              |
+| ------------------ | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Backend boots      | `npm run dev:api`                                                                | `/docs` answers 200                                                           |
+| Lint               | `npm run lint`                                                                   | eslint + prettier across api, web and web-e2e                                 |
+| Typecheck          | `npm run typecheck`                                                              | strict TypeScript + `strictTemplates`                                         |
+| Unit / component   | `npm run test`                                                                   | the Vitest suite                                                              |
+| Coverage           | `npm run test:coverage`                                                          | **≥95%** on statements, branches, functions and lines; the run fails below it |
+| E2E deterministic  | `npx playwright test -c apps/web-e2e/playwright.config.ts --project=mocked`      | loading/empty/error states, ghosts, planner, axe scans, 375–1920 px layouts   |
+| E2E real backend   | `npx playwright test -c apps/web-e2e/playwright.config.ts --project=integration` | the core flows against the real slow, flaky API                               |
+| Production build   | `npm run build`                                                                  | bundle budgets                                                                |
+| Spinner ban        | `npm run check:no-spinners`                                                      | no spinner components or classes anywhere in the app                          |
+| Production preview | `node tools/serve-dist.mjs`                                                      | boot, routing, deep-link refresh and the `/api` proxy on the built bundle     |
 
-| Gate                     | Command                                            | Result                                                                                                        |
-| ------------------------ | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Backend boots            | `npm run dev:api`                                  | PASS — `/docs` 200                                                                                            |
-| Backend tests            | —                                                  | N/A: the provided API ships no test suite, and adding one was out of scope for a frontend case                |
-| Lint                     | `npm run lint` (api + web + web-e2e)               | PASS — **0 errors, 0 warnings**                                                                               |
-| Typecheck                | `npm run typecheck`                                | PASS — strict + `strictTemplates`                                                                             |
-| Unit / component         | `npm run test`                                     | PASS — full suite green; run the command for the current count                                                |
-| Coverage                 | `npm run test:coverage`                            | PASS — **≥95% enforced** on statements, branches, functions and lines; the build fails below it               |
-| E2E deterministic        | `nx e2e web-e2e --project=mocked --retries=0`      | PASS — whole project green, repeated consecutive clean runs at zero retries                                   |
-| E2E real backend         | `nx e2e web-e2e --project=integration --retries=0` | PASS — every flow green against the real slow/flaky API                                                       |
-| Production build         | `npm run build`                                    | PASS — within budgets                                                                                         |
-| Spinner ban              | `npm run check:no-spinners`                        | PASS — 0 spinners                                                                                             |
-| Production bundle served | `node tools/serve-dist.mjs`                        | PASS — boot, routing, deep-link refresh, `/api` proxy, both themes, 375→1920 px with zero horizontal overflow |
+The provided API ships no test suite of its own; its contract is exercised end to end
+by the integration project.
 
 ### Production bundle
 
 |                               | Raw       | Transfer (gz) |
 | ----------------------------- | --------- | ------------- |
-| **Initial total**             | 485.81 kB | **129.58 kB** |
-| `garden-detail` (lazy)        | 170.33 kB | 35.06 kB      |
-| `garden-map` (lazy, `@defer`) | 49.60 kB  | 12.29 kB      |
-| `dashboard` (lazy)            | 30.87 kB  | 7.72 kB       |
-| `onboarding` (lazy)           | 19.46 kB  | 5.32 kB       |
-| `garden-list` (lazy)          | 12.02 kB  | 3.88 kB       |
-| `profile-dialog` (lazy)       | 4.75 kB   | 1.83 kB       |
-| styles                        | 18.68 kB  | 3.89 kB       |
+| **Initial total**             | 497.96 kB | **132.76 kB** |
+| `garden-detail` (lazy)        | 181.15 kB | 37.16 kB      |
+| `garden-map` (lazy, `@defer`) | 82.60 kB  | 19.40 kB      |
+| `dashboard` (lazy)            | 35.75 kB  | 8.53 kB       |
+| `onboarding` (lazy)           | 20.93 kB  | 5.70 kB       |
+| `garden-list` (lazy)          | 14.96 kB  | 4.54 kB       |
+| `profile-dialog` (lazy)       | 4.83 kB   | 1.85 kB       |
+| styles                        | 20.50 kB  | 4.23 kB       |
 
-Lazy boundaries were verified in the emitted output, not by reading imports. There is
-no Three.js or other heavy visualization dependency — the 3D mode was evaluated and
-declined with written rationale ([ADR-007](./adr/ADR-007-garden-visualization-engine.md)).
+There is no Three.js or other heavy visualization dependency — the 3D mode was
+evaluated and declined with written rationale
+([ADR-007](./adr/ADR-007-garden-visualization-engine.md)).
 
 ## Known considerations
 
@@ -191,21 +188,20 @@ declined with written rationale ([ADR-007](./adr/ADR-007-garden-visualization-en
    At the scale this app runs — a fresh database starts empty and a user creates a
    handful of gardens — this is a handful of parallel, cached, individually-retried
    requests. It does not scale to hundreds of gardens, and the fix is server-side, not
-   a client workaround; both are documented in the audit.
+   a client workaround; both are documented in API-INTEGRATION.md.
 2. **`PUT /gardens/{id}` has no server-side capacity check** — shrinking a garden below
    its occupied area returns 200. The client warns; the server should refuse.
-3. **Font subsets**: `@fontsource-variable` ships Cyrillic/Greek/Vietnamese `woff2` files
+3. **One style-budget warning**: the Garden Map stylesheet (~13 kB) is above the 12 kB
+   `anyComponentStyle` warning and below the 16 kB error; the rationale is in ADR-007.
+4. **Font subsets**: `@fontsource-variable` ships Cyrillic/Greek/Vietnamese `woff2` files
    alongside Latin. They are `unicode-range`-gated, so no browser downloads them for this
-   app's content; trimming them would mean hand-writing `@font-face` blocks, which was
-   judged not worth the maintenance cost.
-4. **The integration e2e suite leaves some gardens behind** in the local `db.sqlite`
-   (it deletes what each flow asserts on, not every fixture). The database is
-   git-ignored and disposable — delete the file to reset.
-5. **No PWA, service worker or SSR.** None is part of the architecture, and adding one
-   at release time would introduce caching and hydration risk for no user benefit here.
-   Deliberate CSR is recorded in ADR-001.
-6. **CI**: `.gitlab-ci.yml` (inherited from the case repository) runs `npm ci`,
-   `nx run-many -t lint typecheck test build` and the spinner check. Its Node image was
-   `node:20`, which cannot run Angular 22 — corrected to `node:22`, and the dead Nx Cloud
-   scaffolding removed (the workspace sets `neverConnectToCloud`). Wiring the Playwright
-   suites into CI is listed as deliberately-cut work in the README.
+   app's content; trimming them would mean hand-writing `@font-face` blocks, which is not
+   worth the maintenance cost.
+5. **The integration e2e project writes to the local `db.sqlite`** (uniquely named
+   entities per run). The database is git-ignored and disposable — delete the file to
+   reset.
+6. **No PWA, service worker or SSR.** None is part of the architecture, and adding one
+   would introduce caching and hydration risk for no user benefit here. Deliberate CSR
+   is recorded in ADR-001.
+7. **CI**: `.gitlab-ci.yml` runs `npm ci`, `nx run-many -t lint typecheck test build`
+   and the spinner check on `node:22`. The Playwright projects are not wired into CI.

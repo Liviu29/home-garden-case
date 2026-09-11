@@ -1,158 +1,457 @@
-# ItpHomeGarden — Full-Stack Case
+# 🌱 HomeGarden
 
-A garden management UI built on the provided Fastify backend, engineered so the reviewer never _feels_ the intentionally slow, flaky API — while the code makes it obvious we know exactly how hostile it is.
+An Angular 22 implementation of the In The Pocket Home Garden case. It covers the brief — gardens,
+plants, target humidity and a capacity rule — with the focus on frontend architecture, reactive
+state, a resilient experience on a deliberately slow and flaky API, accessibility, testing, and an
+interactive planner that makes garden capacity visible.
 
-| Dashboard                                            | Garden detail                                         |
-| ---------------------------------------------------- | ----------------------------------------------------- |
-| ![Dashboard](docs/screenshots/05-dashboard-full.png) | ![Garden detail](docs/screenshots/07-detail-full.png) |
+Angular 22 · TypeScript · Signals · NgRx SignalStore · Angular Material 3 · RxJS · Nx · Vitest ·
+Playwright
 
-## Suggested review path
+![The garden planner: every bed drawn at its real m², with the garden summary and watering zones](docs/screenshots/planner.jpg)
 
-The `docs/` tree is thorough; here is the shortest route through it.
+## The assignment and my approach
 
-**If you have 10 minutes**
+The case asks for:
 
-1. This README — what was built, and how the hostile API was handled.
-2. [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) — layering, data flow, and why each boundary exists.
-3. [docs/adr/](docs/adr/) — seven decision records, one page each. ADR-004 (resilience) and ADR-007 (visualization engine) carry the most weight.
+- garden CRUD with a configurable target humidity (0–100);
+- plant CRUD with all properties;
+- one business rule: **the plants in a garden may never need more surface than the garden has**,
+  validated with a clear message;
+- a good experience on a backend that delays every response by 200–2000 ms and fails 10% of
+  requests on purpose;
+- useful tests and architecture documentation;
+- as a bonus: a caching strategy for frequently used data, and an authentication design.
 
-**If you have longer**
+I treated it as a small production frontend rather than a CRUD exercise:
 
-- [docs/architecture/](docs/architecture/) — state management, API integration, error handling, performance/caching, accessibility, testing strategy.
-- [docs/design/](docs/design/) — the design system, the async-UX rules behind the skeleton-first loading model, and the Garden Map interaction design.
-- [docs/backend/](docs/backend/) — the contract audit of the provided API, and the endpoint × UI-state matrix.
-- [docs/PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md) — DEV/PROD configuration, hosting requirements, and the release gate.
+- **Explicit boundaries** — features never touch `HttpClient`, and the planner's renderer never owns
+  business data.
+- **Angular-native reactivity** — signals, `computed()`, SignalStore, zoneless change detection.
+- **Domain logic outside components** — one pure implementation of the capacity rule, reused by
+  every screen.
+- **Latency as a design input** — skeletons, in-place mutation ghosts, retries and a cache instead of
+  spinners.
+- **Accessibility and tests for critical behaviour** from the start, not as a final pass.
+- **Making capacity visible** — square metres are abstract, so the garden is drawn to scale.
 
-**Background, not required reading**
+Angular (instead of the suggested React meta-framework) was agreed with the team up front;
+[ADR-001](docs/adr/ADR-001-angular-over-react.md) records why and maps the concepts for React
+readers.
 
-- [docs/process/](docs/process/) — the working record: implementation plan, remediation log, cleanup log. These are **dated snapshots** kept as evidence of how the work proceeded; they describe the state at the time they were written, not the current tree.
-- [docs/reviews/](docs/reviews/) — an independent architect-level review of the finished code (strengths, findings, and what was done about each).
+## What it does
 
-## Quick start
+**Profiles** — a welcome screen lists profiles and creates one inline; the active profile can be
+edited, switched, signed out or deleted. The session survives a refresh and is revalidated on boot.
+It is a profile session, not security — see [trade-offs](#deliberate-trade-offs).
 
-```sh
-npm ci
+**Dashboard** — a greeting with the portfolio in one line, KPI tiles (gardens, plants, m², utilisation),
+a _Needs attention_ list (gardens at least 90% full, or drifting from their humidity target) and a
+_Garden health_ grid with a small preview of each garden.
 
-npm run dev          # backend :3000 and frontend :4200 together (Nx parallel targets)
+**Gardens** — create, edit and delete with name, surface, location and target humidity; search and
+sort; a capacity bar and humidity target on every card; designed loading, empty, error and
+not-found states.
+
+**Plants** — create, edit and delete with name, species, type, plantation date, surface and ideal
+humidity. The Add dialog opens on a catalog of 27 common plants ranked for _this_ garden (humidity
+match, fit in the free area, variety); picking one only pre-fills the form, and custom plants are
+first-class. A live _Garden fit_ panel shows available, required and remaining m² while you type.
+
+**Garden planner** — the centre of Garden Detail; see [below](#the-garden-planner).
+
+Light and dark themes; layouts from 375 to 1920 px.
+
+| Dashboard                                    | Add a plant                                                      | Skeleton-first loading                                         |
+| -------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------- |
+| ![Dashboard](docs/screenshots/dashboard.jpg) | ![Add a plant, with the catalog](docs/screenshots/add-plant.jpg) | ![Dashboard skeleton](docs/screenshots/dashboard-skeleton.jpg) |
+
+## Architecture
+
+```mermaid
+flowchart TD
+    UI["Feature components<br/>routes · dialogs · planner"]
+    KIT["Shared UI kit<br/>skeletons · bars · gauges · empty states"]
+    STORE["SignalStores<br/>GardensStore · PlantsIndexStore · GardenDetailStore"]
+    DOMAIN["Pure domain functions<br/>capacity · humidity · layout"]
+    CACHE["QueryCache<br/>stale-while-revalidate · in-flight de-duplication"]
+    DATA["Typed API services<br/>DTO → domain mappers · ApiError"]
+    HTTP["HttpClient + interceptors<br/>base URL · retry with backoff"]
+    API[("HomeGarden API<br/>Fastify + SQLite")]
+
+    UI --> KIT
+    UI --> STORE
+    UI --> DOMAIN
+    STORE --> DOMAIN
+    STORE --> CACHE
+    CACHE --> DATA
+    DATA --> HTTP
+    HTTP --> API
 ```
 
-Or in two terminals, if you prefer separate logs:
+Arrows point from a layer to what it depends on, and they only point one way. Components read
+signals and call store methods. Stores own server state and derive everything else through pure
+functions. Only the API services know the backend's shapes, and only the interceptors know its
+address. The shared UI kit is presentational — inputs in, outputs out, no store or HTTP access.
 
-```sh
-npm run dev:api      # Fastify on http://localhost:3000 — Swagger UI at /docs
-npm run dev:web      # Angular on http://localhost:4200 — proxies /api → :3000
+That is what makes each layer testable on its own: domain functions without Angular, stores
+against a stubbed API service, components through the real DOM.
+([ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md))
+
+## Angular 22 decisions
+
+- **Zoneless + OnPush.** Angular 22 is zoneless by default and `zone.js` is not installed. Change
+  detection runs only where a signal changed, which keeps the planner cheap and makes every reactive
+  dependency explicit.
+- **Signals and `computed()`.** Used and free area, occupancy, humidity drift and the planner's view
+  model are all `computed()` from pure functions, so they are never duplicated as writable state that
+  could drift from the data.
+- **`linkedSignal()`** where local UI state must reset when its source changes — the planner's
+  "cannot regroup" notice clears whenever the plant set changes.
+- **Signal inputs and outputs, `inject()`.** Components declare `input()`, `input.required()` and
+  `output()`; dependencies are injected at field level.
+- **Built-in control flow and `@defer`.** The planner ships in its own
+  `@defer (on viewport; prefetch on idle)` chunk behind a placeholder of the same size.
+- **Standalone components and lazy routes.** Each feature is a route and a chunk; route changes use
+  view transitions.
+- **Typed Reactive Forms** (`NonNullableFormBuilder`), with limits that mirror the backend's zod
+  schemas.
+- **Angular Material 3**, themed through design tokens. Dialogs, menus, selects and form fields come
+  from Material for their accessibility; cards, bars, gauges and the planner are built in
+  `shared/ui`.
+
+## State management
+
+| State                | Lives in                                            | Examples                                                                     |
+| -------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Server / domain      | NgRx SignalStore                                    | the garden list, plants per garden, the open garden                          |
+| Derived              | `computed()` over pure functions                    | used area, free area, occupancy, attention flags                             |
+| Local interaction    | component signals                                   | dialog state, the selected plant, search text                                |
+| Async orchestration  | store methods; `rxMethod` where a stream earns it   | load, save and delete; `ensureForGardens` reacts to a _signal_ of garden ids |
+| Planner presentation | the planner feature and a `localStorage` repository | camera, layers, undo history, bed positions                                  |
+| App-wide UI          | plain signal services                               | session, theme, toasts                                                       |
+
+There are three stores, each with one job: `GardensStore` holds the garden list,
+`PlantsIndexStore` is the single writable owner of plant entities (shared by the dashboard, the
+gardens grid and Garden Detail), and `GardenDetailStore` holds the open garden and its pending
+mutations.
+
+**Why SignalStore rather than the classic NgRx Store:** three stores with CRUD-shaped flows. SignalStore
+gives explicit ownership — state is read-only from outside and written only through store methods —
+derived state through `withComputed`, and signals that templates read directly, without actions,
+reducers and effects for flows that do not need an event log. The classic Store earns its place when
+many teams share cross-cutting state or need action-level tooling.
+([ADR-002](docs/adr/ADR-002-signalstore.md))
+
+## The business rule
+
+```text
+Σ plant.surfaceAreaRequired  ≤  garden.totalSurfaceArea
 ```
 
-Quality gates — each one is a real command, run before every commit:
+One implementation, in `shared/utils/garden-insights.ts`, serves the plant form's validator and its
+live _Garden fit_ panel, the stores' occupancy figures, the dashboard and the planner. It follows
+the server's semantics:
 
-```sh
-npm run lint         # eslint + prettier across api, web and web-e2e — 0 errors
-npm run typecheck    # strict TypeScript + strictTemplates
-npm run test         # unit / component suite (Vitest)
-npm run build        # production build for web + api, bundle budgets enforced
-npm run test:e2e     # Playwright: integration (real API) + mocked (deterministic)
+- **an exact fit is accepted** — a plant that takes the last square metre is fine; only _more_ than
+  the garden has is rejected;
+- **an edit excludes the plant's own current area**, so changing a plant never double-counts it;
+- **decimal areas** (0.3 m²) are supported and shown with fixed digits, so sums never display float
+  noise;
+- **the remaining area** is shown live, before submit.
+
+The backend stays authoritative: its 400 verdict is rendered inline in the form, word for word.
+`PUT /gardens/{id}` has no server-side capacity check, so the client warns before a garden is
+shrunk below what is planted in it.
+
+## Designing for a slow, flaky API
+
+Latency is part of the case, not an edge case, so the UI is built around it.
+
+| Operation     | UX treatment                                                                                 |
+| ------------- | -------------------------------------------------------------------------------------------- |
+| Read (cold)   | a content-shaped gray skeleton, shown only after 150 ms, reserving the final layout          |
+| Read (cached) | fresh data renders instantly; stale data renders instantly and revalidates in the background |
+| Create        | a creation ghost where the new card, table row or bed will appear                            |
+| Update        | only the edited element becomes a ghost; the rest of the screen stays live                   |
+| Delete        | the item stays visible and inert until the server confirms, then leaves                      |
+| Submit        | single-flight, with a gray ghost bar inside the button                                       |
+
+- **No spinners** — enforced by `npm run check:no-spinners` and asserted in the e2e suite.
+- **One skeleton engine** (`styles/_skeleton.scss`) owns the look and timing of every ghost: neutral
+  gray, one shimmer, and a gentle pulse instead under reduced motion.
+- **Feedback stays local** to the affected region, and numbers never show a partial or invented
+  value.
+- **Writes are confirmed, not optimistic.** The capacity rule lives on the server, so the screen
+  shows the server's answer; a failed write turns the ghost back into real content with _Try again_.
+- **Accessible:** ghosts are hidden from assistive technology, busy regions carry `aria-busy`, and a
+  polite status region announces loading.
+
+([ASYNC-UX.md](docs/design/ASYNC-UX.md))
+
+### Beyond the happy path
+
+Transient 5xx and network errors are retried up to three times with exponential backoff and full
+jitter — never a 4xx verdict — which takes a three-request screen from about 27% visible failures to
+under 0.1%. Whatever still fails is classified once, by `toApiError`, and rendered in exactly one way:
+
+- **validation and business errors** → inline in the form, never retried;
+- **not found** → a designed page for a deep link to a deleted garden, or a quiet sign-out for a
+  deleted profile;
+- **technical errors** → an error state or a toast with _Try again_;
+- **empty data** → a designed empty state with the next action.
+
+Double submits are ignored, a late response for one garden can never overwrite another (each load
+carries a monotonic token), and mutations keep the cache consistent by writing through what the
+server returned. Per-endpoint detail: [API-INTEGRATION.md](docs/architecture/API-INTEGRATION.md).
+
+## The garden planner
+
+Square metres are abstract. "19.5 of 20 m² used" is a number; a garden drawn to scale with almost no
+open soil left is something you understand at a glance. So Garden Detail centres on a top-down plan
+where **each bed's drawn area is exactly its real m²** and the open soil is exactly the free area —
+a 98%-full garden _looks_ 98% full.
+
+```text
+GardenDetailStore (garden, plants)
+        ↓
+pure layout: squarified treemap + saved positions  →  view model (rectangles in metres)
+        ↓
+SVG template — the only code that knows it is SVG
 ```
 
-> Node ≥ 22.22.3 (or 24/26) per Angular CLI requirements. The workspace is npm —
-> `package-lock.json` is authoritative, do not switch package managers.
+The renderer owns UI state only — camera, selection, layers. Capacity comes from the domain
+functions, and dragging a bed can never change an area or call the API.
 
-Development and production configuration, hosting requirements and the release
-gate are documented in **[docs/PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md)**.
+- an area-true automatic layout that is deterministic, so reopening a garden never rearranges it;
+- pan, zoom (wheel, pinch, toolbar), fit and reset;
+- select a bed on the plan or in the plants table; an inspector shows its details, watering zone and
+  actions;
+- drag beds with alignment guides and a magnet back to their automatic spot, or move them with the
+  keyboard; undo and redo;
+- layers for labels, footprints, grid, humidity preference, watering zones and available space;
+- watering zones with neighbour-clash hints, _Group by water needs_, and a planting timeline;
+- fullscreen with search;
+- positions saved per garden in versioned `localStorage` — visual preferences only.
 
-## What was built
+![Dragging a bed: alignment guides, its automatic spot outlined, and a live position readout](docs/screenshots/planner-drag.jpg)
 
-**Stack:** Angular 22 (standalone, zoneless, signals) · NgRx SignalStore · Angular Material M3 (heavily themed) · typed Reactive Forms · Vitest. The frontend lives in this Nx workspace as `apps/web`, as the repo suggests. Angular (instead of the suggested React meta-framework) was agreed with the team up front — the role is Angular-focused; see [ADR-001](docs/adr/ADR-001-angular-over-react.md) including a concept map for React reviewers.
+### Why SVG
 
-All functional requirements are covered: garden CRUD with an overview linked to the active profile, configurable target humidity (0–100) per garden, plant CRUD with all properties, and overcrowding validation with clear error messages — instant client-side feedback _and_ the authoritative server verdict rendered inline.
+|                   | SVG (chosen)                 | Canvas 2D               | PixiJS / WebGL               |
+| ----------------- | ---------------------------- | ----------------------- | ---------------------------- |
+| Suited to         | tens to a few thousand nodes | any scene               | tens of thousands of sprites |
+| Added bundle (gz) | 0 kB                         | 0 kB                    | ~100–140 kB                  |
+| Accessibility     | real, focusable DOM nodes    | needs a parallel DOM    | needs a parallel DOM         |
+| Design tokens     | native CSS variables         | colour bridge + repaint | colour bridge + repaint      |
+| Testing           | jsdom and real nodes         | pixel inspection        | pixel inspection             |
 
-**Decision docs came first** — architecture, backend audit, coding guidelines, design system, phased plan, and the ADRs were written and committed before the first line of app code:
+A garden holds tens of beds, so SVG gives the same visual quality without a rendering engine's costs,
+and every bed is a real button that keyboard users and axe can reach. If the planner ever had to
+animate thousands of entities, WebGL would be worth reconsidering — and because the renderer depends
+only on the layout view model and camera state, swapping it would mean rewriting one template, not the
+domain, stores or layout maths. ([ADR-007](docs/adr/ADR-007-garden-visualization-engine.md),
+[INTERACTIVE-GARDEN-UX.md](docs/design/INTERACTIVE-GARDEN-UX.md))
 
-- [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) — the system design, driven by the backend's hostility
-- [docs/architecture/API-INTEGRATION.md](docs/architecture/API-INTEGRATION.md) — integration layering + the backend audit (contracts, quirks, gaps found)
-- [docs/CODING-GUIDELINES.md](docs/CODING-GUIDELINES.md) · [docs/design/DESIGN-SYSTEM.md](docs/design/DESIGN-SYSTEM.md) · [docs/PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md) · [docs/adr/](docs/adr)
+## Backend integration
 
-## The interesting part: surviving this API
-
-The backend delays every response by 200–2000 ms and fails 10% of all requests with a random 500 (`slow-api.ts`, `random-errors.ts`). A screen making three calls would visibly fail ~27% of the time. Three cooperating mechanisms in `core/` neutralize this ([ADR-004](docs/adr/ADR-004-resilience-layer.md)):
-
-1. **Retry interceptor** — exponential backoff with full jitter (250 ms base, ×3, 3 s cap, 3 retries) on 5xx/network only, never on 4xx verdicts. Safe for writes _on this API_ because the error plugin fires before any handler runs — documented, with the production-grade answer (idempotency keys) in ADR-005. Failure math after retries: <0.1% per screen.
-2. **Stale-while-revalidate QueryCache** — fresh hits render instantly with zero requests; stale hits render instantly and revalidate behind the scenes; misses show skeleton ghosts. Identical in-flight requests are de-duplicated; mutations invalidate by key prefix or write through.
-3. **Optimistic mutations** — deletes apply instantly with snapshot rollback + a retry toast on failure. Create/update stay pessimistic on purpose: the server owns validation verdicts the form must render.
-
-Every screen renders one of: cached data, count-realistic skeletons (with appear-delay/min-display timing so nothing flashes or blinks), a designed empty state, or a designed error state. A blank or frozen screen is treated as a bug.
-
-**Performance bonus (theoretical, server-side):** the client cache is the shipped answer; the proposals we'd bring to the backend team are ETag/`If-None-Match` with 304s, pagination + sparse fieldsets, an `?include=plants` batch shape for the dashboard's N+1, `Cache-Control` on stable resources, and hover-prefetch on the client. Each targets "frequently used data" directly.
-
-**Auth bonus:** a working profile-session flow ships today (onboarding on the real `/users` API, `SessionStore` + route guard, profile menu). The real design — httpOnly-cookie sessions vs rotating JWTs, ownership scoping, CSRF, rate limits, idempotency keys — is written up in [ADR-005](docs/adr/ADR-005-authentication.md), with the shipped seams chosen so real auth plugs in with minimal rework.
-
-**One backend change** was made (explicitly allowed): `targetHumidityLevel` added to gardens via a new `migration002` + zod schemas, because the case requires it and the API lacked it ([ADR-003](docs/adr/ADR-003-backend-extension.md)).
-
-## Backend integration & contract coverage
-
-The backend is the source of truth, so it was audited from its own source — routes, zod schemas, services, migrations, Bruno collection and `/docs` — and then probed with live requests rather than trusted from documentation. The full inventory is in **[docs/backend/BACKEND-API-AUDIT.md](docs/backend/BACKEND-API-AUDIT.md)**, and the per-endpoint UX obligations (loading, empty, validation, business failure, 404, 5xx, network, retry, cancellation, duplicate submit, race) in **[docs/backend/API-UX-STATE-MATRIX.md](docs/backend/API-UX-STATE-MATRIX.md)**.
-
-Headlines:
-
-- **15 / 15** meaningful user-facing endpoints are used by the frontend, and **17 / 17** writable fields are reachable from a form. One endpoint (`GET /plants/{plantId}`) is deliberately not surfaced — the list response already carries the same rows — and that choice is documented in code.
-- **Five capabilities the API exposed but the UI had never used** now ship: edit profile (`PUT /users/{id}`), delete profile (`DELETE /users/{id}`), duplicate-email recovery via `GET /users/email/{email}` (a 409 becomes "continue as that profile" instead of a dead end), stale-session detection on boot, and the optional `age` field.
-- **Three contract bugs found and fixed**: `plantationDate` lost a calendar day in any timezone east of UTC (verified: 10 Sep picked in `Europe/Brussels` stored as 9 Sep); a slow garden response could land in the store as a _different_ garden (no request-generation guard on a 200–2000 ms API); and a random 500 was rendered as "Garden not found", telling 10% of users their garden had been deleted. Each has a regression test.
-- **Backend limitations are documented, not worked around silently** — no capacity check on `PUT /gardens/{id}` (shrinking below occupancy returns 200), `updatedAt` never updated, plants of a missing garden answer 400 rather than 404, no pagination or user scoping on `GET /gardens`. Each entry states the frontend mitigation and the production-grade server fix.
-
-Measured latency behind those decisions (60 live `GET /gardens`): p50 **1083 ms**, p95 **1877 ms**, 10 injected 500s — see [PERFORMANCE-AND-CACHING.md](docs/architecture/PERFORMANCE-AND-CACHING.md).
-
-## The showcase: an interactive Garden Map
-
-Garden Detail centers on a **digital twin** of the garden: a top-down, pannable, zoomable scene — lawn, tilled soil, raised beds — where every plant renders as original botanical vector art inside a footprint whose **visual area is proportional to its real `surfaceAreaRequired`** (a 20 m² garden with a 5 m² lavender bed _looks_ a quarter full; big plants grow into deterministic clusters, still one plant in every number). Artwork is resolved from names/species by a pure presentational resolver with the domain `plantType` as fallback — imagery never touches capacity math. Free soil renders as dashed "room to grow"; an empty garden is an invitation ("Your garden has space to grow." + CTA), not a blank; a full one wears a quiet "Full" badge. A glass HUD shows capacity, free space and the **target** humidity (never fake "current" readings — the halo tint is explicitly a configuration hint). Clicking or keyboard-selecting a plot opens an inspector with the plant's share, humidity-vs-target delta and Edit/Remove.
-
-Why it's more than eye candy on _this_ backend: the layout is a **pure, deterministic function** of `(garden, plants)` — seeded by plant ids, no randomness — so a 2-second revalidation can never rearrange the garden under the user, and the same garden looks identical on every visit.
-
-The architecture is the part built to be read ([ADR-007](docs/adr/ADR-007-garden-visualization-engine.md)):
-
-- **Renderer choice**: PixiJS v8 + pixi-viewport were evaluated seriously and **rejected with data** — for a scene of tens of plots, SVG matches the visual quality with a ~100 kB-smaller chunk, native design-token/dark-mode support, real focusable plant nodes (no `aria-hidden` canvas + parallel DOM), jsdom-testable units and Playwright-assertable output. The exit strategy is real: the renderer consumes a plain view model, so swapping it for Pixi later touches one component.
-- **Boundary discipline**: layout (`garden-map-layout.ts`) and camera (`map-camera.ts`) are pure TS, unit-tested for determinism, order-independence, area-honesty and clamping; the SignalStore owns business state, the map owns only UI state (selection, camera); HUD numbers come from the same domain functions the forms use.
-- **Lazy by default**: the map ships in its own `@defer (on viewport; prefetch on idle)` chunk (~12 kB gz after the planner features) behind a dimension-matched ghost. Being precise about what that buys: the win is **keeping the map out of the detail route's chunk**, not delaying its render — on a desktop viewport the map is above the fold and the trigger fires at once. The placeholder is dimension-matched, so hydration costs no layout shift (measured CLS 0.025 at 1440×900, 0.000 at 375×812).
-- Create/edit forms gained **smart presets** (garden size, target humidity, plant area) via one reusable typed chip component — product-level suggestions that write through the form controls, so validators and server verdicts stay authoritative.
-
-The map is also a **planner** ([docs/design/INTERACTIVE-GARDEN-UX.md](docs/design/INTERACTIVE-GARDEN-UX.md)): beds can be **dragged into place** (drag-vs-pan threshold, clamped to the garden, amber warning on overlaps) with the arrangement persisted per garden in versioned localStorage — _visual-only by design_: positions never touch capacity math or the backend, and undo/redo (20 steps) plus a confirmed "Reset layout" keep the deterministic auto-layout one click away. A **fullscreen mode**, a five-toggle **layers menu** (labels, footprints, grid, humidity preference — explicitly "preference vs target, not a measurement" — and free space), zoom-dependent label detail, and map search round out the planner. Adding a plant now starts from a **ranked plant catalog**: 27 curated presets scored for _this_ garden by a pure, explainable function (humidity proximity, area fit, variety — each card states its reasons), picking prefills the form without bypassing a single validator, custom plants stay first-class, and the dialog fits 1440×900 with **no internal scroll** (Playwright-asserted). An external plant API was deliberately left as a documented provider seam — the assignment never depends on an API key. A 3D "Explore" mode was evaluated and **deferred with written rationale** (ADR-007): a second renderer re-imports every cost the engine decision rejected, to show the same honest data.
-
-## UI/UX notes
-
-**Async is skeleton-first, everywhere** ([docs/design/ASYNC-UX.md](docs/design/ASYNC-UX.md)): every GET renders content-shaped gray skeletons, and every mutation shows a gray ghost _in place_ — a creation ghost card/row/bed while a POST flies, a localized gray ghost over just the affected row/card/header during PUT, and ghost-confirmed deletes that keep the entity visible (gray, inert) until the server confirms. There are zero spinners in the app, enforced by `npm run check:no-spinners` and asserted in the mutation e2e suite.
-
-The dashboard is a **Smart Garden Control Center**: a dark hero with the derived portfolio line and healthy/attention chips (plus a "view most urgent" shortcut when one exists), four KPI tiles with secondary context, an **Attention Center** of severity-sorted, semantically-accented cards — replaced by a positive "Everything looks healthy" card rather than vanishing — and a **Garden Health** portfolio grid whose cards carry a static botanical mini-preview built from the same resolved artwork as the Garden Map, so a garden looks like itself everywhere. Every number is derived from existing data in `computed()`; nothing is invented, and there are no fake trends.
-
-Gray-first design system ("Verdant") with gradient signatures, built as CSS tokens over a themed Material M3 — including a full **dark mode** shipped as a pure token remap (sun/moon toggle, persisted, `prefers-color-scheme` default) with zero component changes. Skeleton ghosts share one shimmer timeline; the gardens screen adds a **search/sort toolbar whose last-used view is restored**, and hovering a card **prefetches** its detail through the cache so navigation feels instant on a 2-second API. The detail screen carries an animated humidity gauge with target marker (honest "no plants yet" state when unmeasured) and the interactive Garden Map described above. Accent tokens are axe-verified AA in both themes. Everything honors `prefers-reduced-motion`, focus rings are never stripped, state is never color-alone, and type is in `rem`. Details in [docs/design/DESIGN-SYSTEM.md](docs/design/DESIGN-SYSTEM.md).
+- **`apps/api`** is the case's Fastify + Kysely + SQLite API, kept as provided apart from one
+  additive change: gardens gained `targetHumidityLevel`
+  ([ADR-003](docs/adr/ADR-003-backend-extension.md)). Swagger UI is served at `/docs`.
+- **`bruno/`** is the provided Bruno collection for calling every endpoint by hand (environment:
+  _Development server_).
+- **Typed data access** — API services return domain models through pure DTO mappers, and a single
+  `toApiError` classifies every failure as `technical`, `functional` or `not-found`.
+- The API's latency and 10% failure rate are switched on by design (`plugins/slow-api.ts`,
+  `plugins/random-errors.ts`), and the frontend treats them as the normal case rather than an
+  exception.
 
 ## Testing
 
-The suite focuses on the logic that earns its keep (per the case: _useful_ coverage of critical business logic): the SWR cache semantics (fresh/stale/miss/de-dup/invalidation, fake timers), the retry policy (retries transient 500s, never retries verdicts, exhausts its budget), the error taxonomy mapping, the domain math mirroring the server's overcrowding rule (including edit semantics), and store behaviour (skeleton→data, cached instant render, optimistic rollback with per-entity re-entrancy guards, functional verdicts returned to forms — asserted as behaviour, not implementation). Playwright runs as two projects: **integration** flows against the real slow/flaky backend (create→detail→plant→capacity, edit-without-double-count, delete lifecycles, validation, malformed deep links) and a **mocked** project for the states randomness can't guarantee — persistent 500s with retry-recovery, guaranteed-slow reads asserting skeleton→content stability, duplicate-submit prevention, empty states — plus axe-core WCAG scans (both themes) and keyboard/mobile smoke.
+Coverage follows risk: the most tests sit where a bug would hurt most.
 
-## Running it in production
+| Layer                     | What it proves                                                                                                              | Runner           |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| Domain                    | capacity and humidity maths, DTO mapping, planner layout and camera maths                                                   | Vitest           |
+| Stores and infrastructure | state transitions, cache and retry behaviour under fake timers, error classification                                        | Vitest           |
+| Components                | what a user notices, through the real DOM: skeleton → data → empty or error, inline verdicts                                | Vitest + TestBed |
+| Playwright, mocked        | what randomness cannot guarantee: exact delays, persistent 500s, failing mutations, planner interaction, layouts, axe scans | Playwright       |
+| Playwright, integration   | the core flows against the real slow, flaky API — retry layer included                                                      | Playwright       |
 
-```sh
-npm run build:web                     # → apps/web/dist/web/browser  (hashed, optimized, no source maps)
-node tools/serve-dist.mjs --port 4300 # preview it exactly as a static host would
+Supporting numbers: 721 Vitest tests in 51 files, 70 mocked and 6 integration Playwright tests, and
+a 95% threshold on statements, branches, functions and lines.
+
+Some of the tests that matter most:
+
+- _blocks an over-capacity plant client-side with a clear message and never calls the API_
+- _accepts a plant that exactly fills the garden (strict > rule, mirroring the server)_
+- _excludes the plant itself when editing_ — and, against the real API, _editing a plant does not
+  double-count its own area_
+- _is single-flight: a second click while saving is ignored_
+- _discards a stale FAILURE too — an old error must not blank a newer garden_
+- _a DELETE that keeps failing: ghost while retried, then the plant is back with a retry_
+- _initial GET shows a content-shaped gray skeleton — never a spinner — then the real layout_
+- _dragging a bed moves it, survives reload, and Reset layout restores auto-arrangement_
+- long-content checks that no page scrolls sideways at 375, 768, 1024, 1440 or 1920 px
+
+([TESTING-STRATEGY.md](docs/architecture/TESTING-STRATEGY.md))
+
+## Performance
+
+The frontend cannot make this API faster. It can avoid calling it, ship less code, and make waiting
+readable — and those are different things:
+
+- **Fewer requests** — a 30-second stale-while-revalidate cache serves repeat visits with zero
+  requests, identical in-flight reads collapse into one, and hovering a garden card prefetches its
+  detail.
+- **Less code up front** — about 133 kB of JavaScript transferred on first load (gzip). Every route
+  is lazy, and the planner is a separate ~19 kB chunk behind `@defer`. Budgets in `angular.json` fail
+  the build on regression.
+- **Perceived speed** — skeletons and ghosts do not shorten the wait; they make it stable and legible,
+  with no layout shift when data lands.
+- **Assets** — the decorative backdrop is responsive WebP (800 and 1600 px), plant artwork is inline
+  SVG, and fonts are self-hosted.
+
+([PERFORMANCE-AND-CACHING.md](docs/architecture/PERFORMANCE-AND-CACHING.md))
+
+## Accessibility
+
+Designed toward WCAG 2.2 AA expectations:
+
+- native buttons and links, one `h1` per page, landmarks, a skip link, and a visible focus ring
+  everywhere;
+- dialogs from the Material CDK, with focus trapped inside and restored on close;
+- a keyboard-operable planner: every bed is a labelled button, arrow keys move a bed as the
+  alternative to dragging, and each move is announced;
+- state never relies on colour alone, and every animation respects `prefers-reduced-motion`;
+- axe scans in both themes run in the Playwright suite and fail it on serious or critical issues.
+
+([ACCESSIBILITY.md](docs/architecture/ACCESSIBILITY.md))
+
+## Project structure
+
+```text
+apps/
+├── api/        the provided Fastify + SQLite backend
+├── web/        the Angular application
+│   └── src/app/
+│       ├── core/       API client, interceptors, cache, errors, session, shell
+│       ├── features/   onboarding, dashboard, gardens, garden-detail (with the planner), profile
+│       ├── shared/     UI kit, pure domain utilities, product configuration
+│       └── pages/      not-found
+└── web-e2e/    Playwright: integration and mocked projects
+bruno/          API collection
+docs/           architecture notes, ADRs, design notes, screenshots, walkthrough deck
+tools/          spinner check, production preview server
 ```
 
-The build is a plain static bundle, so a production host has to do exactly two things —
-both demonstrated by `tools/serve-dist.mjs`, which is a preview harness, not a deployment target:
+## Getting started
 
-1. **SPA fallback** — serve `index.html` for unknown paths, or a hard refresh on
-   `/gardens/1` returns 404 from the file server. (Angular routing is client-side; this is a
-   hosting requirement, not an app bug.)
-2. **Same-origin `/api`** — reverse-proxy `/api/*` to the Fastify backend. The app ships a
-   _relative_ `apiBaseUrl`, which keeps requests first-party and means the provided backend
-   needs no CORS policy. Deploying the API on another origin is supported by changing one
-   constant (`src/environments/environment.production.ts`) and enabling CORS server-side.
+Requires Node 22.22.3+ or 24.15+ (the Angular CLI's minimum) and npm.
 
-`index.html` must not be cached; hashed assets can be cached forever. Full details, including
-the recommended security headers and what is deliberately _not_ configured, are in
-[docs/PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md).
+```bash
+npm ci
+npm run dev
+```
 
-## What I'd do next (deliberately cut)
+`npm run dev` starts the API and the web app together; `npm run dev:api` and `npm run dev:web` start
+them in separate terminals.
 
-CI pipeline wiring (`nx affected` + the axe/e2e suites on PRs), i18n runtime (strings are centralized-ready), real auth per ADR-005, a server-side capacity check on garden updates (the client warns today — see API-INTEGRATION.md proposals), an optional 3D "Explore" mode and an external plant-catalog provider behind the existing seams (both deferred with rationale — ADR-007, INTERACTIVE-GARDEN-UX.md), and visual-regression snapshots (deliberately skipped: font rendering differs across the machines this case will run on, making screenshot comparisons flaky without a pinned CI image).
+|                       | URL                        |
+| --------------------- | -------------------------- |
+| Web app               | http://localhost:4200      |
+| API                   | http://localhost:3000      |
+| API docs (Swagger UI) | http://localhost:3000/docs |
 
-## AI usage
+A fresh clone starts with an empty SQLite database (`db.sqlite`, created on first boot): create a
+profile, then a garden.
 
-AI tooling was used as pair-programmer for scaffolding and iteration, per the case's AI policy. Every architectural decision, guideline and trade-off is documented in `docs/` and owned; the commit history tells the story step by step.
+### Checks
+
+| Command                                                                          | Purpose                                                    |
+| -------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `npm run lint`                                                                   | ESLint and Prettier for api, web and web-e2e               |
+| `npm run typecheck`                                                              | strict TypeScript with `strictTemplates`                   |
+| `npm run test`                                                                   | Vitest unit and component tests                            |
+| `npm run test:coverage`                                                          | the same, enforcing the 95% thresholds                     |
+| `npx playwright test -c apps/web-e2e/playwright.config.ts --project=mocked`      | deterministic Playwright suite (starts the apps if needed) |
+| `npx playwright test -c apps/web-e2e/playwright.config.ts --project=integration` | the core flows against the real API                        |
+| `npm run test:e2e`                                                               | both Playwright projects                                   |
+| `npm run build`                                                                  | production builds of api and web, with bundle budgets      |
+| `npm run check:no-spinners`                                                      | fails if a spinner appears anywhere in the app             |
+
+## Production build
+
+```bash
+npm run build:web                      # → apps/web/dist/web/browser
+node tools/serve-dist.mjs --port 4300  # preview the build the way a static host serves it
+```
+
+The build is AOT-compiled and content-hashed, without source maps. The app calls a relative `/api`
+base URL (set in `src/environments/`), so production expects the SPA and a reverse proxy for
+`/api/*` on the same origin — the dev server does the same through `proxy.conf.json`. A host must
+also fall back to `index.html` for client-side routes. There is no deployed environment; hosting
+requirements and recommended security headers are in
+[PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md).
+
+## Deliberate trade-offs
+
+- **SignalStore over the classic NgRx Store** — less ceremony for three stores, with the same
+  explicit ownership and derived state.
+- **SVG over Canvas or WebGL** — right for tens of beds and for accessibility; the renderer boundary
+  keeps WebGL an option.
+- **Client-side rendering, no SSR** — the app sits behind a profile session and has no public,
+  indexable content.
+- **Confirmed writes, not optimistic ones** — a little slower to feel, but every number on screen is
+  one the server agreed to.
+- **Planner positions as UI state** — the API has no coordinates, so positions live in versioned
+  `localStorage` and never influence capacity.
+- **A local plant catalog behind a provider seam** — no API keys or third-party availability on the
+  critical path; an external source would be another provider behind the same interface.
+- **`1 + N` requests on the dashboard** — the API has no aggregate endpoint; the calls run in
+  parallel, cached and individually retried.
+- **A profile session, not authentication** — the production design is written up instead
+  ([ADR-005](docs/adr/ADR-005-authentication.md)).
+
+## What I would do next
+
+- **Real authentication** — OIDC through a small backend-for-frontend with httpOnly session cookies
+  and owner-scoped data ([ADR-005](docs/adr/ADR-005-authentication.md)).
+- **A server-side read model for the dashboard** (gardens with plant totals), plus `ETag`s so
+  revalidation is nearly free.
+- **Planner layouts stored by the API**, so they follow the user across devices.
+- **Playwright in CI, and telemetry** (Web Vitals, error reporting) behind the existing logging seam.
+- **Richer plant data** from an external catalog, behind the existing provider seam.
+
+## Further documentation
+
+| Topic                                            | Document                                                                   |
+| ------------------------------------------------ | -------------------------------------------------------------------------- |
+| Architecture, state, errors, conventions         | [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)                       |
+| API audit and per-endpoint UX states             | [API-INTEGRATION.md](docs/architecture/API-INTEGRATION.md)                 |
+| Caching, request ownership, latency measurements | [PERFORMANCE-AND-CACHING.md](docs/architecture/PERFORMANCE-AND-CACHING.md) |
+| Testing strategy                                 | [TESTING-STRATEGY.md](docs/architecture/TESTING-STRATEGY.md)               |
+| Accessibility                                    | [ACCESSIBILITY.md](docs/architecture/ACCESSIBILITY.md)                     |
+| Async UX contract                                | [ASYNC-UX.md](docs/design/ASYNC-UX.md)                                     |
+| Planner interaction design                       | [INTERACTIVE-GARDEN-UX.md](docs/design/INTERACTIVE-GARDEN-UX.md)           |
+| Design system                                    | [DESIGN-SYSTEM.md](docs/design/DESIGN-SYSTEM.md)                           |
+| Build, hosting, dependencies                     | [PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md)                    |
+| Architecture decisions                           | [ADR-001 … ADR-007](docs/adr/)                                             |
+
+A walkthrough deck is in [docs/presentation/home-garden-demo.html](docs/presentation/home-garden-demo.html)
+(open it locally in a browser).
+
+## Credits
+
+- **Plant artwork** — the eight top-down botanical symbols
+  (`apps/web/src/app/shared/ui/plant-visuals/plant-artwork-defs.ts`) are original vector artwork
+  made for this project; no icon packs or stock images.
+- **Backdrop** — `apps/web/public/images/garden-backdrop-{800,1600}.webp` is the illustration from
+  the case assignment document, re-encoded to WebP; decorative only.
+- **Fonts** — Inter and Sora (SIL Open Font License 1.1), self-hosted through `@fontsource-variable`;
+  their licences ship in the build's `3rdpartylicenses.txt`.
+
+Nothing is fetched from a third-party network at runtime.
+
+AI tooling was used as a pair programmer for scaffolding and iteration, per the case's AI policy.
+Every decision and trade-off above is documented and owned.

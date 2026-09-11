@@ -16,9 +16,8 @@ Options: openapi-generator from `/docs` JSON vs hand-written DTO types + mappers
 
 ## Two TypeScript versions — deliberate, and currently unavoidable
 
-The workspace resolves **two** TypeScript versions, and a review flagged this as
-version skew. It is not: the installed toolchain makes a single version
-impossible.
+The workspace resolves **two** TypeScript versions. That is not accidental
+version skew: the installed toolchain makes a single version impossible.
 
 | Package                        | Declared peer range         | Consequence                                 |
 | ------------------------------ | --------------------------- | ------------------------------------------- |
