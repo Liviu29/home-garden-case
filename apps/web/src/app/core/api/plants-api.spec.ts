@@ -56,6 +56,17 @@ describe('PlantsApi', () => {
     expect(plants[1]).toMatchObject({ plantType: 'fruit', surfaceAreaRequired: 0.5, gardenId: 3 });
   });
 
+  it('lists every plant across gardens in a single request', async () => {
+    const pending = api.getAll();
+    controller.expectOne('/plants').flush([plantDto(1), plantDto(2, { gardenId: 4 })]);
+
+    const plants = await pending;
+    expect(plants.map((p) => [p.plantId, p.gardenId])).toEqual([
+      [1, 3],
+      [2, 4],
+    ]);
+  });
+
   it('creates with a POST carrying the form input', async () => {
     const pending = api.create(input);
     const request = controller.expectOne('/plants');

@@ -115,6 +115,8 @@ export const cacheKeys = {
   gardens: 'gardens',
   garden: (gardenId: number) => `gardens:${gardenId}`,
   plantsOfGarden: (gardenId: number) => `plants:garden:${gardenId}`,
+  /** The one-request `GET /plants`; only de-duplicates, its result is filed per garden. */
+  allPlants: 'plants:all',
   plants: 'plants',
   users: 'users',
 } as const;

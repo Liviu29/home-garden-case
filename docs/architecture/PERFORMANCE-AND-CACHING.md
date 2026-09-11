@@ -41,7 +41,7 @@ The distribution matches the uniform `200–2000 ms` source exactly (theoretical
 Compounded cost, uncached:
 
 - Garden detail = 2 calls (`GET /gardens/{id}` + `GET /plants/garden/{id}`), issued in parallel → one latency draw, ~1.9 s at p95.
-- Dashboard = `1 + N` calls (`GET /gardens`, then one `GET /plants/garden/{id}` per garden). The fan-out is **parallel**, so wall-clock is roughly the slowest draw (~2 s), not the sum — but the _request count_ is unbounded, because the API returns every garden with no pagination and no user scoping. A handful of gardens is a handful of calls; 150 gardens would be 151 requests, of which ~15 would be injected 500s.
+- Dashboard = 2 calls (`GET /gardens`, then one `GET /plants` for every garden). It used to be `1 + N` — one `GET /plants/garden/{id}` per garden, so 150 gardens meant 151 requests, ~15 of them injected 500s. The API gained `GET /plants` (ADR-003) and the request count no longer grows with the number of gardens.
 - Failure math: a 3-call screen against a 10% failure rate fails visibly ~27% of the time. With 3 retries per call it drops below **0.1%**.
 
 ## Frontend mitigation
@@ -50,7 +50,7 @@ What we actually shipped, and what each thing does and does **not** buy:
 
 ### Stale-while-revalidate cache — `core/resilience/query-cache.ts`
 
-Per-GET-key entries (`gardens`, `gardens:3`, `plants:garden:3`). Fresh (< 30 s) → rendered from memory, **zero requests, zero latency**. Stale → previous data painted immediately, network refresh in the background. Miss → skeleton. This is the only mechanism here that genuinely removes network time; it removes it by not going to the network.
+Per-GET-key entries (`gardens`, `gardens:3`, `plants:garden:3`). The one-request `GET /plants` answer is split by garden and filed under each `plants:garden:{id}` key, so a detail screen opened from the dashboard finds its plants already cached. Fresh (< 30 s) → rendered from memory, **zero requests, zero latency**. Stale → previous data painted immediately, network refresh in the background. Miss → skeleton. This is the only mechanism here that genuinely removes network time; it removes it by not going to the network.
 
 ### Retry interceptor — `core/http/api-interceptors.ts`
 
@@ -66,7 +66,7 @@ No write is optimistic. A create shows a ghost where the entity will land, an up
 
 ### Rendering budget
 
-Zoneless + OnPush + signals (change detection only where a signal changed); every route is a lazy `loadComponent` chunk; the Garden Map ships in its own `@defer (on viewport; prefetch on idle)` chunk behind a dimension-matched ghost — measured, its value here is the **lazy chunk boundary**, not delayed work: on a desktop viewport the map is above the fold, so the trigger fires immediately (the trigger is self-tuning — it genuinely defers only on viewports where the map starts off-screen), and the dimension-matched placeholder keeps CLS at 0.025 on a 1440×900 laptop and 0.000 on a 375×812 phone; stable `track` on every `@for`; capacity bars animate on `transform` only; self-hosted variable fonts with `font-display: swap`; icons inline. Production initial transfer ~130 kB gz, enforced by `angular.json` budgets — the build fails on regression. The two Highcharts charts follow the same rule: the library (about 158 kB transferred) is imported only when a chart scrolls into view (ADR-008).
+Zoneless + OnPush + signals (change detection only where a signal changed); every route is a lazy `loadComponent` chunk; the Garden Map ships in its own `@defer (on viewport; prefetch on idle)` chunk behind a dimension-matched ghost — measured, its value here is the **lazy chunk boundary**, not delayed work: on a desktop viewport the map is above the fold, so the trigger fires immediately (the trigger is self-tuning — it genuinely defers only on viewports where the map starts off-screen), and the dimension-matched placeholder keeps CLS at 0.025 on a 1440×900 laptop and 0.000 on a 375×812 phone; stable `track` on every `@for`; capacity bars animate on `transform` only; self-hosted variable fonts with `font-display: swap`; icons inline. Production initial transfer ~130 kB gz, enforced by `angular.json` budgets — the build fails on regression. The two Highcharts charts follow the same rule: the library (about 127 kB transferred) is never in a route chunk; the two screens with a chart fetch it while the browser is idle (ADR-008).
 
 ## Cache invalidation
 
@@ -90,7 +90,7 @@ Freshness is 30 s. That is a product choice, not a technical one: garden data ch
 
 The cache stores the in-flight promise, not just the settled value, so **identical concurrent GETs collapse into one request**. This matters specifically here:
 
-- The dashboard and the gardens grid both declare a garden-id source to `PlantsIndexStore.ensureForGardens(...)`, which owns the fan-out. Without de-duplication, navigating between them mid-flight would double it. A cold session issues exactly one request per resource, client-side navigation with a fresh cache issues **zero**, and hover-prefetch followed by a click collapses to one — all asserted by `request-ownership.spec.ts`.
+- The dashboard and the gardens grid both declare a garden-id source to `PlantsIndexStore.ensureForGardens(...)`, which owns the loading: one `GET /plants` when two or more gardens need fresh plants, `GET /plants/garden/{id}` for a single one. Without de-duplication, navigating between them mid-flight would double it. A cold dashboard issues one `GET /gardens` and one `GET /plants`, client-side navigation with a fresh cache issues **zero**, and a detail screen opened afterwards reuses the plants it already has — all asserted by `request-ownership.spec.ts`.
 - Hover-prefetch (below) and the subsequent real navigation ask for the same key within milliseconds. De-duplication is what makes prefetch free rather than a doubled request.
 - `GardenDetailStore` additionally guards **ordering**, not just count: each `load()` takes a monotonic token and a response whose token is stale is discarded. De-duplication prevents duplicate work; the token prevents garden A's slow response from overwriting garden B's screen — a real hazard when responses take up to 2 seconds and the user can click faster than that.
 
@@ -98,19 +98,18 @@ The cache stores the in-flight promise, not just the settled value, so **identic
 
 `features/gardens/prefetch-garden/prefetch-garden.ts` warms `gardens:{id}` and `plants:garden:{id}` through the same SWR cache on hover/focus of a garden card. On a 1-second-median API this is the difference between a skeleton and an instant screen, and it costs nothing extra when the user does click (de-duplication) — at most one wasted pair of requests when they do not. Route chunks are prefetched separately by `@defer (prefetch on idle)` and Angular's lazy loading, so code and data arrive in parallel.
 
-Prefetch is deliberately **not** applied to the dashboard's `1 + N` fan-out: warming every garden's plants on hover would trade a perceived-latency win for a request storm on a rate-limit-free hobby API. The right fix for that shape is server-side.
+Prefetch is deliberately **not** applied to the dashboard's plant reads: they are already one request, and warming them on hover would add traffic for no visible gain.
 
 ## Production backend improvements
 
 Ranked by what would actually move the numbers above:
 
 1. **Turn off the injected latency and failures.** Stated for completeness — they are a deliberate exam fixture, not a bug. Everything below assumes a real backend.
-2. **An aggregate read model for the dashboard** — `GET /gardens?include=plants`, or a BFF `/dashboard` endpoint returning gardens with plant counts and occupied area. This removes the `1 + N` entirely; it is the single highest-value change, and no client technique can substitute for it.
+2. **A slimmer aggregate for the dashboard** — `GET /plants` (added, ADR-003) already removed the `1 + N`; a BFF `/dashboard` endpoint returning gardens with plant counts and occupied area would also shrink the payload to what the cards show.
 3. **Pagination + user scoping on `GET /gardens`** (`?userId=`, `?page=`, `?limit=`). The endpoint currently returns every garden in the database to every profile, which is both a scaling problem and the reason profile deletion has to explain that gardens are shared.
 4. **`ETag` / `If-None-Match` on list and detail reads.** Revalidation becomes a 304 with no body — SWR's background refresh would cost almost nothing.
 5. **`Cache-Control` on stable resources**, plus a CDN/edge cache where deployment allows.
 6. **Sparse fieldsets** (`?fields=`) so the dashboard can ask for occupancy without full plant rows.
 7. **Idempotency keys on mutations**, so retry stays safe once errors can occur _mid-handler_ rather than only in `onRequest` (ADR-005).
-8. **A server-side capacity check on `PUT /gardens/{id}`.** Verified missing: shrinking a garden below its occupied area returns 200 today. The client warns; the server should refuse.
-9. **Server-side cache (e.g. Redis) for hot aggregates**, invalidated on write.
-10. **Telemetry**: Web Vitals plus API-latency percentiles, so the budgets in this document stay measured rather than remembered.
+8. **Server-side cache (e.g. Redis) for hot aggregates**, invalidated on write.
+9. **Telemetry**: Web Vitals plus API-latency percentiles, so the budgets in this document stay measured rather than remembered.

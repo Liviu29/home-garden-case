@@ -69,7 +69,7 @@ export class GardenList {
   private readonly confirm = inject(ConfirmService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
-  /** The source the plants index follows; the store owns the fan-out itself. */
+  /** The source the plants index follows; the store owns the loading itself. */
   private readonly gardenIds = computed(() => this.store.gardens().map((g) => g.gardenId));
 
   /** Created before this screen opened — not "new" when the user comes back. */

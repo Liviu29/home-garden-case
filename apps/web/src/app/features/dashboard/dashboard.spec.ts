@@ -44,7 +44,7 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 
 describe('Dashboard (aggregate insights a user notices)', () => {
   let gardensApi: { getAll: ReturnType<typeof vi.fn> };
-  let plantsApi: { getByGarden: ReturnType<typeof vi.fn> };
+  let plantsApi: { getByGarden: ReturnType<typeof vi.fn>; getAll: ReturnType<typeof vi.fn> };
 
   async function mount() {
     const fixture = TestBed.createComponent(Dashboard);
@@ -59,7 +59,10 @@ describe('Dashboard (aggregate insights a user notices)', () => {
 
   beforeEach(() => {
     gardensApi = { getAll: vi.fn() };
-    plantsApi = { getByGarden: vi.fn().mockResolvedValue([]) };
+    plantsApi = {
+      getByGarden: vi.fn().mockResolvedValue([]),
+      getAll: vi.fn().mockResolvedValue([]),
+    };
     TestBed.configureTestingModule({
       imports: [Dashboard],
       providers: [
@@ -82,11 +85,11 @@ describe('Dashboard (aggregate insights a user notices)', () => {
 
   it('aggregates stats across gardens: counts and total growing space', async () => {
     gardensApi.getAll.mockResolvedValue([garden(1, 'A', 12), garden(2, 'B', 8)]);
-    plantsApi.getByGarden.mockImplementation((id: number) =>
-      Promise.resolve(id === 1 ? [plant(1, 1, 4), plant(2, 1, 3)] : [plant(3, 2, 2)]),
-    );
+    // Two gardens: their plants arrive in one request.
+    plantsApi.getAll.mockResolvedValue([plant(1, 1, 4), plant(2, 1, 3), plant(3, 2, 2)]);
     const fixture = await mount();
 
+    expect(plantsApi.getByGarden).not.toHaveBeenCalled();
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Gardens');
     expect(text).toContain('Plants growing');
@@ -149,6 +152,7 @@ describe('Dashboard — greeting, KPI edges and insight tones', () => {
           provide: PlantsApi,
           useValue: {
             getByGarden: vi.fn((id: number) => Promise.resolve(over[id] ?? [])),
+            getAll: vi.fn(() => Promise.resolve(Object.values(over).flat())),
           },
         },
       ],
@@ -168,7 +172,10 @@ describe('Dashboard — greeting, KPI edges and insight tones', () => {
   beforeEach(() => {
     localStorage.clear();
     gardensApi = { getAll: vi.fn().mockResolvedValue(GARDENS) };
-    plantsApi = { getByGarden: vi.fn().mockResolvedValue([]) };
+    plantsApi = {
+      getByGarden: vi.fn().mockResolvedValue([]),
+      getAll: vi.fn().mockResolvedValue([]),
+    };
   });
 
   afterEach(() => vi.useRealTimers());
@@ -215,7 +222,10 @@ describe('Dashboard — greeting, KPI edges and insight tones', () => {
           { provide: GardensApi, useValue: gardensApi },
           {
             provide: PlantsApi,
-            useValue: { getByGarden: vi.fn().mockReturnValue(new Promise(() => undefined)) },
+            useValue: {
+              getByGarden: vi.fn().mockReturnValue(new Promise(() => undefined)),
+              getAll: vi.fn().mockReturnValue(new Promise(() => undefined)),
+            },
           },
         ],
       });
@@ -242,7 +252,10 @@ describe('Dashboard — greeting, KPI edges and insight tones', () => {
           { provide: GardensApi, useValue: gardensApi },
           {
             provide: PlantsApi,
-            useValue: { getByGarden: vi.fn().mockReturnValue(new Promise(() => undefined)) },
+            useValue: {
+              getByGarden: vi.fn().mockReturnValue(new Promise(() => undefined)),
+              getAll: vi.fn().mockReturnValue(new Promise(() => undefined)),
+            },
           },
         ],
       });

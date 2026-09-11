@@ -181,7 +181,7 @@ Rules:
   functional errors inline without stores knowing about forms.
 
 **Signals vs RxJS.** Signals hold state; RxJS handles I/O and events: HTTP, the retry/backoff
-operator in the interceptor, and `rxMethod` for the plants fan-out (`distinctUntilChanged` over the
+operator in the interceptor, and `rxMethod` for the plants loading (`distinctUntilChanged` over the
 garden ids, so a component declares its source once instead of running an `effect()` that both reads
 and writes). Effects are few and narrow: route id → load, the document title, and scrolling a newly
 created garden card into view. Subscriptions are limited to streams that complete or live as long

@@ -18,6 +18,16 @@ import { requestAsPromise } from './request';
 export class PlantsApi {
   private readonly http = inject(HttpClient);
 
+  /**
+   * Every plant across all gardens in one request — what the gardens grid and
+   * the dashboard use instead of one `getByGarden` per card.
+   */
+  getAll(): Promise<Plant[]> {
+    return requestAsPromise(
+      this.http.get<PlantDto[]>('/plants').pipe(map((dtos) => dtos.map(mapToPlant))),
+    );
+  }
+
   getByGarden(gardenId: number): Promise<Plant[]> {
     return requestAsPromise(
       this.http

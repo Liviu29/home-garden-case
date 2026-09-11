@@ -18,13 +18,13 @@ const plant = (id: number, gardenId: number): Plant => ({
   updatedAt: '',
 });
 
-describe('PlantsIndexStore (fan-out ownership + loop regression guard)', () => {
-  let api: { getByGarden: ReturnType<typeof vi.fn> };
+describe('PlantsIndexStore (loading ownership + loop regression guard)', () => {
+  let api: { getByGarden: ReturnType<typeof vi.fn>; getAll: ReturnType<typeof vi.fn> };
   let store: InstanceType<typeof PlantsIndexStore>;
   let cache: QueryCache;
 
   beforeEach(() => {
-    api = { getByGarden: vi.fn() };
+    api = { getByGarden: vi.fn(), getAll: vi.fn() };
     TestBed.configureTestingModule({ providers: [{ provide: PlantsApi, useValue: api }] });
     store = TestBed.inject(PlantsIndexStore);
     cache = TestBed.inject(QueryCache);
@@ -111,6 +111,89 @@ describe('PlantsIndexStore (fan-out ownership + loop regression guard)', () => {
     ids.set([5, 6]);
     TestBed.tick();
     await vi.waitFor(() => expect(api.getByGarden).toHaveBeenCalledTimes(2));
+  });
+
+  describe('one request for many gardens', () => {
+    it('loads several gardens with a single GET /plants, filed per garden', async () => {
+      api.getAll.mockResolvedValue([plant(1, 1), plant(2, 2), plant(3, 2), plant(9, 99)]);
+
+      store.ensureForGardens([1, 2, 3]);
+
+      await vi.waitFor(() => expect(store.byGarden()[3]).toEqual([]));
+      expect(api.getAll).toHaveBeenCalledTimes(1);
+      expect(api.getByGarden).not.toHaveBeenCalled();
+      expect(store.byGarden()[1]).toHaveLength(1);
+      expect(store.byGarden()[2]).toHaveLength(2);
+      // Filed under each garden's own key, so the detail screen reuses it.
+      expect(cache.read(cacheKeys.plantsOfGarden(2))).toHaveLength(2);
+      // A garden nobody asked for is not indexed.
+      expect(store.byGarden()[99]).toBeUndefined();
+    });
+
+    it('only asks for the gardens that are not fresh in the cache', async () => {
+      cache.set(cacheKeys.plantsOfGarden(1), [plant(1, 1)]);
+      api.getByGarden.mockResolvedValue([plant(2, 2)]);
+
+      store.ensureForGardens([1, 2]);
+
+      await vi.waitFor(() => expect(store.byGarden()[2]).toHaveLength(1));
+      expect(api.getByGarden).toHaveBeenCalledExactlyOnceWith(2);
+      expect(api.getAll).not.toHaveBeenCalled();
+    });
+
+    it('paints stale cached plants at once, then replaces them with the answer', async () => {
+      const stale = [plant(1, 1)];
+      cache.set(cacheKeys.plantsOfGarden(1), stale);
+      cache.set(cacheKeys.plantsOfGarden(2), []);
+      vi.spyOn(cache, 'isFresh').mockReturnValue(false);
+      api.getAll.mockResolvedValue([plant(1, 1), plant(5, 1), plant(2, 2)]);
+
+      store.ensureForGardens([1, 2]);
+      expect(store.byGarden()[1]).toBe(stale); // synchronously, before the network
+
+      await vi.waitFor(() => expect(store.byGarden()[1]).toHaveLength(2));
+      expect(store.byGarden()[2]).toHaveLength(1);
+    });
+
+    it('a failed request marks only the gardens with nothing cached', async () => {
+      cache.set(cacheKeys.plantsOfGarden(1), [plant(1, 1)]);
+      vi.spyOn(cache, 'isFresh').mockReturnValue(false);
+      api.getAll.mockRejectedValue(new Error('boom'));
+
+      store.ensureForGardens([1, 2, 3]);
+
+      await vi.waitFor(() => expect(store.failed()[2]).toBe(true));
+      expect(store.failed()[3]).toBe(true);
+      expect(store.failed()[1]).toBeUndefined();
+      expect(store.byGarden()[1]).toHaveLength(1); // the cached copy stays
+    });
+
+    it('a failed single-garden refresh keeps the cached copy and marks nothing', async () => {
+      cache.set(cacheKeys.plantsOfGarden(1), [plant(1, 1)]);
+      vi.spyOn(cache, 'isFresh').mockReturnValue(false);
+      api.getByGarden.mockRejectedValue(new Error('boom'));
+
+      store.ensureForGardens([1]);
+
+      await vi.waitFor(() => expect(api.getByGarden).toHaveBeenCalled());
+      await new Promise((r) => setTimeout(r));
+      expect(store.failed()).toEqual({});
+      expect(store.byGarden()[1]).toHaveLength(1);
+    });
+
+    it('a mutation written while the request is in flight is not overwritten', async () => {
+      let answer: (plants: Plant[]) => void = () => undefined;
+      api.getAll.mockReturnValue(new Promise<Plant[]>((resolve) => (answer = resolve)));
+
+      store.ensureForGardens([1, 2]);
+      const justAdded = [plant(7, 1), plant(8, 1)];
+      store.setPlants(1, justAdded); // e.g. a plant created on the detail screen
+      answer([plant(7, 1), plant(2, 2)]); // the older server view lands afterwards
+
+      await vi.waitFor(() => expect(store.byGarden()[2]).toHaveLength(1));
+      expect(store.byGarden()[1]).toBe(justAdded);
+      expect(cache.read(cacheKeys.plantsOfGarden(1))).toBe(justAdded);
+    });
   });
 
   it('a stale garden collection landing late never removes the current one', async () => {
