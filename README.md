@@ -338,6 +338,25 @@ base URL, so production expects the SPA and a reverse proxy for `/api/*` on the 
 `index.html` fallback for client-side routes. Hosting requirements and recommended security headers
 are in [PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md).
 
+## Deploying the demo
+
+The repository ships a container image for hosting a live demo: the API and the built SPA in one
+container, with the SPA serving `/api` from the same origin.
+
+```bash
+docker build -t home-garden .
+```
+
+```bash
+docker run -p 8080:8080 -v home-garden-data:/data home-garden
+```
+
+Any host that runs a container will do (Render, Fly.io, Railway, a VM). Give it a persistent disk
+at `/data` for the SQLite file, then fill it with the demo data from your machine:
+`SEED_API=https://<your-host>/api npm run seed`. The API keeps its deliberate latency and 10%
+failures, as the case asks; set `API_CHAOS=off` to turn them off. There is no hosted demo yet —
+deploying needs a hosting account.
+
 ## Deliberate trade-offs
 
 - **SignalStore over the classic NgRx Store** — less ceremony for three stores, same explicit

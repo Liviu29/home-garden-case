@@ -1,0 +1,21 @@
+# Installed and generated in the image itself
+node_modules
+**/node_modules
+dist
+**/dist
+.angular
+**/.angular
+.nx
+coverage
+**/coverage
+apps/web-e2e/test-results
+apps/web-e2e/playwright-report
+
+# Local state that must never reach an image
+*.sqlite
+.env
+.env.*
+.git
+.claude
+.idea
+.vscode

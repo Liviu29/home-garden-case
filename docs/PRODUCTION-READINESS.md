@@ -76,16 +76,19 @@ Caching: `index.html` must be served `no-cache`; every other file is content-has
 and can be `max-age=31536000, immutable`.
 
 `tools/serve-dist.mjs` implements all three rules in ~90 dependency-free lines and
-previews the production bundle locally (`node tools/serve-dist.mjs`). It is a
-**preview harness, not a deployment target** — the repository ships no
-platform-specific hosting configuration.
+previews the production bundle locally (`node tools/serve-dist.mjs`). The
+`Dockerfile` reuses it for a **demo image**: the built API on loopback and this
+server on `$PORT`, started together by `tools/start-demo.mjs`, with the SQLite
+file on a `/data` volume and the API's pruned production dependencies only. It
+runs on any container host; it is not tied to one platform. A production
+deployment would move the SPA to a CDN and give these rules to its proxy.
 
 ### Recommended security headers (deployment concern)
 
 The repository contains no hosting configuration, so these are documented here for
 whichever host serves the build:
 
-- `Content-Security-Policy: default-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'` — the app inlines its critical CSS at build time, so a strict policy needs `style-src 'self' 'unsafe-inline'` or a build-time nonce.
+- `Content-Security-Policy: default-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.open-meteo.com; object-src 'none'; base-uri 'self'` — the app inlines its critical CSS at build time, so a strict policy needs `style-src 'self' 'unsafe-inline'` or a build-time nonce. `api.open-meteo.com` is the one third-party origin: a garden with coordinates shows the outdoor humidity there, and the request carries only those coordinates, rounded to about a kilometre. A `telemetryEndpoint` on another origin would join `connect-src` too.
 - `X-Content-Type-Options: nosniff`
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `Permissions-Policy: geolocation=(), camera=(), microphone=()`

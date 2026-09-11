@@ -8,8 +8,10 @@
  *      which is why the app ships a relative `apiBaseUrl` and the backend
  *      needs no CORS policy.
  *
- * Zero dependencies on purpose — this is a preview harness, not a deployment
- * target. See docs/PRODUCTION-READINESS.md for the real hosting requirements.
+ * Zero dependencies on purpose. It previews the production build locally, and
+ * it is the static host inside the demo container (tools/start-demo.mjs) —
+ * enough for a demo; a production deployment would give these two rules to
+ * its CDN or reverse proxy. See docs/PRODUCTION-READINESS.md.
  *
  *   node tools/serve-dist.mjs [--port 4300] [--api http://localhost:3000]
  */
