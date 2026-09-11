@@ -4,7 +4,7 @@ import {
   awaitDialogSettled,
   createGarden,
   openDetail,
-  signIn,
+  signInAsNewProfile,
   uniqueName,
 } from '../support/helpers';
 
@@ -24,7 +24,7 @@ test.describe('garden lifecycle (real API)', () => {
     page,
   }) => {
     const name = uniqueName('E2E Garden');
-    await signIn(page);
+    await signInAsNewProfile(page);
     await page.goto('/gardens');
     await expect(page.getByRole('heading', { name: 'Gardens' })).toBeVisible();
 
@@ -59,7 +59,7 @@ test.describe('garden lifecycle (real API)', () => {
     page,
   }) => {
     const name = uniqueName('E2E Small Garden');
-    await signIn(page);
+    await signInAsNewProfile(page);
     await page.goto('/gardens');
     await expect(page.getByRole('heading', { name: 'Gardens' })).toBeVisible();
 
@@ -83,7 +83,7 @@ test.describe('garden lifecycle (real API)', () => {
 
   test('Flow 3 — editing a plant does not double-count its own area', async ({ page }) => {
     const name = uniqueName('E2E Edit Garden');
-    await signIn(page);
+    await signInAsNewProfile(page);
     await page.goto('/gardens');
     await createGarden(page, name, '12');
     await openDetail(page, name);
@@ -108,7 +108,7 @@ test.describe('garden lifecycle (real API)', () => {
 
   test('Flows 4+5 — delete plant (cancel, then confirm) and delete garden', async ({ page }) => {
     const name = uniqueName('E2E Delete Garden');
-    await signIn(page);
+    await signInAsNewProfile(page);
     await page.goto('/gardens');
     await createGarden(page, name, '10');
     await openDetail(page, name);
@@ -156,7 +156,7 @@ test.describe('garden lifecycle (real API)', () => {
     page,
   }) => {
     const name = uniqueName('E2E Validation Garden');
-    await signIn(page);
+    await signInAsNewProfile(page);
     await page.goto('/gardens');
     await createGarden(page, name, '10');
     await openDetail(page, name);
@@ -182,7 +182,7 @@ test.describe('garden lifecycle (real API)', () => {
   });
 
   test('a malformed garden id shows the designed not-found state', async ({ page }) => {
-    await signIn(page);
+    await signInAsNewProfile(page);
     await page.goto('/gardens/not-a-number');
     await expect(page.getByText('Garden not found')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Back to gardens' })).toBeVisible();

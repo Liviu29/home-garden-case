@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map } from 'rxjs';
 import { PlantDto } from './dtos';
+import { visibleToParams } from './gardens-api';
 import { mapToPlant } from './mappers';
 import { Plant, PlantInput } from './models';
 import { requestAsPromise } from './request';
@@ -20,11 +21,14 @@ export class PlantsApi {
 
   /**
    * Every plant across all gardens in one request — what the gardens grid and
-   * the dashboard use instead of one `getByGarden` per card.
+   * the dashboard use instead of one `getByGarden` per card. With `visibleTo`,
+   * only the plants of that profile's gardens and the shared ones.
    */
-  getAll(): Promise<Plant[]> {
+  getAll(visibleTo?: number): Promise<Plant[]> {
     return requestAsPromise(
-      this.http.get<PlantDto[]>('/plants').pipe(map((dtos) => dtos.map(mapToPlant))),
+      this.http
+        .get<PlantDto[]>('/plants', { params: visibleToParams(visibleTo) })
+        .pipe(map((dtos) => dtos.map(mapToPlant))),
     );
   }
 

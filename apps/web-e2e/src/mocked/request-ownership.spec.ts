@@ -1,5 +1,5 @@
 import { Page, expect, test } from '../support/fixtures';
-import { gardenDto, plantDto, routePlants, signIn } from '../support/helpers';
+import { GARDEN_LIST, gardenDto, plantDto, routePlants, signIn } from '../support/helpers';
 
 /**
  * Request-ownership contract.
@@ -32,7 +32,7 @@ function recordApiCalls(page: Page): { calls: string[]; countOf: (call: string) 
 }
 
 async function routeThreeGardens(page: Page): Promise<void> {
-  await page.route('**/api/gardens', (route) => route.fulfill({ json: gardens }));
+  await page.route(GARDEN_LIST, (route) => route.fulfill({ json: gardens }));
   for (const id of [1, 2, 3]) {
     await page.route(`**/api/gardens/${id}`, (route) => route.fulfill({ json: gardens[id - 1] }));
   }

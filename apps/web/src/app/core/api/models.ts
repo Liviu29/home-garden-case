@@ -17,6 +17,11 @@ export interface Garden {
   readonly locationDescription: string | null;
   readonly latitude: number | null;
   readonly longitude: number | null;
+  /**
+   * The profile that owns it; null = shared with every profile (ADR-009).
+   * Always set by the mapper — optional only so fixtures can leave it out.
+   */
+  readonly ownerId?: number | null;
   readonly createdAt: string;
   readonly updatedAt: string;
 }

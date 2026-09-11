@@ -85,6 +85,20 @@ describe('GardenList (screen states a user notices)', () => {
     expect((fixture.nativeElement as HTMLElement).querySelectorAll('article.card')).toHaveLength(2);
   });
 
+  it('marks the gardens no profile owns as shared', async () => {
+    gardensApi.getAll.mockResolvedValue([
+      { ...garden(1, 'Community Bed'), ownerId: null },
+      { ...garden(2, 'My Patio'), ownerId: 7 },
+    ]);
+    const fixture = await mount();
+
+    const cards = [...(fixture.nativeElement as HTMLElement).querySelectorAll('article.card')];
+    const sharedChip = (name: string) =>
+      cards.find((c) => c.textContent?.includes(name))?.querySelector('.chip.shared') ?? null;
+    expect(sharedChip('Community Bed')?.textContent?.trim()).toBe('Shared');
+    expect(sharedChip('My Patio')).toBeNull();
+  });
+
   it('holds a card’s capacity rows with ghosts while its plants load', async () => {
     TestBed.overrideProvider(PlantsApi, {
       useValue: { getByGarden: vi.fn().mockReturnValue(new Promise(() => undefined)) },

@@ -15,10 +15,11 @@ export class PlantService {
 
   /**
    * Get every plant, across all gardens — one request instead of one per
-   * garden for screens that summarise many gardens at once.
+   * garden for screens that summarise many gardens at once. With
+   * `visibleTo`, only the plants of that profile's gardens and the shared ones.
    */
-  async getAllPlants(): Promise<Plant[]> {
-    return await this.plantRepository.findAll();
+  async getAllPlants(visibleTo?: number): Promise<Plant[]> {
+    return await this.plantRepository.findAll(visibleTo);
   }
 
   /**

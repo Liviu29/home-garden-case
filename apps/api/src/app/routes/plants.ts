@@ -6,7 +6,7 @@ import {
   notFoundErrorResponseSchema,
   validationErrorResponseSchema,
 } from '../schemas/error.schema';
-import { gardenIdParamsSchema } from '../schemas/garden.schema';
+import { gardenIdParamsSchema, visibleToQuerySchema } from '../schemas/garden.schema';
 import { emptyResponseSchema } from '../schemas/general.schema';
 import {
   createPlantSchema,
@@ -21,23 +21,28 @@ export default async function (fastify: FastifyInstance) {
   const plantService = fastify.diContainer.resolve<PlantService>('plantService');
 
   /**
-   * GET /plants
-   * Get every plant, across all gardens
+   * GET /plants?visibleTo=<userId>
+   * Get every plant, across all gardens — or those of a profile's gardens and the shared ones
    */
-  fastify.withTypeProvider<ZodTypeProvider>().get(
+  fastify.withTypeProvider<ZodTypeProvider>().get<{
+    Querystring: z.infer<typeof visibleToQuerySchema>;
+  }>(
     '/plants',
     {
       schema: {
-        description: 'Get every plant, across all gardens',
+        description:
+          "Get every plant, across all gardens. With visibleTo, only the plants of that profile's gardens and the shared ones.",
         tags: ['plants'],
+        querystring: visibleToQuerySchema,
         response: {
           200: plantsResponseSchema,
+          400: validationErrorResponseSchema,
           500: internalServerErrorResponseSchema,
         },
       },
     },
-    async (_, reply) => {
-      const plants = await plantService.getAllPlants();
+    async (request, reply) => {
+      const plants = await plantService.getAllPlants(request.query.visibleTo);
       return reply.send(plants);
     },
   );

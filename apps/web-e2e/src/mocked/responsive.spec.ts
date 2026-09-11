@@ -1,5 +1,12 @@
 import { expect, test } from '../support/fixtures';
-import { documentOverflow, gardenDto, plantDto, routePlants, signIn } from '../support/helpers';
+import {
+  documentOverflow,
+  GARDEN_LIST,
+  gardenDto,
+  plantDto,
+  routePlants,
+  signIn,
+} from '../support/helpers';
 
 /** Mobile-viewport smoke (representative coverage, not a matrix). */
 test.describe('mobile 375×812', () => {
@@ -7,7 +14,7 @@ test.describe('mobile 375×812', () => {
 
   test('gardens grid renders, dialog opens, no horizontal overflow', async ({ page }) => {
     await signIn(page);
-    await page.route('**/api/gardens', (route) =>
+    await page.route(GARDEN_LIST, (route) =>
       route.fulfill({
         json: [
           gardenDto({ gardenId: 1, gardenName: 'Mobile Garden with a fairly long name' }),
@@ -118,7 +125,7 @@ async function routeHostileFixture(page: import('../support/fixtures').Page): Pr
       idealHumidityLevel: 100,
     },
   ];
-  await page.route('**/api/gardens', (route) => route.fulfill({ json: gardens }));
+  await page.route(GARDEN_LIST, (route) => route.fulfill({ json: gardens }));
   await page.route('**/api/gardens/1', (route) => route.fulfill({ json: gardens[0] }));
   await routePlants(page, plants);
 }

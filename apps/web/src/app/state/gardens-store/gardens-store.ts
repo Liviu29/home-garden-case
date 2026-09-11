@@ -1,6 +1,7 @@
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { GardensApi } from '../../core/api/gardens-api';
+import { SessionStore } from '../../core/auth/session-store';
 import { Garden, GardenInput } from '../../core/api/models';
 import { ApiError, toApiError } from '../../core/errors/api-error';
 import { ToastStore } from '../../core/errors/toast-store';
@@ -29,6 +30,8 @@ interface GardensState {
   sort: GardenSort;
   /** Garden ids with a DELETE in flight — ghost-confirmed removal. */
   pendingDeletes: readonly number[];
+  /** The profile the loaded list belongs to (ADR-009); null before any profile. */
+  listOwner: number | null;
 }
 
 const VIEW_STORAGE_KEY = 'itp-home-garden.gardens-view';
@@ -79,6 +82,7 @@ export const GardensStore = signalStore(
     lastCreatedId: null,
     pendingUpdates: [],
     pendingDeletes: [],
+    listOwner: null,
     ...readPersistedView(),
   })),
   withComputed((store) => ({
@@ -92,9 +96,13 @@ export const GardensStore = signalStore(
     const cache = inject(QueryCache);
     const toasts = inject(ToastStore);
     const logger = inject(Logger);
+    const session = inject(SessionStore);
 
     const applyList = (gardens: readonly Garden[]) =>
       patchState(store, { gardens, status: 'ready' });
+
+    /** The signed-in profile — whose gardens (plus the shared ones) the list shows. */
+    const profileId = (): number | null => session.profile()?.userId ?? null;
 
     return {
       setQuery(query: string): void {
@@ -109,7 +117,16 @@ export const GardensStore = signalStore(
 
       /** SWR load: cached list renders instantly; stale data revalidates behind it. */
       async load(): Promise<void> {
-        const { cached, revalidate } = cache.swr(cacheKeys.gardens, () => api.getAll());
+        const owner = profileId();
+        if (owner !== store.listOwner()) {
+          // Another profile signed in: its list is a different list. Drop the
+          // cached one rather than flash the previous profile's gardens.
+          cache.invalidate(cacheKeys.gardens);
+          patchState(store, { gardens: [], listOwner: owner });
+        }
+        const { cached, revalidate } = cache.swr(cacheKeys.gardens, () =>
+          api.getAll(owner ?? undefined),
+        );
 
         if (cached) {
           applyList(cached);
@@ -136,7 +153,9 @@ export const GardensStore = signalStore(
       async create(input: GardenInput): Promise<MutationResult> {
         patchState(store, { saving: true, creating: true });
         try {
-          const created = await api.create(input);
+          // The signed-in profile owns what it creates (ADR-009).
+          const owner = profileId();
+          const created = await (owner === null ? api.create(input) : api.create(input, owner));
           // A garden that was just created has no plants — that is known, not
           // loading. Seeding its (fresh) plants entry lets the card, the
           // dashboard and the detail page say "0 plants" at once, instead of

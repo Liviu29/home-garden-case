@@ -1,5 +1,5 @@
 import { expect, test } from '../support/fixtures';
-import { gardenDto, plantDto, routePlants, signIn } from '../support/helpers';
+import { GARDEN_LIST, gardenDto, plantDto, routePlants, signIn } from '../support/helpers';
 
 /**
  * The two Highcharts views (ADR-008), driven through what users and assistive
@@ -11,7 +11,7 @@ test.describe('portfolio map (dashboard)', () => {
   test('plots each planted garden and opens the one whose bubble is chosen', async ({ page }) => {
     await signIn(page);
     const rooftop = gardenDto({ gardenId: 1, gardenName: 'Rooftop', totalSurfaceArea: 10 });
-    await page.route('**/api/gardens', (route) =>
+    await page.route(GARDEN_LIST, (route) =>
       route.fulfill({
         json: [
           rooftop,

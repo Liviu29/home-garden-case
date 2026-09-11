@@ -78,6 +78,9 @@
           <a class="card-link" [routerLink]="['/gardens', garden.gardenId]">
             <div class="card-top">
               <h2 class="name">{{ garden.gardenName }}</h2>
+              @if (garden.ownerId === null) {
+                <span class="chip shared" title="Shared with every profile">Shared</span>
+              }
               <span class="chip humidity" title="Target humidity">
                 💧 {{ garden.targetHumidityLevel }}%
               </span>

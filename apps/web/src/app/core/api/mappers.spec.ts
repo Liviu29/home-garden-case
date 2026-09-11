@@ -16,11 +16,12 @@ describe('DTO → domain mappers', () => {
     locationDescription: 'behind the shed',
     latitude: 51.05,
     longitude: 3.72,
+    userId: 4,
     createdAt: '2026-04-01 00:00:00',
     updatedAt: '2026-04-02 00:00:00',
   };
 
-  it('copies a fully-populated garden across verbatim', () => {
+  it('copies a fully-populated garden across verbatim, its owner as ownerId', () => {
     expect(mapToGarden(gardenDto)).toEqual({
       gardenId: 1,
       gardenName: 'Backyard',
@@ -29,9 +30,16 @@ describe('DTO → domain mappers', () => {
       locationDescription: 'behind the shed',
       latitude: 51.05,
       longitude: 3.72,
+      ownerId: 4,
       createdAt: '2026-04-01 00:00:00',
       updatedAt: '2026-04-02 00:00:00',
     });
+  });
+
+  it('reads a garden without an owner as shared (ownerId null)', () => {
+    const shared = { ...gardenDto };
+    delete (shared as Partial<GardenDto>).userId;
+    expect(mapToGarden(shared).ownerId).toBeNull();
   });
 
   it('normalises every optional garden field to null when omitted', () => {

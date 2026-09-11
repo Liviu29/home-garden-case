@@ -249,7 +249,7 @@ describe('Shell', () => {
       await api(fixture).deleteProfile();
 
       const message = confirm.mock.calls[0][0].message;
-      expect(message).toContain('stay exactly as they are');
+      expect(message).toContain('shared with every profile');
       expect(message).not.toMatch(/gardens? (and plants? )?will be (deleted|removed)/i);
     });
   });

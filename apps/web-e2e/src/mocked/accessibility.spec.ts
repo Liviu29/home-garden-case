@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { Page, expect, test } from '../support/fixtures';
-import { gardenDto, plantDto, routePlants, signIn } from '../support/helpers';
+import { GARDEN_LIST, gardenDto, plantDto, routePlants, signIn } from '../support/helpers';
 
 /**
  * Automated WCAG scan + keyboard behaviour smoke.
@@ -11,7 +11,7 @@ async function mockHappyData(page: Page): Promise<void> {
   // Scan settled UI, not mid-animation opacity blends (axe computes blended
   // colors); the app's motion system collapses under reduced motion anyway.
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.route('**/api/gardens', (route) =>
+  await page.route(GARDEN_LIST, (route) =>
     route.fulfill({
       json: [
         gardenDto({ gardenId: 1, gardenName: 'Axe Garden', totalSurfaceArea: 20 }),

@@ -1,5 +1,13 @@
 import { Page, expect } from '@playwright/test';
 
+/**
+ * The garden list and the all-plants list, with or without `?visibleTo=`
+ * (ADR-009). A glob such as `**\/api/gardens` does not match a URL with a
+ * query string, so these lists are routed by regular expression.
+ */
+export const GARDEN_LIST = /\/api\/gardens(\?.*)?$/;
+export const PLANT_LIST = /\/api\/plants(\?.*)?$/;
+
 /** Unique per test invocation (retries re-import the module in a new worker). */
 export const uniqueName = (prefix: string): string =>
   `${prefix} ${Date.now()}-${Math.floor(Math.random() * 1e4)}`;
@@ -31,6 +39,35 @@ export async function signIn(page: Page): Promise<void> {
   await page.addInitScript((profile) => {
     localStorage.setItem('itp-home-garden.session', JSON.stringify(profile));
   }, E2E_PROFILE);
+}
+
+/**
+ * For the integration project: sign in as a REAL profile, created through the
+ * API for this test. Gardens belong to the profile that creates them
+ * (ADR-009), and the API refuses an owner it does not know, so the synthetic
+ * profile `signIn` uses would not do here.
+ *
+ * The API fails 10% of requests on purpose; a 5xx is retried with a short
+ * backoff (API resilience, not a wait for the UI), anything else fails loudly.
+ */
+export async function signInAsNewProfile(page: Page): Promise<void> {
+  const emailAddress = `${uniqueName('e2e').replace(/\s+/g, '-')}@example.com`;
+  const payload = { emailAddress, firstName: 'E2E', lastName: 'Runner', age: null };
+  let profile: typeof payload & { userId: number };
+  for (let attempt = 1; ; attempt++) {
+    const response = await page.request.post('/api/users', { data: payload });
+    if (response.ok()) {
+      profile = await response.json();
+      break;
+    }
+    if (response.status() < 500 || attempt === 8) {
+      throw new Error(`Could not create the test profile: ${response.status()}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
+  }
+  await page.addInitScript((session) => {
+    localStorage.setItem('itp-home-garden.session', JSON.stringify(session));
+  }, profile);
 }
 
 /**
@@ -132,7 +169,7 @@ export async function routePlants(
   page: Page,
   plants: readonly { gardenId: number }[],
 ): Promise<void> {
-  await page.route('**/api/plants', (route) =>
+  await page.route(PLANT_LIST, (route) =>
     route.request().method() === 'GET' ? route.fulfill({ json: plants }) : route.fallback(),
   );
   await page.route('**/api/plants/garden/*', (route) => {

@@ -67,6 +67,14 @@ describe('PlantsApi', () => {
     ]);
   });
 
+  it('asks only for the plants a profile can see with ?visibleTo', async () => {
+    const pending = api.getAll(5);
+    const request = controller.expectOne((r) => r.url === '/plants' && r.method === 'GET');
+    expect(request.request.params.get('visibleTo')).toBe('5');
+    request.flush([plantDto(1)]);
+    await expect(pending).resolves.toHaveLength(1);
+  });
+
   it('creates with a POST carrying the form input', async () => {
     const pending = api.create(input);
     const request = controller.expectOne('/plants');

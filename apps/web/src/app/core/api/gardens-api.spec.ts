@@ -68,6 +68,24 @@ describe('GardensApi', () => {
     });
   });
 
+  it("asks for one profile's gardens, and the shared ones, with ?visibleTo", async () => {
+    const pending = api.getAll(5);
+    const request = controller.expectOne((r) => r.url === '/gardens');
+    expect(request.request.params.get('visibleTo')).toBe('5');
+    request.flush([gardenDto(1, { userId: 5 }), gardenDto(2, { userId: null })]);
+
+    const gardens = await pending;
+    expect(gardens.map((g) => g.ownerId)).toEqual([5, null]);
+  });
+
+  it('creates a garden owned by the given profile', async () => {
+    const pending = api.create(input, 3);
+    const request = controller.expectOne('/gardens');
+    expect(request.request.body).toEqual({ ...input, userId: 3 });
+    request.flush(gardenDto(9, { userId: 3 }));
+    await expect(pending).resolves.toMatchObject({ gardenId: 9, ownerId: 3 });
+  });
+
   it('fetches one garden by id', async () => {
     const pending = api.getById(7);
     controller.expectOne('/gardens/7').flush(gardenDto(7));

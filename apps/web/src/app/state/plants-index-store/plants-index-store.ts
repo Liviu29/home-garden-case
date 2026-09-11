@@ -3,6 +3,7 @@ import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { distinctUntilChanged, pipe, tap } from 'rxjs';
 import { PlantsApi } from '../../core/api/plants-api';
+import { SessionStore } from '../../core/auth/session-store';
 import { Plant } from '../../core/api/models';
 import { QueryCache, cacheKeys } from '../../core/resilience/query-cache';
 
@@ -42,6 +43,7 @@ export const PlantsIndexStore = signalStore(
   withMethods((store) => {
     const api = inject(PlantsApi);
     const cache = inject(QueryCache);
+    const session = inject(SessionStore);
 
     const apply = (gardenId: number, plants: readonly Plant[]): void => {
       if (store.failed()[gardenId]) {
@@ -100,7 +102,8 @@ export const PlantsIndexStore = signalStore(
       }
 
       cache
-        .refresh(cacheKeys.allPlants, () => api.getAll())
+        // Only the plants of gardens this profile can see (ADR-009).
+        .refresh(cacheKeys.allPlants, () => api.getAll(session.profile()?.userId))
         .then((plants) => {
           const grouped = new Map<number, Plant[]>(stale.map((id) => [id, []]));
           for (const plant of plants) {

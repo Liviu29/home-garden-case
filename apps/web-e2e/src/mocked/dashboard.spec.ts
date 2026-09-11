@@ -2,6 +2,7 @@ import { expect, test } from '../support/fixtures';
 import {
   documentOverflow,
   expectNoSpinner,
+  GARDEN_LIST,
   gardenDto,
   plantDto,
   routePlants,
@@ -38,7 +39,7 @@ test.describe('dashboard control center', () => {
   }) => {
     await signIn(page);
     await mockPlants(page);
-    await page.route('**/api/gardens', async (route) => {
+    await page.route(GARDEN_LIST, async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 2500));
       await route.fulfill({ json: gardens });
     });
@@ -63,7 +64,7 @@ test.describe('dashboard control center', () => {
   test('attention card and health card both navigate to the garden', async ({ page }) => {
     await signIn(page);
     await mockPlants(page);
-    await page.route('**/api/gardens', (r) => r.fulfill({ json: gardens }));
+    await page.route(GARDEN_LIST, (r) => r.fulfill({ json: gardens }));
     await page.route('**/api/gardens/1', (r) => r.fulfill({ json: gardens[0] }));
     await page.route('**/api/gardens/2', (r) => r.fulfill({ json: gardens[1] }));
     await page.goto('/dashboard');
@@ -85,7 +86,7 @@ test.describe('dashboard control center', () => {
     page,
   }) => {
     await signIn(page);
-    await page.route('**/api/gardens', (r) =>
+    await page.route(GARDEN_LIST, (r) =>
       r.fulfill({ json: [gardenDto({ gardenId: 2, gardenName: 'Calm Garden' })] }),
     );
     await page.route('**/api/plants/garden/2', (r) =>
@@ -103,7 +104,7 @@ test.describe('dashboard control center', () => {
     await page.setViewportSize({ width: 375, height: 812 });
     await signIn(page);
     await mockPlants(page);
-    await page.route('**/api/gardens', (r) => r.fulfill({ json: gardens }));
+    await page.route(GARDEN_LIST, (r) => r.fulfill({ json: gardens }));
     await page.goto('/dashboard');
 
     await expect(page.getByTestId('health-card').first()).toBeVisible();

@@ -67,6 +67,9 @@
 
 .card-top {
   display: flex;
+  // A long name pushes the chips (shared, humidity) onto the next line
+  // instead of out of the card.
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-start;
   gap: var(--sp-2);
@@ -74,6 +77,9 @@
 }
 
 .name {
+  flex: 1 1 10rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: var(--fs-emphasis);
   font-weight: 650;
 }
@@ -88,6 +94,13 @@
     background: var(--info-soft);
     color: var(--info-blue);
     border: 1px solid color-mix(in srgb, var(--info-blue) 25%, transparent);
+  }
+
+  // A garden no profile owns (ADR-009): visible to everyone.
+  &.shared {
+    background: var(--surface-2);
+    color: var(--text-2);
+    border: 1px solid var(--border);
   }
 }
 

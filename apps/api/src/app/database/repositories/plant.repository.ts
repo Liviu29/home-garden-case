@@ -9,10 +9,19 @@ export class PlantRepository {
   }
 
   /**
-   * Find all plants
+   * Find all plants — or, with `visibleTo`, the plants of the gardens that
+   * profile owns plus the shared (unowned) ones.
    */
-  async findAll(): Promise<Plant[]> {
-    return await this.db.selectFrom('plant').selectAll().execute();
+  async findAll(visibleTo?: number): Promise<Plant[]> {
+    if (visibleTo === undefined) {
+      return await this.db.selectFrom('plant').selectAll().execute();
+    }
+    return await this.db
+      .selectFrom('plant')
+      .innerJoin('garden', 'garden.gardenId', 'plant.gardenId')
+      .where((eb) => eb.or([eb('garden.userId', '=', visibleTo), eb('garden.userId', 'is', null)]))
+      .selectAll('plant')
+      .execute();
   }
 
   /**

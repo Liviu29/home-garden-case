@@ -1,3 +1,4 @@
+import { GardenRepository } from '../database/repositories/garden.repository';
 import { UserRepository } from '../database/repositories/user.repository';
 import { NewUser, User, UserUpdate } from '../database/types';
 import { createUserSchema, updateUserSchema } from '../schemas/user.schema';
@@ -5,9 +6,11 @@ import { ConflictError, NotFoundError } from '../shared/errors';
 
 export class UserService {
   private readonly userRepository: UserRepository;
+  private readonly gardenRepository: GardenRepository;
 
-  constructor(opts: { userRepository: UserRepository }) {
+  constructor(opts: { userRepository: UserRepository; gardenRepository: GardenRepository }) {
     this.userRepository = opts.userRepository;
+    this.gardenRepository = opts.gardenRepository;
   }
 
   /**
@@ -103,6 +106,9 @@ export class UserService {
       throw new NotFoundError(`User with ID ${userId} not found`);
     }
 
+    // Its gardens outlive it, shared with every profile (ADR-009). Done
+    // explicitly rather than trusting SQLite's foreign-key setting.
+    await this.gardenRepository.releaseOwnedBy(userId);
     const deleted = await this.userRepository.delete(userId);
     if (!deleted) {
       throw new Error(`Failed to delete user with ID ${userId}`);

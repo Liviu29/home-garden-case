@@ -3,6 +3,7 @@ import {
   awaitDialogSettled,
   documentOverflow,
   expectNoSpinner,
+  GARDEN_LIST,
   gardenDto,
   plantDto,
   routePlants,
@@ -22,7 +23,7 @@ const LOADING_STATUS = 'app-skeleton-group [role="status"]';
 test.describe('empty states (Flow 7)', () => {
   test('zero gardens shows the designed empty state with a create CTA', async ({ page }) => {
     await signIn(page);
-    await page.route('**/api/gardens', (route) => route.fulfill({ json: [] }));
+    await page.route(GARDEN_LIST, (route) => route.fulfill({ json: [] }));
     await page.goto('/gardens');
 
     await expect(page.getByText('No gardens yet')).toBeVisible();
@@ -48,7 +49,7 @@ test.describe('API failure and recovery (Flow 8)', () => {
   test('persistent 500 shows the designed error state; retry recovers', async ({ page }) => {
     await signIn(page);
     let healthy = false;
-    await page.route('**/api/gardens', (route) =>
+    await page.route(GARDEN_LIST, (route) =>
       healthy
         ? route.fulfill({ json: [gardenDto({ gardenId: 1, gardenName: 'Recovered Garden' })] })
         : route.fulfill({ status: 500, json: { error: 'Random error thrown' } }),
@@ -72,7 +73,7 @@ test.describe('slow reads render skeletons (Flow 9)', () => {
     page,
   }) => {
     await signIn(page);
-    await page.route('**/api/gardens', async (route) => {
+    await page.route(GARDEN_LIST, async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 2500));
       await route.fulfill({ json: [gardenDto({ gardenId: 1, gardenName: 'Slow Garden' })] });
     });
@@ -98,7 +99,7 @@ test.describe('slow reads render skeletons (Flow 9)', () => {
     page,
   }) => {
     await signIn(page);
-    await page.route('**/api/gardens', async (route) => {
+    await page.route(GARDEN_LIST, async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 800));
       await route.fulfill({ status: 500, json: { error: 'Random error thrown' } });
     });
@@ -113,7 +114,7 @@ test.describe('slow reads render skeletons (Flow 9)', () => {
 
   test('a response faster than the appear delay never shows a skeleton', async ({ page }) => {
     await signIn(page);
-    await page.route('**/api/gardens', async (route) => {
+    await page.route(GARDEN_LIST, async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 40));
       await route.fulfill({ json: [gardenDto({ gardenId: 1, gardenName: 'Quick Garden' })] });
     });
@@ -147,7 +148,7 @@ test.describe('slow reads render skeletons (Flow 9)', () => {
     await signIn(page);
     let release: () => void = () => undefined;
     const gate = new Promise<void>((resolve) => (release = resolve));
-    await page.route('**/api/gardens', async (route) => {
+    await page.route(GARDEN_LIST, async (route) => {
       await gate;
       await route.fulfill({ json: [gardenDto({ gardenId: 1, gardenName: 'Calm Garden' })] });
     });
@@ -202,7 +203,7 @@ test.describe('mutation pending state (Flow 10)', () => {
   test('a slow save shows pending feedback and prevents duplicate submission', async ({ page }) => {
     await signIn(page);
     let postCount = 0;
-    await page.route('**/api/gardens', async (route) => {
+    await page.route(GARDEN_LIST, async (route) => {
       if (route.request().method() === 'POST') {
         postCount++;
         await new Promise((resolve) => setTimeout(resolve, 2000));

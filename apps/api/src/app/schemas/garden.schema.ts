@@ -6,8 +6,15 @@ export const gardenIdParamsSchema = z.object({
 
 z.globalRegistry.add(gardenIdParamsSchema, { id: 'GardenId' });
 
+/** `?visibleTo=<userId>` — that profile's gardens plus the shared (unowned) ones. */
+export const visibleToQuerySchema = z.object({
+  visibleTo: z.coerce.number().int().positive('visibleTo must be a positive user id').optional(),
+});
+
 export const createGardenSchema = z
   .object({
+    /** Owning profile; omit or null for a garden shared with every profile. */
+    userId: z.number().int().positive('User ID must be a positive integer').nullable().optional(),
     gardenName: z.string().min(1, 'Garden name is required').trim(),
     totalSurfaceArea: z.number().nonnegative('Total surface area must be a non-negative number'),
     targetHumidityLevel: z

@@ -2,7 +2,9 @@ import { expect, test } from '../support/fixtures';
 import {
   awaitDialogSettled,
   expectNoSpinner,
+  GARDEN_LIST,
   gardenDto,
+  PLANT_LIST,
   plantDto,
   signIn,
 } from '../support/helpers';
@@ -30,7 +32,7 @@ test.describe('plant mutations render ghosts (ASYNC-UX)', () => {
     await page.route('**/api/gardens/6', (r) => r.fulfill({ json: garden }));
     let plants = [...basePlants];
     await page.route('**/api/plants/garden/6', (r) => r.fulfill({ json: plants }));
-    await page.route('**/api/plants', async (r) => {
+    await page.route(PLANT_LIST, async (r) => {
       await new Promise((resolve) => setTimeout(resolve, 1800));
       const created = plantDto({ plantId: 9, gardenId: 6, name: 'New Basil', area: 2 });
       plants = [...plants, created];
@@ -174,7 +176,7 @@ test.describe('garden mutations render ghosts (ASYNC-UX)', () => {
   }) => {
     await signIn(page);
     let gardens: unknown[] = [];
-    await page.route('**/api/gardens', async (r) => {
+    await page.route(GARDEN_LIST, async (r) => {
       if (r.request().method() === 'POST') {
         await new Promise((resolve) => setTimeout(resolve, 1800));
         const created = gardenDto({ gardenId: 42, gardenName: 'Ghosted Garden' });
@@ -211,7 +213,7 @@ test.describe('garden mutations render ghosts (ASYNC-UX)', () => {
   }) => {
     await signIn(page);
     let gardens: unknown[] = [gardenDto({ gardenId: 6, gardenName: 'Doomed Garden' })];
-    await page.route('**/api/gardens', (r) => r.fulfill({ json: gardens }));
+    await page.route(GARDEN_LIST, (r) => r.fulfill({ json: gardens }));
     await page.route('**/api/gardens/6', async (r) => {
       if (r.request().method() === 'DELETE') {
         await new Promise((resolve) => setTimeout(resolve, 1800));
@@ -254,7 +256,7 @@ test.describe('garden mutations render ghosts (ASYNC-UX)', () => {
       }
       await r.fulfill({ json: current });
     });
-    await page.route('**/api/gardens', (r) => r.fulfill({ json: [current] }));
+    await page.route(GARDEN_LIST, (r) => r.fulfill({ json: [current] }));
     await page.route('**/api/plants/garden/6', (r) => r.fulfill({ json: basePlants }));
     await page.goto('/gardens/6');
     await expect(page.getByRole('heading', { name: 'Rename Me' })).toBeVisible();

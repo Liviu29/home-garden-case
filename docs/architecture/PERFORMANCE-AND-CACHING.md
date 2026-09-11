@@ -106,7 +106,7 @@ Ranked by what would actually move the numbers above:
 
 1. **Turn off the injected latency and failures.** Stated for completeness — they are a deliberate exam fixture, not a bug. Everything below assumes a real backend.
 2. **A slimmer aggregate for the dashboard** — `GET /plants` (added, ADR-003) already removed the `1 + N`; a BFF `/dashboard` endpoint returning gardens with plant counts and occupied area would also shrink the payload to what the cards show.
-3. **Pagination + user scoping on `GET /gardens`** (`?userId=`, `?page=`, `?limit=`). The endpoint currently returns every garden in the database to every profile, which is both a scaling problem and the reason profile deletion has to explain that gardens are shared.
+3. **Pagination on `GET /gardens` and `GET /plants`** (`?page=`, `?limit=`). User scoping is done — `?visibleTo=` returns a profile's gardens and the shared ones (ADR-009) — but a profile with hundreds of gardens would still get them all in one response.
 4. **`ETag` / `If-None-Match` on list and detail reads.** Revalidation becomes a 304 with no body — SWR's background refresh would cost almost nothing.
 5. **`Cache-Control` on stable resources**, plus a CDN/edge cache where deployment allows.
 6. **Sparse fieldsets** (`?fields=`) so the dashboard can ask for occupancy without full plant rows.

@@ -1,5 +1,5 @@
 import { expect, test } from '../support/fixtures';
-import { documentOverflow, expectNoSpinner } from '../support/helpers';
+import { documentOverflow, expectNoSpinner, GARDEN_LIST } from '../support/helpers';
 
 /**
  * Welcome / profile selection: content-shaped skeleton
@@ -86,7 +86,7 @@ test.describe('welcome / profile selection', () => {
   }) => {
     await page.route('**/api/users', (r) => r.fulfill({ json: one }));
     await page.route('**/api/users/1', (r) => r.fulfill({ json: one[0] })); // session revalidation
-    await page.route('**/api/gardens', (r) => r.fulfill({ json: [] }));
+    await page.route(GARDEN_LIST, (r) => r.fulfill({ json: [] }));
     await page.goto('/welcome');
 
     await page.getByRole('button', { name: /Liviu-Petrut Nita/ }).click();
@@ -114,7 +114,7 @@ test.describe('welcome / profile selection', () => {
 
     // Keyboard: tab reaches a profile card and Enter activates it
     await page.route('**/api/users/1', (r) => r.fulfill({ json: one[0] })); // session revalidation
-    await page.route('**/api/gardens', (r) => r.fulfill({ json: [] }));
+    await page.route(GARDEN_LIST, (r) => r.fulfill({ json: [] }));
     await page.getByRole('button', { name: /Liviu-Petrut Nita/ }).focus();
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/dashboard/);
@@ -185,7 +185,7 @@ test.describe('welcome / profile selection', () => {
     await page.route('**/api/users/9', (r) =>
       r.fulfill({ json: profile(9, 'new@example.com', 'New', 'Gardener') }),
     );
-    await page.route('**/api/gardens', (r) => r.fulfill({ json: [] }));
+    await page.route(GARDEN_LIST, (r) => r.fulfill({ json: [] }));
     await page.goto('/welcome');
 
     await page.getByRole('button', { name: 'Create your profile' }).click();
@@ -233,7 +233,7 @@ test.describe('profile capabilities the API exposes (backend audit)', () => {
     });
     await page.route('**/api/users/email/**', (route) => route.fulfill({ json: one[0] }));
     await page.route('**/api/users/1', (route) => route.fulfill({ json: one[0] }));
-    await page.route('**/api/gardens', (route) => route.fulfill({ json: [] }));
+    await page.route(GARDEN_LIST, (route) => route.fulfill({ json: [] }));
     await page.goto('/welcome');
 
     await page.getByRole('button', { name: 'Create your profile' }).click();
@@ -261,7 +261,7 @@ test.describe('profile capabilities the API exposes (backend audit)', () => {
       }),
     );
     await page.route('**/api/users', (route) => route.fulfill({ json: one }));
-    await page.route('**/api/gardens', (route) => route.fulfill({ json: [] }));
+    await page.route(GARDEN_LIST, (route) => route.fulfill({ json: [] }));
 
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/\/welcome/);
@@ -282,7 +282,7 @@ test.describe('profile capabilities the API exposes (backend audit)', () => {
         json: { error: 'Internal server error', details: ['Random error thrown'] },
       }),
     );
-    await page.route('**/api/gardens', (route) => route.fulfill({ json: [] }));
+    await page.route(GARDEN_LIST, (route) => route.fulfill({ json: [] }));
 
     await page.goto('/dashboard');
     await expect(page.getByRole('heading', { name: /Good/ })).toBeVisible();

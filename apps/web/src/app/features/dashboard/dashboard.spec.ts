@@ -6,6 +6,7 @@ import { GardensApi } from '../../core/api/gardens-api';
 import { PlantsApi } from '../../core/api/plants-api';
 import { APP_CONFIG, AppConfig } from '../../core/config/app-config';
 import { Garden, Plant } from '../../core/api/models';
+import { PlantsIndexStore } from '../../state/plants-index-store/plants-index-store';
 import { Dashboard } from './dashboard';
 
 const garden = (id: number, name: string, area = 20, target = 50): Garden => ({
@@ -94,6 +95,22 @@ describe('Dashboard (aggregate insights a user notices)', () => {
     expect(text).toContain('Gardens');
     expect(text).toContain('Plants growing');
     expect(text).toContain('m² of growing space'); // 12 + 8 = 20 total
+  });
+
+  it('counts only the plants of the gardens on screen, never a previous profile’s', async () => {
+    gardensApi.getAll.mockResolvedValue([garden(1, 'A', 12)]);
+    plantsApi.getByGarden.mockResolvedValue([plant(1, 1, 4)]);
+    // Garden 9 belongs to a profile signed in earlier: still in the index.
+    TestBed.inject(PlantsIndexStore).setPlants(9, [plant(2, 9, 3), plant(3, 9, 3)]);
+
+    const fixture = await mount();
+
+    const vm = fixture.componentInstance as unknown as {
+      totalPlants: () => number;
+      usedArea: () => number;
+    };
+    expect(vm.totalPlants()).toBe(1);
+    expect(vm.usedArea()).toBe(4);
   });
 
   it('surfaces a needs-attention row for a garden at >= 90% capacity', async () => {

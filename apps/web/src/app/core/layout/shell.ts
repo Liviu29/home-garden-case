@@ -385,9 +385,9 @@ export class Shell {
   }
 
   /**
-   * DELETE /users/{userId}. Gardens are NOT owned by a profile in this backend
-   * (no userId column anywhere), so the copy must not claim gardens are removed
-   * — verified in API-INTEGRATION.md §4.
+   * DELETE /users/{userId}. The API does not delete a profile's gardens: it
+   * hands them back to everyone as shared gardens (ADR-009), so the copy
+   * says exactly that.
    */
   protected async deleteProfile(): Promise<void> {
     const profile = this.session.profile();
@@ -399,7 +399,7 @@ export class Shell {
       title: 'Delete profile?',
       message:
         `“${this.session.displayName()}” will be permanently deleted. ` +
-        'Gardens and plants are shared and stay exactly as they are.',
+        'Its gardens and plants stay, shared with every profile.',
       confirmLabel: 'Delete',
       destructive: true,
     });

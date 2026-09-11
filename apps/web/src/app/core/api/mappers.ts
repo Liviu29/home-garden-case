@@ -15,6 +15,7 @@ export function mapToGarden(dto: GardenDto): Garden {
     locationDescription: dto.locationDescription ?? null,
     latitude: dto.latitude ?? null,
     longitude: dto.longitude ?? null,
+    ownerId: dto.userId ?? null,
     createdAt: dto.createdAt,
     updatedAt: dto.updatedAt,
   };

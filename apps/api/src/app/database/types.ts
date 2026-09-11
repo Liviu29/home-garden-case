@@ -28,6 +28,7 @@ export interface GardenTable {
   targetHumidityLevel: Generated<number>; // configurable target humidity (0-100)
   latitude: number | null; // optional geographic coordinate
   longitude: number | null; // optional geographic coordinate
+  userId: number | null; // owning profile; null = shared with every profile
   createdAt: ColumnType<Date, string | undefined, never>;
   updatedAt: ColumnType<Date, string | undefined, never>;
 }

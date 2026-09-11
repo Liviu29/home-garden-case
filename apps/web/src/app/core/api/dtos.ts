@@ -15,6 +15,8 @@ export interface GardenDto {
   locationDescription?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  /** Owning profile; null = shared with every profile (ADR-009). */
+  userId?: number | null;
   createdAt: string;
   updatedAt: string;
 }

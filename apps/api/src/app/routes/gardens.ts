@@ -12,6 +12,7 @@ import {
   gardenResponseSchema,
   gardensResponseSchema,
   updateGardenSchema,
+  visibleToQuerySchema,
 } from '../schemas/garden.schema';
 import { emptyResponseSchema } from '../schemas/general.schema';
 import { GardenService } from '../services/garden.service';
@@ -20,23 +21,28 @@ export default async function (fastify: FastifyInstance) {
   const gardenService = fastify.diContainer.resolve<GardenService>('gardenService');
 
   /**
-   * GET /gardens
-   * Get all gardens
+   * GET /gardens?visibleTo=<userId>
+   * Get all gardens — or a profile's gardens plus the shared ones
    */
-  fastify.withTypeProvider<ZodTypeProvider>().get(
+  fastify.withTypeProvider<ZodTypeProvider>().get<{
+    Querystring: z.infer<typeof visibleToQuerySchema>;
+  }>(
     '/gardens',
     {
       schema: {
-        description: 'Get all gardens',
+        description:
+          "Get all gardens. With visibleTo, only that profile's gardens and the shared (unowned) ones.",
         tags: ['gardens'],
+        querystring: visibleToQuerySchema,
         response: {
           200: gardensResponseSchema,
+          400: validationErrorResponseSchema,
           500: internalServerErrorResponseSchema,
         },
       },
     },
-    async (_, reply) => {
-      const gardens = await gardenService.getAllGardens();
+    async (request, reply) => {
+      const gardens = await gardenService.getAllGardens(request.query.visibleTo);
       return reply.send(gardens);
     },
   );

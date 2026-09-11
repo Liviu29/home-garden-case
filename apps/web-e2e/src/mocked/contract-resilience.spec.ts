@@ -1,5 +1,13 @@
 import { expect, test } from '../support/fixtures';
-import { expectNoSpinner, gardenDto, plantDto, routePlants, signIn } from '../support/helpers';
+import {
+  expectNoSpinner,
+  GARDEN_LIST,
+  gardenDto,
+  PLANT_LIST,
+  plantDto,
+  routePlants,
+  signIn,
+} from '../support/helpers';
 
 /**
  * Contract-driven resilience (API-INTEGRATION.md). Every scenario here mirrors a
@@ -19,7 +27,7 @@ test.describe('slow-API navigation safety', () => {
     page,
   }) => {
     await signIn(page);
-    await page.route('**/api/gardens', (route) => route.fulfill({ json: [gardenOne, gardenTwo] }));
+    await page.route(GARDEN_LIST, (route) => route.fulfill({ json: [gardenOne, gardenTwo] }));
     await page.route('**/api/gardens/1', async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 2500));
       await route.fulfill({ json: gardenOne });
@@ -126,7 +134,7 @@ test.describe('server-authoritative capacity verdict', () => {
     await page.route('**/api/plants/garden/1', (route) => route.fulfill({ json: [] }));
     // Client-side pre-validation would normally block this, so we prove the
     // SERVER verdict path: the garden looks empty to the client, the API says no.
-    await page.route('**/api/plants', (route) =>
+    await page.route(PLANT_LIST, (route) =>
       route.fulfill({
         status: 400,
         json: {

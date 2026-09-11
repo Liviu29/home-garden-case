@@ -140,8 +140,9 @@ the five real plant fields.
 2. **`updatedAt` is never updated** by the repositories, so it is not displayed or used for caching.
 3. **Email uniqueness is service-enforced**, so two concurrent creates can race; submits are
    single-flight and the 409 path is handled.
-4. **No pagination, filtering or sorting** on any endpoint — the gardens toolbar searches and sorts
-   client-side by necessity.
+4. **No pagination or sorting** on any endpoint — the gardens toolbar searches and sorts
+   client-side by necessity. The one filter is `?visibleTo=<userId>` on `GET /gardens` and
+   `GET /plants`, added with garden ownership ([ADR-009](../adr/ADR-009-garden-ownership.md)).
 5. **The dashboard used to need `1 + N` requests** (no plant data on `Garden`, no `?include=`).
    The API now has `GET /plants` — every plant, one request — and `PlantsIndexStore` uses it
    whenever two or more gardens need fresh plants, filing the answer under each garden's own

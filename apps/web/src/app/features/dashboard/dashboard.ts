@@ -177,8 +177,16 @@ export class Dashboard {
 
   protected readonly mostUrgent = computed<GardenInsight | null>(() => this.attention()[0] ?? null);
 
+  /**
+   * The plants of the gardens on screen. The index can also hold gardens from
+   * an earlier profile (it is keyed by garden), so totals never read it whole.
+   */
+  private readonly visiblePlants = computed(() =>
+    this.gardens.gardens().map((g) => this.plantsIndex.byGarden()[g.gardenId] ?? []),
+  );
+
   protected readonly totalPlants = computed(() =>
-    Object.values(this.plantsIndex.byGarden()).reduce((sum, plants) => sum + plants.length, 0),
+    this.visiblePlants().reduce((sum, plants) => sum + plants.length, 0),
   );
 
   protected readonly totalArea = computed(() =>
@@ -186,10 +194,7 @@ export class Dashboard {
   );
 
   protected readonly usedArea = computed(() =>
-    Object.values(this.plantsIndex.byGarden()).reduce(
-      (sum, plants) => sum + usedSurfaceArea(plants),
-      0,
-    ),
+    this.visiblePlants().reduce((sum, plants) => sum + usedSurfaceArea(plants), 0),
   );
 
   protected readonly freeArea = computed(() => Math.max(0, this.totalArea() - this.usedArea()));

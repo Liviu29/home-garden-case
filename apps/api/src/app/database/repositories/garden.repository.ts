@@ -9,10 +9,24 @@ export class GardenRepository {
   }
 
   /**
-   * Find all gardens
+   * Find all gardens — or, with `visibleTo`, the ones that profile owns plus
+   * the shared (unowned) ones.
    */
-  async findAll(): Promise<Garden[]> {
-    return await this.db.selectFrom('garden').selectAll().execute();
+  async findAll(visibleTo?: number): Promise<Garden[]> {
+    let query = this.db.selectFrom('garden').selectAll();
+    if (visibleTo !== undefined) {
+      query = query.where((eb) => eb.or([eb('userId', '=', visibleTo), eb('userId', 'is', null)]));
+    }
+    return await query.execute();
+  }
+
+  /** Hand a profile's gardens back to everyone (the profile is being deleted). */
+  async releaseOwnedBy(userId: number): Promise<void> {
+    await this.db
+      .updateTable('garden')
+      .set({ userId: null })
+      .where('userId', '=', userId)
+      .execute();
   }
 
   /**

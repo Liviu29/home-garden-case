@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { GardensApi } from '../../core/api/gardens-api';
+import { SessionStore } from '../../core/auth/session-store';
 import { Garden } from '../../core/api/models';
 import { ApiError } from '../../core/errors/api-error';
 import { ToastStore } from '../../core/errors/toast-store';
@@ -391,5 +392,65 @@ describe('GardensStore — the persisted toolbar view', () => {
       query: 'mint',
       sort: 'size',
     });
+  });
+});
+
+describe('GardensStore — a profile sees its own gardens and the shared ones (ADR-009)', () => {
+  let gardensApi: Record<string, ReturnType<typeof vi.fn>>;
+  let store: InstanceType<typeof GardensStore>;
+  let session: SessionStore;
+  const profile = (userId: number) => ({
+    userId,
+    emailAddress: `p${userId}@example.com`,
+    firstName: null,
+    lastName: null,
+    age: null,
+  });
+
+  beforeEach(() => {
+    localStorage.clear();
+    gardensApi = {
+      getAll: vi.fn().mockResolvedValue([garden(1)]),
+      getById: vi.fn(),
+      create: vi.fn().mockResolvedValue(garden(5, 'Mine')),
+      update: vi.fn(),
+      delete: vi.fn(),
+    };
+    TestBed.configureTestingModule({ providers: [{ provide: GardensApi, useValue: gardensApi }] });
+    session = TestBed.inject(SessionStore);
+    store = TestBed.inject(GardensStore);
+  });
+
+  it("loads the signed-in profile's list", async () => {
+    session.signIn(profile(7));
+
+    await store.load();
+
+    expect(gardensApi['getAll']).toHaveBeenCalledWith(7);
+  });
+
+  it("another profile gets its own list — the previous profile's gardens are never shown", async () => {
+    session.signIn(profile(7));
+    await store.load();
+    expect(store.gardens()).toHaveLength(1);
+
+    session.signIn(profile(8));
+    gardensApi['getAll'].mockReturnValue(new Promise(() => undefined));
+    void store.load();
+
+    expect(store.gardens()).toEqual([]);
+    expect(store.isLoading()).toBe(true);
+    expect(gardensApi['getAll']).toHaveBeenLastCalledWith(8);
+  });
+
+  it('a new garden belongs to the profile that creates it', async () => {
+    session.signIn(profile(7));
+
+    await store.create({ gardenName: 'Mine', totalSurfaceArea: 5, targetHumidityLevel: 50 });
+
+    expect(gardensApi['create']).toHaveBeenCalledWith(
+      expect.objectContaining({ gardenName: 'Mine' }),
+      7,
+    );
   });
 });
