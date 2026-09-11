@@ -26,7 +26,8 @@ test.describe('garden lifecycle (real API)', () => {
     const name = uniqueName('E2E Garden');
     await signInAsNewProfile(page);
     await page.goto('/gardens');
-    await expect(page.getByRole('heading', { name: 'Gardens' })).toBeVisible();
+    // Exact: a new profile's list is empty, and "No gardens yet" contains "gardens"
+    await expect(page.getByRole('heading', { name: 'Gardens', exact: true })).toBeVisible();
 
     await createGarden(page, name, '12');
     await openDetail(page, name);
@@ -61,7 +62,8 @@ test.describe('garden lifecycle (real API)', () => {
     const name = uniqueName('E2E Small Garden');
     await signInAsNewProfile(page);
     await page.goto('/gardens');
-    await expect(page.getByRole('heading', { name: 'Gardens' })).toBeVisible();
+    // Exact: a new profile's list is empty, and "No gardens yet" contains "gardens"
+    await expect(page.getByRole('heading', { name: 'Gardens', exact: true })).toBeVisible();
 
     await createGarden(page, name, '12');
     await openDetail(page, name);
