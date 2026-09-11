@@ -230,6 +230,7 @@
       </header>
 
       <section
+        #mapPanel
         class="panel anim-fade-up map-panel"
         [class.planner-fullscreen]="plannerFullscreen()"
         aria-labelledby="map-heading"
@@ -250,7 +251,14 @@
               (keydown.enter)="focusSearchMatch()"
             />
           } @else {
-            <p class="panel-hint">Drag to pan · Ctrl/⌘ + scroll to zoom</p>
+            <div class="panel-actions">
+              <p class="panel-hint">Drag to pan · Ctrl/⌘ + scroll to zoom</p>
+              <app-export-png-button
+                [target]="mapPanel"
+                selector="svg.map-svg"
+                [title]="garden.gardenName + ' garden plan'"
+              />
+            </div>
           }
         </div>
         @if (store.plantsStatus() === 'ready') {
@@ -314,13 +322,22 @@
                 wants. Choose a column to find the plant on the plan.
               </p>
             </div>
-            <ul class="zone-key" aria-label="Watering zones">
-              <li><span class="zone-swatch dry" aria-hidden="true"></span>Dry &lt; 50%</li>
-              <li><span class="zone-swatch balanced" aria-hidden="true"></span>Balanced 50–69%</li>
-              <li><span class="zone-swatch humid" aria-hidden="true"></span>Humid ≥ 70%</li>
-            </ul>
+            <div class="panel-actions">
+              <ul class="zone-key" aria-label="Watering zones">
+                <li><span class="zone-swatch dry" aria-hidden="true"></span>Dry &lt; 50%</li>
+                <li>
+                  <span class="zone-swatch balanced" aria-hidden="true"></span>Balanced 50–69%
+                </li>
+                <li><span class="zone-swatch humid" aria-hidden="true"></span>Humid ≥ 70%</li>
+              </ul>
+              <app-export-png-button
+                [target]="profileFrame"
+                selector="svg.highcharts-root"
+                [title]="garden.gardenName + ' humidity profile'"
+              />
+            </div>
           </div>
-          <div class="chart-frame">
+          <div class="chart-frame" #profileFrame>
             @defer (on viewport; prefetch on idle) {
               <app-chart
                 [options]="profile"

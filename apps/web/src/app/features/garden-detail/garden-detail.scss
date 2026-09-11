@@ -254,6 +254,15 @@
   margin-bottom: 0;
 }
 
+// The hint and the PNG button, side by side at the panel head's end
+.panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+}
+
 .panel-hint {
   margin: 0;
   font-size: var(--fs-caption);

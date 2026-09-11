@@ -643,6 +643,21 @@
 }
 
 // ── Portfolio map (ADR-008) ──────────────────────────────────────────────────
+// Title + PNG button. The row is the button's height from the first frame, so
+// the button arriving with the data moves nothing.
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 2rem;
+  margin-bottom: var(--sp-3);
+
+  .section-title {
+    margin-bottom: 0;
+  }
+}
+
 .portfolio-sub {
   margin: calc(-1 * var(--sp-2)) 0 var(--sp-3);
   max-width: 62rem;

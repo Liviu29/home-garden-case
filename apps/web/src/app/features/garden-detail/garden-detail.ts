@@ -42,6 +42,7 @@ import { Chart } from '../../shared/ui/chart/chart';
 import { readChartPalette } from '../../shared/ui/chart/chart-palette';
 import { HighchartsLoader } from '../../shared/ui/chart/highcharts-loader';
 import { humidityProfileOptions } from './humidity-profile/humidity-profile-options';
+import { ExportPngButton } from '../../shared/ui/export/export-png-button';
 
 type PlantSortKey = 'name' | 'planted' | 'area' | 'humidity';
 type SortDir = 'asc' | 'desc';
@@ -88,6 +89,7 @@ const DAY_MS = 86_400_000;
     PlantArtworkDefs,
     PlantThumb,
     Chart,
+    ExportPngButton,
   ],
   templateUrl: './garden-detail.html',
   styleUrl: './garden-detail.scss',

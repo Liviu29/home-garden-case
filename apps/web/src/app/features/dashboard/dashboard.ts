@@ -39,6 +39,7 @@ import { readChartPalette } from '../../shared/ui/chart/chart-palette';
 import { HighchartsLoader } from '../../shared/ui/chart/highcharts-loader';
 import { PortfolioPoint, portfolioChartOptions } from './portfolio-chart/portfolio-chart-options';
 import { WateringPanel } from './watering-panel/watering-panel';
+import { ExportPngButton } from '../../shared/ui/export/export-png-button';
 
 type AttentionKind = 'capacity' | 'humidity';
 
@@ -85,6 +86,7 @@ interface GardenInsight {
     StatusBadge,
     Chart,
     WateringPanel,
+    ExportPngButton,
   ],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
