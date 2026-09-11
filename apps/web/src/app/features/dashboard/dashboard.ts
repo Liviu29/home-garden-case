@@ -28,6 +28,7 @@ import {
   occupancyRatio,
   usedSurfaceArea,
 } from '../../domain/garden-insights/garden-insights';
+import { localDay, wateringRound } from '../../domain/watering-plan/watering-plan';
 import { GardensStore } from '../../state/gardens-store/gardens-store';
 import { PlantsIndexStore } from '../../state/plants-index-store/plants-index-store';
 import { GardenMiniPreview } from './garden-mini-preview/garden-mini-preview';
@@ -37,6 +38,7 @@ import { Chart } from '../../shared/ui/chart/chart';
 import { readChartPalette } from '../../shared/ui/chart/chart-palette';
 import { HighchartsLoader } from '../../shared/ui/chart/highcharts-loader';
 import { PortfolioPoint, portfolioChartOptions } from './portfolio-chart/portfolio-chart-options';
+import { WateringPanel } from './watering-panel/watering-panel';
 
 type AttentionKind = 'capacity' | 'humidity';
 
@@ -59,8 +61,9 @@ interface GardenInsight {
 
 /**
  * Smart Garden Control Center: hero with derived portfolio status, four KPI
- * tiles, an Attention Center and a Garden Health grid whose cards carry a
- * mini botanical preview (the visual bridge to the Garden Planner).
+ * tiles, an Attention Center, a Garden Health grid whose cards carry a mini
+ * botanical preview (the visual bridge to the Garden Planner), and today's
+ * watering round.
  * Reuses GardensStore + PlantsIndexStore — no duplicate fetching, all SWR.
  * Every number is derived from existing data via computed(); nothing here is
  * stored, persisted or invented.
@@ -81,6 +84,7 @@ interface GardenInsight {
     PlantArtworkDefs,
     StatusBadge,
     Chart,
+    WateringPanel,
   ],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
@@ -203,6 +207,15 @@ export class Dashboard {
     const total = this.totalArea();
     return total > 0 ? Math.round((this.usedArea() / total) * 100) : 0;
   });
+
+  /**
+   * Today's watering round across the gardens on screen (domain/watering-plan).
+   * "Today" is read when the plants change; a dashboard left open overnight
+   * catches up on its next data refresh.
+   */
+  protected readonly watering = computed(() =>
+    wateringRound(this.gardens.gardens(), this.plantsIndex.byGarden(), localDay(new Date())),
+  );
 
   /** Every planted garden, placed for the portfolio map (ADR-008). */
   protected readonly portfolio = computed<PortfolioPoint[]>(() =>

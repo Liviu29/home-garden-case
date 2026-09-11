@@ -1,0 +1,73 @@
+@if (!settled()) {
+  <!-- Plants still arriving: card-shaped ghosts, never a partial plan -->
+  <div class="grid skeleton-appear" aria-hidden="true">
+    @for (i of [1, 2, 3]; track i) {
+      <div class="card">
+        <span class="top ghost-top">
+          <app-skeleton variant="line" w="45%" h="0.875rem" />
+          <app-skeleton variant="line" w="5rem" h="0.7rem" />
+        </span>
+        <app-skeleton variant="line" w="60%" h="1.375rem" />
+      </div>
+    }
+  </div>
+} @else if (round().due.length > 0) {
+  <div class="grid stagger-children">
+    @for (row of round().due; track row.garden.gardenId) {
+      <a
+        class="card lift-hover"
+        data-testid="water-card"
+        [routerLink]="['/gardens', row.garden.gardenId]"
+      >
+        <span class="top">
+          <span class="name">{{ row.garden.gardenName }}</span>
+          <span class="total tabular">
+            {{ row.plan.plantsDue }} {{ row.plan.plantsDue === 1 ? 'plant' : 'plants' }} ·
+            {{ row.plan.areaDue | number: '1.0-1' }} m²
+          </span>
+        </span>
+        <span class="zones">
+          @for (zone of row.plan.dueToday; track zone.zone) {
+            <span class="zone" [attr.data-zone]="zone.zone">
+              <span class="dot" aria-hidden="true"></span>{{ zone.label }} · {{ zone.plants }}
+            </span>
+          }
+        </span>
+        @if (row.plan.establishing > 0) {
+          <span class="note">
+            {{ row.plan.establishing }} newly planted, watered daily for now
+          </span>
+        }
+      </a>
+    }
+  </div>
+  @if (round().later.length > 0) {
+    <p class="later" data-testid="water-later">
+      Not today:
+      @for (row of round().later; track row.garden.gardenId; let last = $last) {
+        {{ row.garden.gardenName }} ({{ when(row.plan.nextInDays) }}){{ last ? '' : ',' }}
+      }
+    </p>
+  }
+} @else {
+  <div class="rest">
+    <span class="rest-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path
+          d="M12 3 C16 8.5 18.5 12 18.5 15 A6.5 6.5 0 0 1 5.5 15 C5.5 12 8 8.5 12 3 Z"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </span>
+    <div>
+      <p class="rest-title">Nothing needs water today</p>
+      <p class="rest-sub">
+        @if (round().later[0]; as next) {
+          Next: {{ next.garden.gardenName }}, {{ when(next.plan.nextInDays) }}.
+        } @else {
+          Plant something to get a watering plan.
+        }
+      </p>
+    </div>
+  </div>
+}

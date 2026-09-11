@@ -352,3 +352,64 @@ describe('Dashboard — greeting, KPI edges and insight tones', () => {
     });
   });
 });
+
+describe('Dashboard — today’s watering round', () => {
+  const planted = (id: number, day: string, humidity: number): Plant => ({
+    ...plant(id, 1, 1, humidity),
+    plantationDate: `${day}T00:00:00.000Z`,
+  });
+
+  const mountWith = async (plants: Plant[]) => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        provideNoopAnimations(),
+        { provide: APP_CONFIG, useValue: TEST_CONFIG },
+        {
+          provide: GardensApi,
+          useValue: { getAll: vi.fn().mockResolvedValue([garden(1, 'Herbs')]) },
+        },
+        {
+          provide: PlantsApi,
+          useValue: { getByGarden: vi.fn().mockResolvedValue(plants), getAll: vi.fn() },
+        },
+      ],
+    });
+    const fixture = TestBed.createComponent(Dashboard);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(el.querySelector('.hero-status .status-chip.ok')).not.toBeNull();
+    });
+    return el;
+  };
+
+  beforeEach(() => vi.setSystemTime(new Date(2026, 8, 11, 9, 0, 0)));
+  afterEach(() => vi.useRealTimers());
+
+  it('counts what needs water today in the hero, and lists the garden under “Water today”', async () => {
+    const el = await mountWith([
+      planted(1, '2026-05-01', 80), // humid: every day
+      planted(2, '2026-08-01', 60), // balanced: tomorrow
+    ]);
+
+    expect(el.querySelector('[data-testid="hero-water"]')?.textContent).toContain(
+      '1 to water today',
+    );
+    expect(el.querySelector('#water-heading')?.textContent).toBe('Water today');
+    expect(
+      el.querySelector('app-watering-panel [data-testid="water-card"]')?.textContent,
+    ).toContain('Herbs');
+  });
+
+  it('with nothing due, the hero stays quiet and the panel says so', async () => {
+    const el = await mountWith([planted(2, '2026-08-01', 60)]);
+
+    expect(el.querySelector('[data-testid="hero-water"]')).toBeNull();
+    expect(el.querySelector('app-watering-panel')?.textContent).toContain(
+      'Nothing needs water today',
+    );
+  });
+});

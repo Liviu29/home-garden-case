@@ -81,6 +81,20 @@
             {{ attention().length }} {{ attention().length === 1 ? 'needs' : 'need' }} attention
           </span>
         }
+        @if (watering().plantsDue > 0) {
+          <span class="status-chip water" data-testid="hero-water">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M12 3 C16 8.5 18.5 12 18.5 15 A6.5 6.5 0 0 1 5.5 15 C5.5 12 8 8.5 12 3 Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linejoin="round"
+              />
+            </svg>
+            {{ watering().plantsDue }} to water today
+          </span>
+        }
       </p>
     }
   </div>
@@ -484,5 +498,16 @@
         </div>
       </section>
     </div>
+
+    <!-- ── Watering plan: today's round (domain/watering-plan) ── -->
+    <section class="section anim-fade-up" aria-labelledby="water-heading">
+      <h2 id="water-heading" class="section-title">Water today</h2>
+      <p class="portfolio-sub">
+        A rule of thumb from each plant's watering zone and planting date: humid beds every day,
+        balanced every 2 days, dry every 4, and anything planted in the last two weeks daily while
+        it settles in.
+      </p>
+      <app-watering-panel [round]="watering()" [settled]="plantsSettled()" />
+    </section>
   }
 </app-skeleton-group>
