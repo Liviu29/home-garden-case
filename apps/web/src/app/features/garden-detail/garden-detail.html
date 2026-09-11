@@ -226,6 +226,23 @@
               vs target
             </p>
           }
+          <!-- Outdoor humidity where the garden is — only when it has coordinates -->
+          @if (outdoor().status !== 'idle') {
+            <p class="outdoor" data-testid="outdoor">
+              @if (outdoor().reading; as now) {
+                <span>
+                  Outdoors now
+                  <strong class="tabular">{{ now.humidity | number: '1.0-0' }}%</strong>
+                  · {{ now.temperature | number: '1.0-0' }} °C
+                </span>
+                <span class="outdoor-source">{{ weatherSource }}</span>
+              } @else if (outdoor().status === 'error') {
+                <span>Outdoor humidity is unavailable right now</span>
+              } @else {
+                <app-skeleton class="skeleton-appear" variant="line" w="10rem" h="0.8rem" />
+              }
+            </p>
+          }
         </div>
       </header>
 

@@ -9,6 +9,7 @@ import {
   numberAttribute,
   signal,
 } from '@angular/core';
+import { OutdoorConditions, OutdoorWeather } from '../../core/weather/weather';
 import { DatePipe, DecimalPipe, NgTemplateOutlet, TitleCasePipe } from '@angular/common';
 import { Title } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
@@ -144,6 +145,53 @@ export class GardenDetail {
   private readonly dialog = inject(MatDialog);
   private readonly confirm = inject(ConfirmService);
   private readonly title = inject(Title);
+  private readonly weather = inject(OutdoorWeather);
+
+  /** Named beside the outdoor reading, as its source. */
+  protected readonly weatherSource = this.weather.source;
+
+  /**
+   * Outdoor humidity where the garden is, when it has coordinates. Idle
+   * otherwise: a garden without a location makes no request at all.
+   * (A plain signal rather than `resource()`, which would add its runtime to
+   * the initial bundle for this one line.)
+   */
+  protected readonly outdoor = signal<{
+    readonly status: 'idle' | 'loading' | 'ready' | 'error';
+    readonly reading: OutdoorConditions | null;
+  }>({ status: 'idle', reading: null });
+  private outdoorPlace = '';
+
+  private readonly outdoorLoader = effect(() => {
+    const garden = this.store.garden();
+    this.loadOutdoor(garden?.latitude ?? null, garden?.longitude ?? null);
+  });
+
+  private loadOutdoor(latitude: number | null, longitude: number | null): void {
+    if (latitude === null || longitude === null) {
+      this.outdoorPlace = '';
+      this.outdoor.set({ status: 'idle', reading: null });
+      return;
+    }
+    const place = `${latitude},${longitude}`;
+    if (place === this.outdoorPlace) {
+      return; // the same place, revalidated: the reading on screen stands
+    }
+    this.outdoorPlace = place;
+    this.outdoor.set({ status: 'loading', reading: null });
+    this.weather.forPlace(latitude, longitude).then(
+      (reading) => {
+        if (this.outdoorPlace === place) {
+          this.outdoor.set({ status: 'ready', reading });
+        }
+      },
+      () => {
+        if (this.outdoorPlace === place) {
+          this.outdoor.set({ status: 'error', reading: null });
+        }
+      },
+    );
+  }
 
   /** From the route: /gardens/:gardenId */
   readonly gardenId = input.required({ transform: numberAttribute });

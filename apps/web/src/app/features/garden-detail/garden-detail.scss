@@ -254,6 +254,27 @@
   margin-bottom: 0;
 }
 
+// Outdoor humidity under the gauge: a caption line with its source
+.outdoor {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0 var(--sp-2);
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+  text-align: center;
+
+  strong {
+    color: var(--info-blue);
+  }
+}
+
+.outdoor-source {
+  color: var(--text-3);
+}
+
 // The hint and the PNG button, side by side at the panel head's end
 .panel-actions {
   display: flex;
