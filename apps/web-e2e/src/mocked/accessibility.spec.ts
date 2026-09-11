@@ -130,9 +130,10 @@ test.describe('keyboard behaviour', () => {
 
     await signIn(page);
     await mockHappyData(page);
-    // A delete that resolves gives us a real toast to measure.
-    await page.route('**/api/plants/2', (route) => route.fulfill({ status: 204, body: '' }));
     await page.goto('/gardens/1');
+    // Both surfaces paint the same token pair (--surface-inverse behind
+    // --text-on-inverse). A toast is on screen only briefly, so the pair is
+    // measured directly, through a probe element, in each theme.
 
     for (const theme of ['light', 'dark'] as const) {
       await page.evaluate((t) => {

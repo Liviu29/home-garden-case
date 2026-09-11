@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { documentOverflow, expectNoSpinner } from '../support/helpers';
 
 /**
  * Welcome / profile selection: content-shaped skeleton
@@ -37,7 +38,7 @@ test.describe('welcome / profile selection', () => {
     // Content-shaped ghosts in the profile area
     await expect(page.locator('.profile.ghost-card')).toHaveCount(2);
     await expect(page.locator('.create-card.ghost-card')).toBeVisible();
-    expect(await page.locator('mat-spinner, mat-progress-spinner, .spinner').count()).toBe(0);
+    await expectNoSpinner(page);
 
     // Data lands: real card replaces ghosts, same geometry
     await expect(page.getByRole('button', { name: /Liviu-Petrut Nita/ })).toBeVisible({
@@ -189,7 +190,7 @@ test.describe('welcome / profile selection', () => {
 
     // In flight: ghost bar, disabled controls, zero spinners
     await expect(page.locator('form .btn-ghost')).toBeVisible();
-    expect(await page.locator('mat-spinner, mat-progress-spinner, .spinner').count()).toBe(0);
+    await expectNoSpinner(page);
 
     releasePost();
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 10_000 });
@@ -205,10 +206,7 @@ test.describe('welcome / profile selection', () => {
     await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
     await expect(page.locator('.profile').first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Create new profile' })).toBeVisible();
-    const overflow = await page.evaluate(
-      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    );
-    expect(overflow).toBeLessThanOrEqual(1);
+    expect(await documentOverflow(page)).toBe(0);
   });
 });
 

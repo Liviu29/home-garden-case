@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { gardenDto, plantDto, signIn } from '../support/helpers';
+import { expectNoSpinner, gardenDto, plantDto, signIn } from '../support/helpers';
 
 /**
  * Contract-driven resilience (API-INTEGRATION.md). Every scenario here mirrors a
@@ -111,7 +111,7 @@ test.describe('404 vs transient 500 (the API fails 10% of requests at random)', 
 
     await expect(page.getByText("Couldn't load this garden")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Garden not found')).toHaveCount(0);
-    expect(await page.locator('mat-spinner, mat-progress-spinner, .spinner').count()).toBe(0);
+    await expectNoSpinner(page);
 
     // Retry re-issues the request and the garden appears
     await page.getByRole('button', { name: 'Try again' }).click();

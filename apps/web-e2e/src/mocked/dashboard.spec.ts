@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { gardenDto, plantDto, signIn } from '../support/helpers';
+import { documentOverflow, expectNoSpinner, gardenDto, plantDto, signIn } from '../support/helpers';
 
 /**
  * Control-center dashboard: content-shaped skeleton on
@@ -50,7 +50,7 @@ test.describe('dashboard control center', () => {
     await expect(page.locator('.kpi-ghost')).toHaveCount(4);
     await expect(page.locator('.attention-ghost').first()).toBeVisible();
     await expect(page.locator('.health-ghost').first()).toBeVisible();
-    expect(await page.locator('mat-spinner, mat-progress-spinner, .spinner').count()).toBe(0);
+    await expectNoSpinner(page);
 
     // Data lands: skeleton is replaced by the real sections, zero layout jumps
     await expect(page.locator('.health-card').first()).toBeVisible({ timeout: 10_000 });
@@ -106,9 +106,6 @@ test.describe('dashboard control center', () => {
     await page.goto('/dashboard');
 
     await expect(page.locator('.health-card').first()).toBeVisible();
-    const overflow = await page.evaluate(
-      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    );
-    expect(overflow).toBeLessThanOrEqual(1);
+    expect(await documentOverflow(page)).toBe(0);
   });
 });

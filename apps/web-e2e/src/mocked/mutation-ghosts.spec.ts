@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { awaitDialogSettled, gardenDto, plantDto, signIn } from '../support/helpers';
+import {
+  awaitDialogSettled,
+  expectNoSpinner,
+  gardenDto,
+  plantDto,
+  signIn,
+} from '../support/helpers';
 
 /**
  * ASYNC-UX.md contract: every mutation (POST/PUT/DELETE) shows a gray
@@ -10,9 +16,8 @@ import { awaitDialogSettled, gardenDto, plantDto, signIn } from '../support/help
 const garden = gardenDto({ gardenId: 6, gardenName: 'Ghost Garden', totalSurfaceArea: 20 });
 const basePlants = [plantDto({ plantId: 1, gardenId: 6, name: 'Lavender', area: 5 })];
 
-const NO_SPINNER = 'mat-spinner, mat-progress-spinner, .mat-mdc-progress-spinner';
-
-async function openDetail(page: import('@playwright/test').Page): Promise<void> {
+/** Signs in and opens the seeded "Ghost Garden" detail with its one plant. */
+async function openGhostGarden(page: import('@playwright/test').Page): Promise<void> {
   await signIn(page);
   await page.goto('/gardens/6');
   await expect(page.getByRole('cell', { name: /Lavender/ })).toBeVisible();
@@ -31,7 +36,7 @@ test.describe('plant mutations render ghosts (ASYNC-UX)', () => {
       plants = [...plants, created];
       await r.fulfill({ status: 201, json: created });
     });
-    await openDetail(page);
+    await openGhostGarden(page);
     await page.getByRole('heading', { name: 'Garden plan' }).scrollIntoViewIfNeeded();
 
     await page.getByRole('button', { name: /Add plant/ }).click();
@@ -44,7 +49,7 @@ test.describe('plant mutations render ghosts (ASYNC-UX)', () => {
     // In flight: creation ghosts, no spinner anywhere
     await expect(page.locator('tr.ghost-row')).toBeVisible(); // table placeholder
     await expect(page.locator('.ghost-bed')).toBeVisible(); // map placeholder bed
-    expect(await page.locator(NO_SPINNER).count()).toBe(0);
+    await expectNoSpinner(page);
 
     // Resolved: ghosts gone, the real plant is in the table and on the map
     await expect(page.getByRole('cell', { name: /New Basil/ })).toBeVisible();
@@ -67,7 +72,7 @@ test.describe('plant mutations render ghosts (ASYNC-UX)', () => {
       plants = [updated];
       await r.fulfill({ json: updated });
     });
-    await openDetail(page);
+    await openGhostGarden(page);
     await page.getByRole('heading', { name: 'Garden plan' }).scrollIntoViewIfNeeded();
 
     await page
@@ -82,7 +87,7 @@ test.describe('plant mutations render ghosts (ASYNC-UX)', () => {
     // In flight: the affected row is a ghost; the map bed is a gray ghost
     await expect(page.locator('tr.ghost-row')).toBeVisible();
     await expect(page.locator('g.plot.mutating')).toHaveCount(1);
-    expect(await page.locator(NO_SPINNER).count()).toBe(0);
+    await expectNoSpinner(page);
 
     // Resolved: updated value in the row, ghost gone
     await expect(page.getByRole('cell', { name: '6 m²' })).toBeVisible();
@@ -101,7 +106,7 @@ test.describe('plant mutations render ghosts (ASYNC-UX)', () => {
       plants = [];
       await r.fulfill({ status: 204, body: '' });
     });
-    await openDetail(page);
+    await openGhostGarden(page);
     await page.getByRole('heading', { name: 'Garden plan' }).scrollIntoViewIfNeeded();
 
     await page
@@ -115,7 +120,7 @@ test.describe('plant mutations render ghosts (ASYNC-UX)', () => {
     // In flight: ghost-confirmed — still present, grayed, inert
     await expect(page.locator('tr.ghost-row')).toBeVisible();
     await expect(page.locator('g.plot.mutating')).toHaveCount(1);
-    expect(await page.locator(NO_SPINNER).count()).toBe(0);
+    await expectNoSpinner(page);
 
     // Confirmed: gone from table and map
     await expect(page.getByRole('cell', { name: /Lavender/ })).toHaveCount(0);
@@ -138,7 +143,7 @@ test.describe('failed mutations resolve back into content (ASYNC-UX)', () => {
         json: { error: 'Internal server error', details: ['Random error thrown'] },
       });
     });
-    await openDetail(page);
+    await openGhostGarden(page);
     await page.getByRole('heading', { name: 'Garden plan' }).scrollIntoViewIfNeeded();
 
     await page
@@ -150,7 +155,7 @@ test.describe('failed mutations resolve back into content (ASYNC-UX)', () => {
 
     // In flight (transparently retried): the localized ghost, nothing else
     await expect(page.locator('tr.ghost-row')).toBeVisible();
-    expect(await page.locator(NO_SPINNER).count()).toBe(0);
+    await expectNoSpinner(page);
 
     // Resolved back: the real row returns, no ghost is left behind, and the
     // failure is explained with a way forward
@@ -192,7 +197,7 @@ test.describe('garden mutations render ghosts (ASYNC-UX)', () => {
     // so this is asserted structurally — SR users hear the submit button's
     // own "Creating garden" status inside the dialog.)
     await expect(page.locator('[aria-label="Creating garden"]')).toBeVisible();
-    expect(await page.locator(NO_SPINNER).count()).toBe(0);
+    await expectNoSpinner(page);
 
     // Resolved: the real card replaces the ghost
     await expect(page.locator('article.card', { hasText: 'Ghosted Garden' })).toBeVisible();
@@ -226,7 +231,7 @@ test.describe('garden mutations render ghosts (ASYNC-UX)', () => {
     // In flight: same card, gray mutation ghost, inert — no spinner
     await expect(card).toHaveClass(/mutation-ghost/);
     await expect(card).toHaveAttribute('aria-busy', 'true');
-    expect(await page.locator(NO_SPINNER).count()).toBe(0);
+    await expectNoSpinner(page);
 
     // Confirmed: removed
     await expect(card).toHaveCount(0);
@@ -261,7 +266,7 @@ test.describe('garden mutations render ghosts (ASYNC-UX)', () => {
     // In flight: the header alone is a localized ghost; the table stays live
     await expect(page.locator('header.detail-header')).toHaveClass(/mutation-ghost/);
     await expect(page.getByRole('cell', { name: /Lavender/ })).toBeVisible();
-    expect(await page.locator(NO_SPINNER).count()).toBe(0);
+    await expectNoSpinner(page);
 
     // Resolved
     await expect(page.getByRole('heading', { name: 'Renamed Garden' })).toBeVisible();

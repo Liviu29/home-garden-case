@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { awaitDialogSettled, gardenDto, plantDto, signIn } from '../support/helpers';
+import {
+  awaitDialogSettled,
+  documentOverflow,
+  expectNoSpinner,
+  gardenDto,
+  plantDto,
+  signIn,
+} from '../support/helpers';
 
 /** The cold-load live region every SkeletonGroup keeps mounted (it empties when done). */
 const LOADING_STATUS = 'app-skeleton-group [role="status"]';
@@ -79,11 +86,8 @@ test.describe('slow reads render skeletons (Flow 9)', () => {
     await expect(page.locator('.ghost-slot')).toHaveCount(0);
     await expect(loading).not.toContainText('Loading');
 
-    // Layout stability: no horizontal overflow before or after the swap
-    const overflow = await page.evaluate(
-      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    );
-    expect(overflow).toBe(0);
+    // Layout stability: no horizontal overflow once the content has landed
+    expect(await documentOverflow(page)).toBe(0);
   });
 
   test('skeleton does not remain after an error — the error state replaces it', async ({
@@ -219,9 +223,7 @@ test.describe('mutation pending state (Flow 10)', () => {
     // Pending feedback is a gray ghost bar — never a spinner, never bare text
     await expect(submit).toBeDisabled();
     await expect(submit.locator('.btn-ghost')).toBeVisible();
-    expect(
-      await page.locator('mat-spinner, mat-progress-spinner, .mat-mdc-progress-spinner').count(),
-    ).toBe(0);
+    await expectNoSpinner(page);
     await submit.click({ force: true }); // hammering the disabled button
     await submit.click({ force: true });
 

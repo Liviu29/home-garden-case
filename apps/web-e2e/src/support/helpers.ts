@@ -37,7 +37,7 @@ export async function signIn(page: Page): Promise<void> {
  * The CDK moves initial focus AFTER the open animation. Filling before that
  * lets the focus steal land between Playwright's focus() and its text
  * insertion, so the text ends up in the autofocused field instead (this was
- * the true cause of every "random" integration flake — not the 10% API).
+ * the cause of intermittent failures in dialog flows — not the 10% API).
  */
 export async function awaitDialogSettled(page: Page, firstFieldLabel: string): Promise<void> {
   await expect(page.getByRole('dialog')).toBeVisible();
@@ -74,6 +74,27 @@ export async function addPlant(
   await page.getByRole('button', { name: 'Add plant', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('cell', { name: new RegExp(plant.name) })).toBeVisible();
+}
+
+// ── Shared UI contracts ─────────────────────────────────────────────────────
+
+/** Every spinner the app could render. The async-UX contract allows none. */
+export const SPINNER_SELECTOR =
+  'mat-spinner, mat-progress-spinner, .mat-mdc-progress-spinner, .spinner';
+
+/**
+ * A snapshot on purpose: a retrying `toHaveCount(0)` would wait for a spinner
+ * to disappear and then pass. This fails if one is on screen at this moment.
+ */
+export async function expectNoSpinner(page: Page): Promise<void> {
+  expect(await page.locator(SPINNER_SELECTOR).count(), 'a spinner is on screen').toBe(0);
+}
+
+/** How far the document scrolls sideways, in px. It must be 0 at every width. */
+export async function documentOverflow(page: Page): Promise<number> {
+  return page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
 }
 
 // ── Mock payload builders (DTO shapes mirror apps/api zod schemas) ───────────

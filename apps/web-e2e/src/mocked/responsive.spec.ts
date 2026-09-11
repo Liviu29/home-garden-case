@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { gardenDto, plantDto, signIn } from '../support/helpers';
+import { documentOverflow, gardenDto, plantDto, signIn } from '../support/helpers';
 
 /** Mobile-viewport smoke (representative coverage, not a matrix). */
 test.describe('mobile 375×812', () => {
@@ -19,19 +19,11 @@ test.describe('mobile 375×812', () => {
     await page.goto('/gardens');
 
     await expect(page.locator('article.card').first()).toBeVisible();
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      ),
-    ).toBe(0);
+    expect(await documentOverflow(page)).toBe(0);
 
     await page.getByRole('button', { name: /New garden/ }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      ),
-    ).toBe(0);
+    expect(await documentOverflow(page)).toBe(0);
     await page.keyboard.press('Escape');
   });
 
@@ -56,11 +48,7 @@ test.describe('mobile 375×812', () => {
     const map = page.getByRole('region', { name: 'Garden plan' });
     await expect(map.getByRole('button', { name: /Tomato/ })).toBeVisible();
     // Inspector stacks below the stage at this width; nothing leaks sideways.
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      ),
-    ).toBe(0);
+    expect(await documentOverflow(page)).toBe(0);
   });
 });
 
@@ -85,13 +73,6 @@ const VIEWPORTS = [
   { name: '1440 (laptop)', width: 1440, height: 900 },
   { name: '1920 (desktop)', width: 1920, height: 1080 },
 ] as const;
-
-/** Documents must never scroll sideways. Zero tolerance — no rounding slack. */
-async function documentOverflow(page: import('@playwright/test').Page): Promise<number> {
-  return page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-}
 
 /**
  * Count descendants that render outside their own card.

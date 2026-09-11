@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { Page, expect, test } from '@playwright/test';
 import {
   addPlant,
   awaitDialogSettled,
@@ -14,6 +14,10 @@ import {
  * actual hostility. Deterministic failure/slow/empty scenarios live in the
  * mocked project instead.
  */
+
+/** The number in one of the detail header's stats, e.g. "m² free" (matched exactly). */
+const headerStat = (page: Page, label: string) =>
+  page.locator('.header-stat', { hasText: label }).locator('.stat-value');
 
 test.describe('garden lifecycle (real API)', () => {
   test('Flow 1 — create garden → open detail → add plant → capacity reflects it', async ({
@@ -34,13 +38,14 @@ test.describe('garden lifecycle (real API)', () => {
     await page.getByLabel('Surface area required (m²)').fill('7.5');
 
     // The live breakdown explains the rule before saving
-    await expect(page.getByText('Garden fit')).toBeVisible();
-    await expect(page.getByText('4.5 m²').first()).toBeVisible(); // 12 − 7.5
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText('Garden fit')).toBeVisible();
+    await expect(dialog.locator('.capacity-line.total')).toHaveText(/Remaining\s*4\.5 m²/); // 12 − 7.5
 
     await page.getByRole('button', { name: 'Add plant', exact: true }).click();
     await expect(page.getByRole('cell', { name: /E2E Fern/ })).toBeVisible();
-    await expect(page.locator('.header-stat', { hasText: 'm² used' })).toContainText('7.5');
-    await expect(page.locator('.header-stat', { hasText: 'm² free' })).toContainText('4.5');
+    await expect(headerStat(page, 'm² used')).toHaveText('7.5');
+    await expect(headerStat(page, 'm² free')).toHaveText('4.5');
 
     // The Garden Map digital twin reflects the real contract too: the new
     // plant appears as a focusable plot on the deferred map (ADR-007).
@@ -97,8 +102,8 @@ test.describe('garden lifecycle (real API)', () => {
     await page.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
 
-    await expect(page.locator('.header-stat', { hasText: 'm² used' })).toContainText('12');
-    await expect(page.locator('.header-stat', { hasText: 'm² free' })).toContainText('0');
+    await expect(headerStat(page, 'm² used')).toHaveText('12');
+    await expect(headerStat(page, 'm² free')).toHaveText('0');
   });
 
   test('Flows 4+5 — delete plant (cancel, then confirm) and delete garden', async ({ page }) => {
@@ -129,7 +134,7 @@ test.describe('garden lifecycle (real API)', () => {
     await page.getByRole('menuitem', { name: 'Remove' }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Remove', exact: true }).click();
     await expect(page.getByRole('cell', { name: /E2E Mint/ })).toHaveCount(0);
-    await expect(page.locator('.header-stat', { hasText: 'm² free' })).toContainText('10');
+    await expect(headerStat(page, 'm² free')).toHaveText('10');
 
     // Delete the garden from the grid, then its deep link is a designed 404
     await page

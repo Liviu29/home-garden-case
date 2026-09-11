@@ -279,7 +279,7 @@ Coverage follows risk: the most tests sit where a bug would hurt most.
 | Playwright, mocked        | what randomness cannot guarantee: exact delays, persistent 500s, failing mutations, planner interaction, layouts, axe scans | Playwright       |
 | Playwright, integration   | the core flows against the real slow, flaky API — retry layer included                                                      | Playwright       |
 
-Supporting numbers: 721 Vitest tests in 51 files, 70 mocked and 6 integration Playwright tests, and
+Supporting numbers: 721 Vitest tests in 51 files, 71 mocked and 6 integration Playwright tests, and
 a 95% threshold on statements, branches, functions and lines.
 
 Some of the tests that matter most:
