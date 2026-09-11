@@ -1,0 +1,966 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HomeGarden — Speaker Prompter</title>
+<style>
+  :root {
+    --bg: #0e100f;
+    --panel: #161a17;
+    --line: rgb(240 238 232 / 0.1);
+    --text: #f2efe8;
+    --muted: #b9bfb9;
+    --dim: #8b928c;
+    --green: #5ad98a;
+    --amber: #f4bf55;
+    --amber-bg: rgb(244 191 85 / 0.1);
+    --blue: #93c9f2;
+    --blue-bg: rgb(147 201 242 / 0.08);
+    --fs: 26px;
+    --font: 'Inter', 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-padding-top: calc(var(--bar-h, 110px) + 14px); }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: var(--fs);
+    line-height: 1.6;
+  }
+
+  /* ── Top bar ────────────────────────────────────────────────────────── */
+  .bar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 18px;
+    padding: 12px 22px;
+    background: rgb(14 16 15 / 0.96);
+    border-bottom: 1px solid var(--line);
+    font-size: 15px;
+    line-height: 1.2;
+  }
+
+  .bar .now { flex: 1 1 260px; min-width: 0; }
+
+  .bar .now b { display: block; color: var(--green); font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .bar .now span { color: var(--dim); }
+
+  .group { display: flex; align-items: center; gap: 6px; }
+
+  .group .cap { color: var(--dim); margin-right: 4px; }
+
+  select { max-width: 250px; }
+
+  button, select {
+    font: 600 15px/1 var(--font);
+    color: var(--text);
+    background: #1d231f;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 9px 12px;
+    cursor: pointer;
+  }
+
+  button:hover { border-color: rgb(90 217 138 / 0.5); }
+
+  button:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+
+  button[aria-pressed='true'] { background: rgb(90 217 138 / 0.18); border-color: var(--green); }
+
+  .clock { font-variant-numeric: tabular-nums; font-size: 17px; min-width: 64px; text-align: center; }
+
+  .clock.behind { color: var(--amber); }
+
+  .progress { position: absolute; left: 0; bottom: -1px; height: 3px; background: var(--green); transition: width 0.3s ease; }
+
+  /* ── Layout ─────────────────────────────────────────────────────────── */
+  .layout { display: grid; grid-template-columns: 290px minmax(0, 1fr); }
+
+  .layout.nav-hidden { grid-template-columns: 0 minmax(0, 1fr); }
+
+  .layout.nav-hidden .toc { visibility: hidden; }
+
+  .toc {
+    position: sticky;
+    top: var(--bar-h, 64px);
+    align-self: start;
+    height: calc(100vh - var(--bar-h, 64px));
+    overflow: auto;
+    padding: 18px 12px 40px 18px;
+    border-right: 1px solid var(--line);
+    font-size: 15px;
+    line-height: 1.3;
+  }
+
+  .toc a {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    gap: 6px;
+    padding: 7px 8px;
+    border-radius: 8px;
+    color: var(--muted);
+    text-decoration: none;
+  }
+
+  .toc a b { color: var(--dim); font-weight: 600; }
+
+  .toc a small { color: var(--dim); font-variant-numeric: tabular-nums; }
+
+  .toc a:hover { background: #181d19; }
+
+  .toc a.is-current { background: rgb(90 217 138 / 0.12); color: var(--text); }
+
+  .toc a.is-current b { color: var(--green); }
+
+  .toc .sep { margin: 14px 8px 6px; color: var(--dim); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; }
+
+  main { padding: 26px clamp(20px, 5vw, 80px) 50vh; max-width: 1180px; }
+
+  /* ── Sections ───────────────────────────────────────────────────────── */
+  .sec { padding: 26px 0 34px; border-bottom: 1px solid var(--line); }
+
+  .sec.is-current .sec-head h2 { color: var(--green); }
+
+  .sec.is-current { box-shadow: inset 4px 0 0 var(--green); padding-left: 22px; margin-left: -26px; }
+
+  .sec-head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+
+  .sec-head .id { font-size: 0.7em; color: var(--dim); font-weight: 700; letter-spacing: 0.08em; }
+
+  .sec-head h2 { margin: 0; font-size: 1.25em; line-height: 1.2; color: #d9f5e3; }
+
+  .sec-head .est { margin-left: auto; font-size: 0.6em; color: var(--dim); font-variant-numeric: tabular-nums; }
+
+  .tag {
+    display: inline-block;
+    margin: 18px 0 4px;
+    font-size: 0.5em;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  .say p { margin: 0 0 0.75em; }
+
+  .action {
+    margin: 14px 0;
+    padding: 12px 18px;
+    border-left: 5px solid var(--amber);
+    border-radius: 6px;
+    background: var(--amber-bg);
+    color: var(--amber);
+    font-size: 0.82em;
+    line-height: 1.45;
+  }
+
+  .action::before { content: 'DEMO ACTION  '; font-weight: 800; letter-spacing: 0.1em; font-size: 0.8em; }
+
+  .prep { border-left-color: var(--blue); background: var(--blue-bg); color: var(--blue); }
+
+  .prep::before { content: 'PREP  '; }
+
+  .next { margin-top: 16px; color: var(--green); font-style: italic; font-size: 0.9em; }
+
+  .next::before { content: '→ NEXT  '; font-style: normal; font-weight: 800; font-size: 0.65em; letter-spacing: 0.12em; }
+
+  details.deep {
+    margin-top: 16px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: 1px solid rgb(147 201 242 / 0.25);
+    background: var(--blue-bg);
+    color: var(--blue);
+    font-size: 0.8em;
+    line-height: 1.5;
+  }
+
+  details.deep summary { cursor: pointer; font-weight: 700; letter-spacing: 0.04em; }
+
+  details.deep p { margin: 10px 0 4px; color: #cfe4f5; }
+
+  .fallback {
+    margin: 18px 0;
+    padding: 16px 20px;
+    border: 2px dashed rgb(244 191 85 / 0.5);
+    border-radius: 10px;
+  }
+
+  .fallback h3 { margin: 0 0 8px; font-size: 0.75em; color: var(--amber); letter-spacing: 0.12em; text-transform: uppercase; }
+
+  .qa h3 { margin: 26px 0 6px; font-size: 0.95em; color: #d9f5e3; }
+
+  .qa p { margin: 0; color: var(--muted); }
+
+  .intro { color: var(--muted); }
+
+  .intro ul { padding-left: 1.2em; }
+
+  .kbd { display: inline-block; padding: 1px 7px; border: 1px solid var(--line); border-radius: 6px; font-size: 0.8em; color: var(--text); }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: minmax(0, 1fr); }
+    .toc { display: none; }
+    .sec.is-current { margin-left: 0; }
+  }
+
+  @media print {
+    .bar, .toc { display: none; }
+    .layout { display: block; }
+    body { background: #fff; color: #111; }
+    details.deep { color: #124; }
+    details.deep p { color: #124; }
+  }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="now"><b id="now-title">S01 — HomeGarden</b><span id="now-meta">Target ~17–20 min</span></div>
+  <div class="group"><button type="button" id="prev" aria-label="Previous section">◀ Prev</button><button type="button" id="next" aria-label="Next section">Next ▶</button></div>
+  <div class="group"><span class="cap">Text</span><button type="button" id="font-down" aria-label="Smaller text">A−</button><button type="button" id="font-up" aria-label="Larger text">A+</button></div>
+  <div class="group"><span class="cap">Scroll</span><button type="button" id="scroll-toggle" aria-pressed="false">Start</button><button type="button" id="slower" aria-label="Slower">−</button><span class="clock" id="speed">40</span><button type="button" id="faster" aria-label="Faster">+</button></div>
+  <div class="group"><span class="cap">Timer</span><button type="button" id="timer-toggle" aria-pressed="false">Start</button><span class="clock" id="elapsed" title="Elapsed">00:00</span><span class="clock" id="remaining" title="Estimated remaining">~20:15</span><button type="button" id="timer-reset" aria-label="Reset timer">↺</button></div>
+  <div class="group"><button type="button" id="follow" aria-pressed="false" title="Jump when the deck changes slide (same browser)">Follow deck</button><button type="button" id="toggle-nav" aria-pressed="true">Nav</button><select id="jump" aria-label="Jump to section"></select></div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<div class="layout" id="layout">
+  <nav class="toc" id="toc" aria-label="Sections"></nav>
+
+  <main id="script">
+
+    <section class="sec intro" id="PREP" data-title="Before You Start" data-est="0">
+      <div class="sec-head"><span class="id">PREP</span><h2>Before You Start</h2></div>
+      <p><b>Target duration:</b> about 20 minutes with a 3-minute live demo, about 17 minutes without it. Per-slide estimates are shown on the right of each heading; the timer bar compares your pace with the plan.</p>
+      <div class="action prep">Start the API and the web app (<span class="kbd">npm run dev</span> or the README commands). Open the app, choose a profile, and make sure one garden is nearly full with 4–5 plants (the screenshots use "Back Garden", 19.5 of 20 m²). Browser zoom 100%, notifications off, other tabs closed.</div>
+      <div class="action prep">Open <b>home-garden-demo.html</b> (press <span class="kbd">F</span> for fullscreen) and this prompter in a second window. Turn on <b>Follow deck</b> here if both run in the same browser.</div>
+      <ul>
+        <li><span class="kbd">Space</span> / <span class="kbd">→</span> next section · <span class="kbd">←</span> previous · <span class="kbd">↑</span> <span class="kbd">↓</span> scroll normally</li>
+        <li><span class="kbd">P</span> start / pause auto-scroll · <span class="kbd">[</span> <span class="kbd">]</span> slower / faster</li>
+        <li><span class="kbd">+</span> <span class="kbd">−</span> text size · <span class="kbd">T</span> timer start / pause · <span class="kbd">N</span> toggle navigation</li>
+      </ul>
+      <p>Amber blocks are actions, not speech. Blue "Optional deeper answer" blocks are for follow-up questions only.</p>
+    </section>
+
+    <!-- S01 -->
+    <section class="sec" id="S01" data-title="HomeGarden" data-est="30">
+      <div class="sec-head"><span class="id">S01</span><h2>HomeGarden</h2><span class="est">~30 sec</span></div>
+      <div class="say">
+        <p>Hi, and thanks for having me. This is HomeGarden — my solution to the Home Garden engineering case.</p>
+        <p>In the next twenty minutes I want to show you two things: the product a user actually gets, and the engineering decisions behind it.</p>
+        <p>I'll cover the architecture, how state flows, how I dealt with a backend that is slow and unreliable on purpose, and how I tested it. Then a short live demo, and I'll close with the trade-offs and what I'd do next.</p>
+      </div>
+      <p class="next">Let me start with the problem itself.</p>
+    </section>
+
+    <!-- S02 -->
+    <section class="sec" id="S02" data-title="The Challenge" data-est="40">
+      <div class="sec-head"><span class="id">S02</span><h2>The Challenge</h2><span class="est">~40 sec</span></div>
+      <div class="say">
+        <p>The functional brief is compact. Users manage gardens and plants — full CRUD — and there's one real business rule: the plants in a garden can never need more surface than the garden has.</p>
+        <p>The interesting part is the backend. Every request gets between two hundred milliseconds and two seconds of extra latency, and one in ten requests fails with a random 500. That's intentional.</p>
+        <p>If you do nothing about it, a screen that needs three requests fails about twenty-seven percent of the time.</p>
+        <p>So for me, the real brief was: make an unreliable backend feel calm and trustworthy — without ever lying about the data.</p>
+      </div>
+      <p class="next">Here's what I built on top of that.</p>
+      <details class="deep"><summary>Optional deeper answer — Why Angular, when the brief mentioned React?</summary>
+        <p>The role is Angular-focused and I agreed the choice up front. Everything the case really evaluates — state, resilience, UX states, testing — is framework-agnostic. ADR-001 records the decision and includes a React concept map for reviewers.</p>
+      </details>
+    </section>
+
+    <!-- S03 -->
+    <section class="sec" id="S03" data-title="What I Built" data-est="40">
+      <div class="sec-head"><span class="id">S03</span><h2>What I Built</h2><span class="est">~40 sec</span></div>
+      <div class="say">
+        <p>At a high level, it's a small but complete product. You start on a welcome screen and pick or create a profile. The dashboard is a control center across all your gardens. You manage gardens and plants, with a catalog that recommends plants that actually fit.</p>
+        <p>The centerpiece is the Garden Planner — a visual, area-honest map of each garden.</p>
+        <p>Underneath everything there are two things users never see directly but always feel: the async experience — skeletons and ghosts instead of spinners — and a resilience layer that absorbs the backend's failures.</p>
+        <p>It's also keyboard accessible, works down to phone size, and has a full dark theme.</p>
+      </div>
+      <p class="next">Before the architecture, a quick look at the stack — and what I left out.</p>
+    </section>
+
+    <!-- S04 -->
+    <section class="sec" id="S04" data-title="Technology Stack" data-est="35">
+      <div class="sec-head"><span class="id">S04</span><h2>Technology Stack</h2><span class="est">~35 sec</span></div>
+      <div class="say">
+        <p>This is the actual installed stack. Angular 22 with TypeScript, NgRx SignalStore for feature state, and RxJS only where streams genuinely help — the HTTP retry and one fan-out inside a store.</p>
+        <p>The UI is Angular Material 3 with my own token-based design system on top. Vitest covers units and components, Playwright covers end-to-end, including accessibility scans. It all lives in an Nx monorepo next to the provided Fastify backend.</p>
+        <p>What I'd like you to notice is what's not here: no extra state library, no query library, no canvas engine, no chart library. Every dependency had to earn its place.</p>
+      </div>
+      <p class="next">Now, how it fits together.</p>
+      <details class="deep"><summary>Optional deeper answer — Why two TypeScript versions?</summary>
+        <p>The app compiles with TypeScript 6.0. The root tooling stays on 5.9 because typescript-eslint's supported range doesn't include 6 yet. It's a deliberate, temporary split, documented in ADR-006, and the review lists it as an accepted trade-off.</p>
+      </details>
+      <details class="deep"><summary>Optional deeper answer — Why Angular 22?</summary>
+        <p>It's the current major: zoneless by default, signal-based inputs and queries, linkedSignal, @defer and the new control flow are all stable. Starting a greenfield case on anything older would mean designing around APIs that are already being replaced.</p>
+      </details>
+    </section>
+
+    <!-- S05 -->
+    <section class="sec" id="S05" data-title="Architecture" data-est="70">
+      <div class="sec-head"><span class="id">S05</span><h2>Architecture</h2><span class="est">~1 min 10 sec</span></div>
+      <div class="say">
+        <p>This is the architecture from top to bottom, and the main rule is simple: dependencies only point down.</p>
+        <p>At the top are lazy routes and the shell, with a session guard that decides whether you land on the welcome screen. Below that are the feature screens. They never talk to HTTP directly — they read signals from stores and call intent methods.</p>
+        <p>The state layer has three SignalStores. One important decision here: plants have exactly one owner, the PlantsIndexStore. The dashboard, the gardens list and the detail page all read from it, so the same plant can never exist in two versions on screen.</p>
+        <p>Next to the stores sits the domain layer — plain TypeScript functions: the capacity rule, the planner layout, the recommendations. No Angular imports at all, so they're trivially testable.</p>
+        <p>Then data access: typed API classes and a small stale-while-revalidate cache with request deduplication. And at the bottom, one HTTP pipeline with a base-URL interceptor, a retry interceptor and a single error taxonomy.</p>
+        <p>Across the side are the shared pieces: design tokens, one skeleton engine, shared UI and global error handling.</p>
+      </div>
+      <p class="next">That's the runtime view. Here's how it looks in the repository.</p>
+      <details class="deep"><summary>Optional deeper answer — Why no facade layer?</summary>
+        <p>At this size the stores already are the facade: components call intents like createPlant and read signals. A separate facade per feature would add files without changing any dependency direction. If several teams consumed the same state, I'd add one.</p>
+      </details>
+    </section>
+
+    <!-- S06 -->
+    <section class="sec" id="S06" data-title="Project Structure" data-est="35">
+      <div class="sec-head"><span class="id">S06</span><h2>Project Structure</h2><span class="est">~35 sec</span></div>
+      <div class="say">
+        <p>The repository is an Nx monorepo with three apps: the Angular web app, its Playwright suite, and the provided API.</p>
+        <p>Inside the web app there are three areas. Core holds app-wide singletons: the API clients, the session, the HTTP pipeline, the cache and error handling. Shared holds reusable UI and pure utilities — that's where the business rules live. Features are the routed screens, each owning its components and, where it needs one, its own store.</p>
+        <p>The boundary I care most about is the pure domain in shared utils. Those rules test in milliseconds, without TestBed, and any screen can reuse them.</p>
+      </div>
+      <p class="next">Let me show how I used Angular 22 itself.</p>
+    </section>
+
+    <!-- S07 -->
+    <section class="sec" id="S07" data-title="The Angular 22 Approach" data-est="45">
+      <div class="sec-head"><span class="id">S07</span><h2>The Angular 22 Approach</h2><span class="est">~45 sec</span></div>
+      <div class="say">
+        <p>I didn't use new Angular APIs because they're new — each one solves a specific problem here.</p>
+        <p>The app is zoneless; that's the Angular 22 default, and zone.js isn't even installed. All twenty-eight components are OnPush and standalone, and dependencies come through inject(), so they're explicit.</p>
+        <p>The number I'm most happy with is this one: over a hundred computed signals and only two effects. I derive state instead of synchronising it. The two effects bridge to the outside world — loading when the route parameter changes, and setting the document title.</p>
+        <p>linkedSignal solves a nice problem in the planner: the camera re-fits when the panel resizes, but if you've zoomed in, it keeps your zoom.</p>
+        <p>And the planner sits behind @defer, so its code is its own lazy chunk, with a skeleton holding exactly its space.</p>
+      </div>
+      <p class="next">The next step is how state itself is modelled.</p>
+      <details class="deep"><summary>Optional deeper answer — Why not httpResource everywhere?</summary>
+        <p>The data layer needs things httpResource doesn't give me for free across stores: stale-while-revalidate, request deduplication, write-through after mutations, and race tokens. A small tested cache does that today. httpResource is a good fit for isolated reads, and moving to it later would be a local change, not a rewrite.</p>
+      </details>
+      <details class="deep"><summary>Optional deeper answer — Why not Signal Forms everywhere?</summary>
+        <p>The forms need mature validation, cross-field rules like "coordinates together or not at all", and tight Material integration. Typed Reactive Forms give me all of that today, and I bridge form values into signals with toSignal where the UI needs them. Signal Forms is a clean migration path, not a missing feature.</p>
+      </details>
+      <details class="deep"><summary>Optional deeper answer — When would you use effect?</summary>
+        <p>Only to push signal state into something that isn't a signal: the router-driven load, the document title, storage, a third-party widget. Never to copy one signal into another — that's what computed or linkedSignal are for. That's why there are only two.</p>
+      </details>
+    </section>
+
+    <!-- S08 -->
+    <section class="sec" id="S08" data-title="Signals &amp; State" data-est="70">
+      <div class="sec-head"><span class="id">S08</span><h2>Signals &amp; State</h2><span class="est">~1 min 10 sec</span></div>
+      <div class="say">
+        <p>I split state into four kinds, because mixing them is where most bugs come from.</p>
+        <p><b>Source state</b> is what the server told us: gardens, and plants per garden. It lives in SignalStores, and it only changes when the server confirms.</p>
+        <p><b>Derived state</b> is everything I can compute from that: used area, free area, occupancy, humidity drift, the dashboard insights. I never store those. Utilization is computed from the garden plus its plants, so there's nothing to keep in sync and nothing that can go stale.</p>
+        <p><b>Local UI state</b> stays local. The planner's camera, the active layers, the timeline, the table sort — those are component signals. The selected plant is shared between the map and the plant table through a two-way model binding, and it still never touches a store. That keeps transient interaction state out of the application state model.</p>
+        <p><b>Async state</b> is explicit: a status per request, a saving flag that makes submits single-flight, and pending sets per entity that drive the ghosts.</p>
+        <p>The detail store is provided by the detail component, so it's created with the page and destroyed with it. And I chose SignalStore over classic NgRx because I wanted structure and testability without actions, reducers and effects for every interaction. At this scale, that ceremony wouldn't buy me anything.</p>
+      </div>
+      <p class="next">The most important thing derived from that state is the capacity rule.</p>
+      <details class="deep"><summary>Optional deeper answer — What do you give up versus classic NgRx?</summary>
+        <p>The global action log and time-travel devtools. If several teams shared this state, or we needed an audit trail of user intents, I'd reconsider. Here, stores as plain classes with patchState are easier to read and to test.</p>
+      </details>
+      <details class="deep"><summary>Optional deeper answer — Signals versus RxJS?</summary>
+        <p>Signals for state — what the UI shows right now. RxJS for events over time where operators matter. In this app that's the HTTP retry with backoff and one rxMethod that fans out plant loads with distinctUntilChanged. Everything else is simpler as signals plus promises.</p>
+      </details>
+    </section>
+
+    <!-- S09 -->
+    <section class="sec" id="S09" data-title="The Capacity Rule" data-est="55">
+      <div class="sec-head"><span class="id">S09</span><h2>The Capacity Rule</h2><span class="est">~55 sec</span></div>
+      <div class="say">
+        <p>The business rule is: the total surface of a garden's plants can't exceed the garden's surface.</p>
+        <p>I implemented it exactly once, as a pure function, and it mirrors the server: the check is strictly greater-than, so a garden can be filled to exactly one hundred percent, just like the API allows.</p>
+        <p>When you edit a plant, the function excludes that plant's own current area. Otherwise, renaming a plant in a full garden would be rejected.</p>
+        <p>The same function feeds everything: the live meter in the plant dialog, the header, the planner, the dashboard, the capacity chip, even the recommendations.</p>
+        <p>The client check is about experience, not authority. The server still decides. If it rejects a request, that 400 maps to a functional error and the message lands inline in the form, with the user's input intact.</p>
+      </div>
+      <p class="next">Which brings me to how the frontend talks to that server.</p>
+      <details class="deep"><summary>Optional deeper answer — How do you prevent capacity inconsistency?</summary>
+        <p>Three layers. One pure function used by every screen, so the UI can't disagree with itself. The server as the authority, so two users racing each other can't overbook a garden. And server-confirmed state only — numbers change when the response arrives, not before. One gap I'd raise with the backend: PUT on a garden doesn't check shrinking below the planted area. The frontend warns about it; a server check is on my list.</p>
+      </details>
+    </section>
+
+    <!-- S10 -->
+    <section class="sec" id="S10" data-title="Backend Integration" data-est="45">
+      <div class="sec-head"><span class="id">S10</span><h2>Backend Integration</h2><span class="est">~45 sec</span></div>
+      <div class="say">
+        <p>Before designing anything, I measured the API. Sixty probe calls: a median of about one second, a p95 close to two seconds, and one in six failed. I used the Swagger docs and the Bruno collection to map the contract.</p>
+        <p>That investigation found quirks I now handle explicitly. Asking for the plants of a garden that doesn't exist returns 400, not 404 — so the garden request owns the not-found decision. Error bodies are normalised in one place. And a duplicate email on sign-up returns 409, which I turn into "continue as that profile" instead of a dead end.</p>
+        <p>I made one additive backend change: the garden's target humidity, with a migration, validation and a default, so existing data stays valid.</p>
+        <p>Every error maps to one of three kinds — technical, functional, or not found — and each kind has exactly one UX.</p>
+      </div>
+      <p class="next">The latency shaped the frontend more than anything else. That's next.</p>
+      <details class="deep"><summary>Optional deeper answer — Why retry, and why retry writes?</summary>
+        <p>With one failure in ten, retrying is what turns "one in four screens breaks" into practically never. The interceptor retries only 5xx and network errors — never 4xx — up to three times, with exponential backoff and full jitter. Retrying writes blindly is only safe here because this backend injects its failures before any handler runs, so a failed POST never created anything. In production I'd send idempotency keys and limit automatic retries to idempotent requests.</p>
+      </details>
+    </section>
+
+    <!-- S11 -->
+    <section class="sec" id="S11" data-title="Async UX: Why No Spinners" data-est="70">
+      <div class="sec-head"><span class="id">S11</span><h2>Async UX: Why No Spinners</h2><span class="est">~1 min 10 sec</span></div>
+      <div class="say">
+        <p>This is where the slow backend becomes interesting. Latency isn't the exception here — it's the normal case. So instead of putting a spinner in front of every operation, I made pending state part of the visual language.</p>
+        <p>Each verb gets its own feedback. A first load shows a skeleton shaped exactly like the content — and it only appears after a hundred and fifty milliseconds, so fast responses never flash. A refresh keeps the existing content readable while it revalidates. A create shows a ghost of the new item where it will land. An update grays out only that row, card or bed. And a delete keeps the item as a ghost until the server confirms. Nothing disappears before the server says so.</p>
+        <p>It's one skeleton engine, neutral gray, so a ghost never looks like real content. In the final review I measured every skeleton against the content it replaces, and they match within two pixels — so nothing jumps when data lands.</p>
+        <p>Accessibility is built in: loading regions are status regions with aria-busy, ghosts are hidden from assistive technology, and reduced motion swaps the shimmer for a gentle pulse. And spinners are banned by a check in CI.</p>
+      </div>
+      <p class="next">Loading is only one state. Here are the others.</p>
+      <details class="deep"><summary>Optional deeper answer — Why skeletons rather than spinners?</summary>
+        <p>A spinner says "wait" and hides everything. A skeleton says "this is what's coming", keeps your orientation and removes layout shift. For mutations, a localized ghost keeps the rest of the screen usable. The honesty rule: the ghost shows something is in flight; the numbers only change when the server confirms.</p>
+      </details>
+      <details class="deep"><summary>Optional deeper answer — How do you handle slow API responses?</summary>
+        <p>Perceived speed and actual speed separately. Perceived: skeletons with an appear delay, localized ghosts, no blocking. Actual: a thirty-second fresh cache, shared in-flight requests, prefetch on hover, and lazy code. And correctness: late responses can't overwrite newer ones.</p>
+      </details>
+    </section>
+
+    <!-- S12 -->
+    <section class="sec" id="S12" data-title="Success, Empty, Error, Recovery" data-est="35">
+      <div class="sec-head"><span class="id">S12</span><h2>Success, Empty, Error, Recovery</h2><span class="est">~35 sec</span></div>
+      <div class="say">
+        <p>Every screen is designed for four states, not just the happy path.</p>
+        <p>Success is the normal content. Empty states are designed invitations — an empty garden tells you it has space to grow and offers to plant it. Errors are specific: a failure offers Try again, and an unknown garden gets a real not-found page instead of a skeleton that loads forever.</p>
+        <p>Recovery is mostly automatic. Retries absorb most failures and cached data stays on screen. When a mutation really fails, the ghost resolves back into the real item, with a toast and a retry action. A failed create keeps the dialog open with your input. And a transient 500 during the session check never signs you out — only a 404 does.</p>
+      </div>
+      <p class="next">Let's look at the product through the user's eyes.</p>
+    </section>
+
+    <!-- S13 -->
+    <section class="sec" id="S13" data-title="Welcome &amp; Dashboard" data-est="30">
+      <div class="sec-head"><span class="id">S13</span><h2>Welcome &amp; Dashboard</h2><span class="est">~30 sec</span></div>
+      <div class="say">
+        <p>The welcome screen lets you pick a profile or create one inline. If the email already exists, it offers to continue as that profile.</p>
+        <p>The dashboard is designed to answer the user's main question quickly: which garden needs my attention? The KPIs summarise everything, the attention list is sorted by severity — full first, then nearly full, then humidity drift — and each garden gets a health card with a small botanical preview.</p>
+      </div>
+      <p class="next">From there, into the gardens themselves.</p>
+    </section>
+
+    <!-- S14 -->
+    <section class="sec" id="S14" data-title="Garden Management" data-est="25">
+      <div class="sec-head"><span class="id">S14</span><h2>Garden Management</h2><span class="est">~25 sec</span></div>
+      <div class="say">
+        <p>The gardens page is the management view. You can search by name or location, and sort by name, size or utilization — and it remembers your choice.</p>
+        <p>Creating a garden has sensible presets for size and humidity. While it saves, the button turns into a ghost; a deleted garden stays as a ghost until the server confirms. And hovering a card prefetches its data, so the detail page usually opens straight from cache.</p>
+      </div>
+      <p class="next">Adding plants is where the product helps the most.</p>
+    </section>
+
+    <!-- S15 -->
+    <section class="sec" id="S15" data-title="The Plant Experience" data-est="35">
+      <div class="sec-head"><span class="id">S15</span><h2>The Plant Experience</h2><span class="est">~35 sec</span></div>
+      <div class="say">
+        <p>The plant dialog starts with recommendations. There's a local catalog of twenty-seven plants, ranked for this specific garden: how close their humidity is to the garden's target, whether they fit the free space, and whether they're already planted.</p>
+        <p>One click pre-fills sensible defaults — but every field stays editable, so a custom plant is always possible. That cuts data entry without taking control away.</p>
+        <p>The Garden fit panel shows available, this plant, and remaining. Here it's blocking a plant that doesn't fit, before the server ever has to reject it.</p>
+        <p>The recommendations are product suggestions, not business truth. The capacity rule and the server still decide.</p>
+      </div>
+      <p class="next">The feature that brings all of this together is the planner.</p>
+      <details class="deep"><summary>Optional deeper answer — Why a local catalog?</summary>
+        <p>A runtime dependency on a third-party plant API would add another unreliable network hop to a product that already fights one. The catalog sits behind a provider interface, so an external source can plug in later without touching the dialog.</p>
+      </details>
+    </section>
+
+    <!-- S16 -->
+    <section class="sec" id="S16" data-title="Interactive Garden Planner" data-est="70">
+      <div class="sec-head"><span class="id">S16</span><h2>Interactive Garden Planner</h2><span class="est">~1 min 10 sec</span></div>
+      <div class="say">
+        <p>This is the Garden Planner, and it exists for one reason: square metres are abstract. "Nineteen and a half out of twenty" doesn't mean much as a number. The planner makes capacity spatial.</p>
+        <p>It's area-honest. Every bed's drawn area equals its real square metres, and the free soil is exactly the free area. So a garden that's ninety-eight percent full looks ninety-eight percent full.</p>
+        <p>You can explore it — pan, zoom, fit, fullscreen, layers, and a selection that stays in sync with the plant table.</p>
+        <p>You can arrange it — drag beds with magnetic edges and alignment guides, snap a bed back to its original spot, move beds with the keyboard, undo and redo — and it remembers your layout per garden.</p>
+        <p>And it helps you understand it: watering zones, a warning when neighbours need very different humidity, one-click grouping by water needs, and a timeline that replays how the garden was planted.</p>
+        <p>One boundary matters: positions are a visual preference. Moving a bed never changes capacity and never calls the backend.</p>
+      </div>
+      <p class="next">Here's how it's built — and why I didn't use a canvas engine.</p>
+      <details class="deep"><summary>Optional deeper answer — Why localStorage for the visual layout?</summary>
+        <p>The API has no coordinates, and positions are presentation, not domain data. The format is versioned, pruned to plants that still exist, and corrupt data falls back to the automatic layout. In a real product I'd persist layouts on the server per user, so they follow you across devices.</p>
+      </details>
+    </section>
+
+    <!-- S17 -->
+    <section class="sec" id="S17" data-title="Planner Architecture &amp; Why SVG" data-est="55">
+      <div class="sec-head"><span class="id">S17</span><h2>Planner Architecture &amp; Why SVG</h2><span class="est">~55 sec</span></div>
+      <div class="say">
+        <p>The planner is a pipeline. Store state goes into a pure layout function — a squarified treemap — and it's deterministic: the same plants always give the same arrangement. Custom positions are applied on top, clamped inside the garden. That produces a view model — beds, soil, vegetation, labels, camera — and only then does Angular render SVG. The renderer never owns business state.</p>
+        <p>I evaluated Canvas and PixiJS. For this scale — tens of beds, not thousands of sprites — SVG wins. There's no rendering library at all: the entire planner chunk is about nineteen kilobytes over the wire. Beds are real, focusable elements with labels, so keyboard and screen readers work. Dark mode comes for free from CSS tokens, and I can test it with jsdom and Playwright selectors.</p>
+        <p>Rejecting a technology is a decision too. If this became thousands of animated entities, I'd reconsider WebGL — and because of the pure view model, only the renderer would change.</p>
+      </div>
+      <p class="next">Enough slides — let me show it live.</p>
+      <details class="deep"><summary>Optional deeper answer — Why SVG instead of Canvas or Pixi?</summary>
+        <p>Canvas gives you performance at scale, but you pay with accessibility, theming and testability, and with PixiJS roughly a hundred kilobytes of library before any app code. None of those costs buys anything at the size of a home garden. ADR-007 records the comparison, including a deferred 3D option.</p>
+      </details>
+    </section>
+
+    <!-- S18 -->
+    <section class="sec" id="S18" data-title="Live Demo" data-est="180">
+      <div class="sec-head"><span class="id">S18</span><h2>Live Demo</h2><span class="est">~3 min</span></div>
+      <div class="say"><p>Let me switch to the running app.</p></div>
+      <div class="action">Switch to the app window. Start on the Welcome screen.</div>
+      <div class="say"><p>This is where every session starts. I'll pick my profile.</p></div>
+      <div class="action">Click the prepared profile → Dashboard.</div>
+      <div class="say"><p>The dashboard tells me immediately that one garden needs attention — it's almost full.</p></div>
+      <div class="action">Click "View garden" on the attention card (or open Gardens → the nearly full garden).</div>
+      <div class="say"><p>If a request takes longer than a moment, you'll see the skeleton hold the exact layout — the backend is adding up to two seconds right now.</p><p>This is where most of the product comes together: the header with capacity and humidity, the plan, and the plant table.</p></div>
+      <div class="action">Click a bed on the plan (e.g. Strawberry patch).</div>
+      <div class="say"><p>Selecting a bed opens the inspector: its zone, its facts, and — here — a note that its neighbour needs very different watering. The same row is highlighted in the table.</p></div>
+      <div class="action">Drag a bed a little to the side and pause mid-drag.</div>
+      <div class="say"><p>While I drag, the dashed outline shows exactly where it will land, the guides show alignment with its neighbours, and the original spot stays outlined. If I drop it near there, it snaps back home.</p></div>
+      <div class="action">Drop it, then press Undo in the toolbar.</div>
+      <div class="action">Open Layers → tick "Watering zones" → close the menu.</div>
+      <div class="say"><p>The zones layer colours each bed by its watering needs and marks neighbours that clash.</p></div>
+      <div class="action">Click "+ Add plant". Choose a recommended plant that needs more than the free space.</div>
+      <div class="say"><p>The recommendation pre-fills sensible defaults. And because this garden only has half a square metre left, the dialog blocks it before the server has to say no.</p></div>
+      <div class="action">Cancel. Open a plant's ⋮ menu → Edit → reduce its area → Save.</div>
+      <div class="say"><p>While the update is in flight, only that row and its bed turn into ghosts. The capacity numbers change when the server confirms — not before.</p></div>
+      <div class="action">Optional, if time allows: Planting timeline ▶ or Expand planner (fullscreen) → Esc.</div>
+      <div class="say"><p>And that's the product. Back to the slides for how I made sure it all keeps working.</p></div>
+      <div class="fallback">
+        <h3>Live demo fallback</h3>
+        <div class="action">If the app or API misbehaves: do not debug. Switch back to the deck and walk S13 → S17 as the demo.</div>
+        <div class="say"><p>"The live environment isn't cooperating right now, and I'd rather not spend your time debugging infrastructure. I captured the same flow from the final build, so let me walk you through it on these screens."</p></div>
+        <div class="say"><p>If a single request fails during the demo: "That's the backend's one-in-ten failure — you can see the retry absorb it." Then continue.</p></div>
+      </div>
+      <p class="next">Next: performance — and the difference between feeling fast and being fast.</p>
+    </section>
+
+    <!-- S19 -->
+    <section class="sec" id="S19" data-title="Performance" data-est="40">
+      <div class="sec-head"><span class="id">S19</span><h2>Performance</h2><span class="est">~40 sec</span></div>
+      <div class="say">
+        <p>On performance, I separate two things that often get mixed up.</p>
+        <p>Perceived speed is what the skeletons and ghosts give you: the interface is understandable immediately, even when the backend takes two seconds.</p>
+        <p>Actual speed is about doing less work. The initial bundle is about a hundred and thirty kilobytes over the wire. Every route is lazy, the planner is a deferred chunk of about nineteen kilobytes, and profile editing only loads when you open it. Data stays fresh for thirty seconds, identical requests in flight are shared, and hovering a garden prefetches it.</p>
+        <p>To be transparent: the initial bundle sits just under its five-hundred-kilobyte raw warning budget, and the planner stylesheet is slightly over its twelve-kilobyte warning budget — still below the error limit, and on my list.</p>
+      </div>
+      <p class="next">Speed only matters if everyone can use it.</p>
+      <details class="deep"><summary>Optional deeper answer — How do you prevent duplicate requests?</summary>
+        <p>The cache stores the in-flight promise per key, so two components asking for the same garden at the same time share one request. Within thirty seconds a repeat read makes no request at all. And there's a Playwright test, request-ownership, that fails if a screen fires redundant GETs.</p>
+      </details>
+    </section>
+
+    <!-- S20 -->
+    <section class="sec" id="S20" data-title="Accessibility &amp; Responsive" data-est="40">
+      <div class="sec-head"><span class="id">S20</span><h2>Accessibility &amp; Responsive</h2><span class="est">~40 sec</span></div>
+      <div class="say">
+        <p>I targeted WCAG 2.2 AA. There's a skip link, a visible focus ring everywhere, and dialogs trap focus and give it back when they close. Tables are real tables, with sortable headers that announce their order.</p>
+        <p>The planner was the hardest part. Every bed is a keyboard-operable button, you can move a bed with the arrow keys as an alternative to dragging, and every move is announced. Reduced motion is respected everywhere — even the timeline won't auto-play.</p>
+        <p>It's responsive from phones to wide desktops — the planner's controls adapt to the size of the planner itself, not just the window — and the dark theme is built on the same tokens.</p>
+      </div>
+      <p class="next">How do I know all of this actually works? Testing.</p>
+      <details class="deep"><summary>Optional deeper answer — How is accessibility verified?</summary>
+        <p>Automated axe scans in both themes fail the suite on any serious or critical issue; the first run caught four accent colours below AA contrast, which I re-tuned. On top of that there are keyboard and focus-return tests, and the heading structure was audited screen by screen.</p>
+      </details>
+    </section>
+
+    <!-- S21 -->
+    <section class="sec" id="S21" data-title="Testing Strategy" data-est="65">
+      <div class="sec-head"><span class="id">S21</span><h2>Testing Strategy</h2><span class="est">~1 min 5 sec</span></div>
+      <div class="say">
+        <p>The testing strategy follows risk, and each layer proves something different.</p>
+        <p>At the base are 721 Vitest tests in 51 files. The pure domain tests cover the business rules: the capacity boundary, the edit self-exclusion, the planner layout and camera. Store and infrastructure tests cover the nasty async cases: a stale response can never overwrite a fresh one, three clicks produce one POST, and the retry never retries a 4xx. Component tests cover skeleton, data, empty and error states.</p>
+        <p>Then 64 Playwright tests run against a mocked network, plus six accessibility tests. Mocked on purpose: to test ghosts and recovery I need deterministic slowness and deterministic failures, and a random backend can't guarantee that.</p>
+        <p>Finally, six integration tests run the core flows against the real, flaky backend — that's what proves the contract.</p>
+        <p>Coverage is gated at ninety-five percent in the configuration. What's not done yet is running Playwright in CI — today the pipeline runs lint, typecheck, unit tests, the build and the no-spinner check.</p>
+      </div>
+      <p class="next">That leads to production readiness.</p>
+      <details class="deep"><summary>Optional deeper answer — How do you prevent race conditions?</summary>
+        <p>Every load in the detail store takes a monotonic token; a response with an older token is dropped. The cache tracks write versions, so a local write during an in-flight fetch wins over that fetch's older response. Creates append idempotently, and deletes are guarded per entity so a double click can't fire twice.</p>
+      </details>
+    </section>
+
+    <!-- S22 -->
+    <section class="sec" id="S22" data-title="Production Readiness" data-est="30">
+      <div class="sec-head"><span class="id">S22</span><h2>Production Readiness</h2><span class="est">~30 sec</span></div>
+      <div class="say">
+        <p>The production build is AOT-compiled, optimized and content-hashed, with license extraction and no source maps — I verified there are zero map files in the output. Budgets are enforced for the initial bundle and for component styles.</p>
+        <p>There's a single API base URL in configuration, applied by an interceptor. Both environments use a relative /api path, so it deploys same-origin behind a reverse proxy, with an SPA fallback. There are no secrets in the repository. Security headers like CSP are documented, but not configured — that belongs to the hosting setup.</p>
+      </div>
+      <p class="next">Which brings me to what I consciously left out — and what I'd add.</p>
+      <details class="deep"><summary>Optional deeper answer — How is the application production-ready?</summary>
+        <p>Production build hygiene, budgets, a single configuration seam, a CI pipeline with a UX guardrail, documented deployment and caching, and a clear list of what's still needed for a real launch: authentication, idempotency, observability, security headers and end-to-end tests in CI.</p>
+      </details>
+    </section>
+
+    <!-- S23 -->
+    <section class="sec" id="S23" data-title="Trade-offs &amp; What's Next" data-est="50">
+      <div class="sec-head"><span class="id">S23</span><h2>Trade-offs &amp; What's Next</h2><span class="est">~50 sec</span></div>
+      <div class="say">
+        <p>I want to be honest about the edges.</p>
+        <p>Some things I deliberately didn't build. No SSR — this is a signed-in management app with no SEO value. No classic NgRx, no query library, no WebGL engine — each would add weight without solving a problem I had. And no fake authentication pretending to be secure: there's a profile session, plus a documented design for the real thing.</p>
+        <p>In a real product, I'd add proper authentication — OIDC through a backend-for-frontend with an httpOnly cookie session. I'd add idempotency keys, so write retries are safe everywhere. I'd ask the backend for an aggregation endpoint, because the dashboard currently makes one request per garden, and for a capacity check on garden updates. I'd add observability and Web Vitals behind the existing logger seam, run Playwright in CI, and store planner layouts on the server.</p>
+      </div>
+      <p class="next">Let me wrap up.</p>
+      <details class="deep"><summary>Optional deeper answer — What would you change with another week?</summary>
+        <p>Wire Playwright into CI, add idempotency keys and narrow the write retries, pull the planner stylesheet back under its budget, and prototype server-side layouts. Then work with the backend on the dashboard aggregation endpoint, because that's the biggest remaining source of latency.</p>
+      </details>
+    </section>
+
+    <!-- S24 -->
+    <section class="sec" id="S24" data-title="Questions" data-est="25">
+      <div class="sec-head"><span class="id">S24</span><h2>Questions</h2><span class="est">~25 sec</span></div>
+      <div class="say">
+        <p>To summarise: HomeGarden is a complete product with a genuinely useful planner. Architecturally, it's layered, signal-driven and resilient against a backend that fails on purpose. And the judgment is in the details — one capacity rule, one owner per entity, derived instead of synchronised state, and honest pending states instead of spinners.</p>
+        <p>Thank you. I'm happy to go deeper into any of these decisions.</p>
+      </div>
+    </section>
+
+    <!-- Q&A -->
+    <section class="sec qa" id="QA" data-title="Backup Answers" data-est="0">
+      <div class="sec-head"><span class="id">Q&amp;A</span><h2>Backup Answers</h2></div>
+      <h3>Why Angular?</h3><p>The role is Angular-focused and the choice was agreed up front. Angular gives me DI, routing, forms and a first-party testing story in one coherent framework, which suits a long-lived product.</p>
+      <h3>Why Angular 22?</h3><p>Current major: zoneless by default, signal inputs, linkedSignal, @defer and the new control flow are stable. Starting older would mean building on APIs that are being replaced.</p>
+      <h3>Why SignalStore?</h3><p>It gives feature state a clear shape — state, computed, methods — as plain, testable classes, and it can be scoped to a component, so the detail store lives and dies with its page.</p>
+      <h3>Why not classic NgRx?</h3><p>Actions, reducers and effects for every interaction would add ceremony without solving a problem here. I'd reconsider for shared multi-team state or an audit trail of intents.</p>
+      <h3>Signals vs RxJS?</h3><p>Signals for current state; RxJS for time-based events where operators matter — the retry with backoff and one fan-out stream. Promises for one-shot requests.</p>
+      <h3>Why use computed?</h3><p>To derive instead of store. Used area, free area and utilization are computed from the source, so nothing can drift out of sync.</p>
+      <h3>When would you use effect?</h3><p>Only to push state into a non-signal world: route-driven loading, the document title, storage. Never to copy signal to signal. There are two in the app.</p>
+      <h3>Why not Signal Forms everywhere?</h3><p>Typed Reactive Forms already cover validation, cross-field rules and Material integration. Signal Forms is a future migration, not a missing feature.</p>
+      <h3>Why not httpResource everywhere?</h3><p>I need SWR, deduplication, write-through and race tokens shared across stores. A small tested cache does that; httpResource could replace isolated reads later.</p>
+      <h3>Why SVG instead of Canvas or Pixi?</h3><p>At tens of beds, SVG gives accessibility, CSS theming, testability and no extra library. I'd revisit for thousands of animated entities — the pure view model makes the renderer swappable.</p>
+      <h3>How do you prevent capacity inconsistency?</h3><p>One pure rule used everywhere, the server as the authority, and numbers that only change on confirmation. Gap for the backend: PUT on a garden doesn't check shrinking below planted area.</p>
+      <h3>How do you handle slow API responses?</h3><p>Content-shaped skeletons with a 150 ms appear delay, localized ghosts for writes, a 30-second fresh cache, shared in-flight requests and prefetch on hover.</p>
+      <h3>Why retry?</h3><p>At a 10% failure rate, a three-request screen fails 27% of the time. Up to three jittered retries on 5xx and network errors bring a single request's failure chance to about 0.01%. Never on 4xx.</p>
+      <h3>How do you prevent duplicate requests?</h3><p>Shared in-flight promises per cache key, a fresh window with zero requests, single-flight submits, per-entity delete guards, and a Playwright test that fails on redundant GETs.</p>
+      <h3>How do you prevent race conditions?</h3><p>Monotonic load tokens drop stale responses; cache write versions let local writes beat older fetches; creates append idempotently.</p>
+      <h3>Why skeletons rather than spinners?</h3><p>They keep orientation and remove layout shift, and localized ghosts keep the rest of the screen usable. The numbers only change when the server confirms.</p>
+      <h3>How is accessibility handled?</h3><p>WCAG 2.2 AA target: skip link, focus management, semantic tables, live regions, keyboard-operable planner with arrow-key moves, reduced motion, and axe scans in both themes.</p>
+      <h3>How is the application production-ready?</h3><p>Optimized, hashed build without source maps, budgets, one configuration seam, CI with a UX guardrail, documented hosting — and an honest list of what a launch still needs.</p>
+      <h3>What would you change with another week?</h3><p>Playwright in CI, idempotency keys, the planner stylesheet back under budget, server-side layouts, and a dashboard aggregation endpoint with the backend team.</p>
+    </section>
+
+    <!-- Appendix notes -->
+    <section class="sec" id="A01" data-title="Request Lifecycle &amp; Dependencies" data-est="0">
+      <div class="sec-head"><span class="id">A01</span><h2>Request Lifecycle &amp; Dependencies</h2></div>
+      <div class="say"><p>Use this if someone asks "walk me through one request". A component reads a store signal; the route input triggers a load. The cache either answers from fresh data, answers and revalidates, or fetches. The API class goes through the interceptors — base URL, then retry — the DTO is mapped, the cache is written, and patchState updates the store. Computed values recalculate and the OnPush view renders. On failure, the error is classified once, and the store and the global handler react to that classification.</p></div>
+    </section>
+    <section class="sec" id="A02" data-title="Backend Behaviour" data-est="0">
+      <div class="sec-head"><span class="id">A02</span><h2>Backend Behaviour</h2></div>
+      <div class="say"><p>Latency is added in an onSend hook, uniformly between 200 and 2000 milliseconds. Failures are injected in an onRequest hook, ten percent, before any handler runs — which is exactly why retrying writes is safe here and only here. Both are always on; there is no environment flag. The failure maths: ten percent per request becomes about 0.01 percent with three retries.</p></div>
+    </section>
+    <section class="sec" id="A03" data-title="SignalStore Detail" data-est="0">
+      <div class="sec-head"><span class="id">A03</span><h2>SignalStore Detail</h2></div>
+      <div class="say"><p>GardensStore and PlantsIndexStore are root-level; GardenDetailStore is component-provided. The index is the single owner of plant entities, and the detail store exposes plants as a computed view of it. Writes are pessimistic with ghost UI; deletes leave only after confirmation. The one rxMethod fans out plant loads when the set of garden ids changes.</p></div>
+    </section>
+    <section class="sec" id="A04" data-title="Testing Matrix" data-est="0">
+      <div class="sec-head"><span class="id">A04</span><h2>Testing Matrix</h2></div>
+      <div class="say"><p>Point at the row that matches the question. Pure rules and layout are Vitest; async correctness is store tests; slowness, failure and recovery are mocked Playwright; the real contract is the integration suite against the flaky API.</p></div>
+    </section>
+    <section class="sec" id="A05" data-title="Bundle &amp; Performance Numbers" data-est="0">
+      <div class="sec-head"><span class="id">A05</span><h2>Bundle &amp; Performance Numbers</h2></div>
+      <div class="say"><p>All numbers come from the final production build. Initial is 498 kilobytes raw, 132.8 transferred. The detail route is 37.2 kilobytes transferred and the deferred planner 19.4. The only budget warning is the planner stylesheet at 13.4 against a 12-kilobyte warning line.</p></div>
+    </section>
+    <section class="sec" id="A06" data-title="Production Roadmap" data-est="0">
+      <div class="sec-head"><span class="id">A06</span><h2>Production Roadmap</h2></div>
+      <div class="say"><p>Three phases. Trust: real authentication, owner-scoped data, idempotency keys, security headers. Operate: Playwright in CI, error tracking and Web Vitals. Scale the product: an aggregation endpoint, a server-side capacity check on garden edits, server-side layouts, and an external plant catalog through the existing provider seam.</p></div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  (() => {
+    'use strict';
+
+    const sections = [...document.querySelectorAll('.sec')];
+    const main = sections.filter((s) => /^S\d\d$/.test(s.id));
+    const toc = document.getElementById('toc');
+    const jump = document.getElementById('jump');
+    const layout = document.getElementById('layout');
+    const store = {
+      get: (k, d) => {
+        try {
+          const v = localStorage.getItem(k);
+          return v === null ? d : JSON.parse(v);
+        } catch {
+          return d;
+        }
+      },
+      set: (k, v) => {
+        try {
+          localStorage.setItem(k, JSON.stringify(v));
+        } catch {
+          /* storage unavailable — settings just won't persist */
+        }
+      },
+    };
+
+    const fmt = (sec) => {
+      const s = Math.max(0, Math.round(sec));
+      return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+    };
+    const est = (s) => Number(s.dataset.est || 0);
+    const total = main.reduce((sum, s) => sum + est(s), 0);
+    const label = (s) => (s.id === 'QA' ? 'Q&A' : s.id);
+
+    // ── Navigation list + dropdown ─────────────────────────────────────
+    const groups = [
+      ['Script', sections.filter((s) => s.id === 'PREP' || main.includes(s))],
+      ['Backup', sections.filter((s) => s.id === 'QA' || /^A\d\d$/.test(s.id))],
+    ];
+    toc.innerHTML = groups
+      .map(
+        ([name, list]) =>
+          `<div class="sep">${name}</div>` +
+          list
+            .map(
+              (s) =>
+                `<a href="#${s.id}" data-id="${s.id}"><b>${label(s)}</b><span>${s.dataset.title}</span><small>${est(s) ? fmt(est(s)) : ''}</small></a>`,
+            )
+            .join(''),
+      )
+      .join('');
+    jump.innerHTML = sections.map((s) => `<option value="${s.id}">${label(s)} — ${s.dataset.title}</option>`).join('');
+
+    const goTo = (s) => {
+      if (!s) return;
+      s.scrollIntoView({ behavior: 'auto', block: 'start' });
+      setCurrent(s);
+    };
+
+    // ── Current section (reading line at 30% of the viewport) ───────────
+    let current = sections[0];
+    function setCurrent(s) {
+      if (!s || s === current) {
+        updateBar();
+        return;
+      }
+      current = s;
+      sections.forEach((x) => x.classList.toggle('is-current', x === s));
+      toc.querySelectorAll('a').forEach((a) => a.classList.toggle('is-current', a.dataset.id === s.id));
+      jump.value = s.id;
+      toc.querySelector('a.is-current')?.scrollIntoView({ block: 'nearest' });
+      updateBar();
+    }
+    const detect = () => {
+      const line = window.innerHeight * 0.3;
+      let found = sections[0];
+      for (const s of sections) {
+        if (s.getBoundingClientRect().top - line <= 0) found = s;
+      }
+      setCurrent(found);
+    };
+    window.addEventListener('scroll', detect, { passive: true });
+
+    const indexOf = (s) => sections.indexOf(s);
+    const step = (d) => goTo(sections[Math.max(0, Math.min(sections.length - 1, indexOf(current) + d))]);
+
+    toc.addEventListener('click', (e) => {
+      const a = e.target.closest('a[data-id]');
+      if (a) {
+        e.preventDefault();
+        goTo(document.getElementById(a.dataset.id));
+      }
+    });
+    jump.addEventListener('change', () => goTo(document.getElementById(jump.value)));
+    document.getElementById('prev').addEventListener('click', () => step(-1));
+    document.getElementById('next').addEventListener('click', () => step(1));
+
+    // ── Font size ──────────────────────────────────────────────────────
+    let fs = store.get('hg-prompter-fs', 26);
+    const applyFs = () => document.documentElement.style.setProperty('--fs', `${fs}px`);
+    const font = (d) => {
+      fs = Math.max(16, Math.min(48, fs + d));
+      store.set('hg-prompter-fs', fs);
+      applyFs();
+    };
+    document.getElementById('font-up').addEventListener('click', () => font(2));
+    document.getElementById('font-down').addEventListener('click', () => font(-2));
+    applyFs();
+
+    // ── Auto-scroll (optional; manual scrolling always works) ──────────
+    let speed = store.get('hg-prompter-speed', 40); // px per second
+    let scrolling = false;
+    let lastT = 0;
+    let carry = 0;
+    const speedEl = document.getElementById('speed');
+    const scrollBtn = document.getElementById('scroll-toggle');
+    const renderSpeed = () => (speedEl.textContent = String(speed));
+    const tick = (t) => {
+      if (!scrolling) return;
+      if (lastT) {
+        carry += (speed * (t - lastT)) / 1000;
+        const px = Math.floor(carry);
+        if (px >= 1) {
+          window.scrollBy(0, px);
+          carry -= px;
+        }
+      }
+      lastT = t;
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) {
+        toggleScroll(false);
+        return;
+      }
+      requestAnimationFrame(tick);
+    };
+    function toggleScroll(on = !scrolling) {
+      scrolling = on;
+      lastT = 0;
+      carry = 0;
+      scrollBtn.textContent = on ? 'Pause' : 'Start';
+      scrollBtn.setAttribute('aria-pressed', String(on));
+      if (on) requestAnimationFrame(tick);
+    }
+    const changeSpeed = (d) => {
+      speed = Math.max(10, Math.min(200, speed + d));
+      store.set('hg-prompter-speed', speed);
+      renderSpeed();
+    };
+    scrollBtn.addEventListener('click', () => toggleScroll());
+    document.getElementById('slower').addEventListener('click', () => changeSpeed(-5));
+    document.getElementById('faster').addEventListener('click', () => changeSpeed(5));
+    renderSpeed();
+
+    // ── Timer: elapsed, remaining estimate, pace ───────────────────────
+    let running = false;
+    let startedAt = 0;
+    let accumulated = 0;
+    const elapsedEl = document.getElementById('elapsed');
+    const remainingEl = document.getElementById('remaining');
+    const timerBtn = document.getElementById('timer-toggle');
+    const elapsed = () => accumulated + (running ? (Date.now() - startedAt) / 1000 : 0);
+    const plannedBefore = (s) => {
+      const i = main.indexOf(s);
+      return i < 0 ? null : main.slice(0, i).reduce((sum, x) => sum + est(x), 0);
+    };
+    function updateBar() {
+      const i = main.indexOf(current);
+      document.getElementById('now-title').textContent = `${label(current)} — ${current.dataset.title}`;
+      const before = plannedBefore(current);
+      const meta = [];
+      if (i >= 0) {
+        meta.push(`Slide ${i + 1} / ${main.length}`);
+        meta.push(`plan here ${fmt(before)}`);
+      } else {
+        meta.push('Backup material — not part of the timed script');
+      }
+      meta.push(`total ~${fmt(total)}`);
+      document.getElementById('now-meta').textContent = meta.join(' · ');
+      document.getElementById('progress').style.width = i >= 0 ? `${((i + 1) / main.length) * 100}%` : '100%';
+      const e = elapsed();
+      elapsedEl.textContent = fmt(e);
+      const remainingPlan = i >= 0 ? total - before : 0;
+      remainingEl.textContent = `~${fmt(remainingPlan)}`;
+      elapsedEl.classList.toggle('behind', i >= 0 && e > before + est(current) + 30);
+    }
+    const toggleTimer = () => {
+      if (running) {
+        accumulated = elapsed();
+        running = false;
+      } else {
+        startedAt = Date.now();
+        running = true;
+      }
+      timerBtn.textContent = running ? 'Pause' : 'Start';
+      timerBtn.setAttribute('aria-pressed', String(running));
+      updateBar();
+    };
+    timerBtn.addEventListener('click', toggleTimer);
+    document.getElementById('timer-reset').addEventListener('click', () => {
+      accumulated = 0;
+      startedAt = Date.now();
+      updateBar();
+    });
+    setInterval(() => running && updateBar(), 500);
+
+    // ── Follow the deck (same browser, via storage events) ─────────────
+    let follow = store.get('hg-prompter-follow', false);
+    const followBtn = document.getElementById('follow');
+    const renderFollow = () => followBtn.setAttribute('aria-pressed', String(follow));
+    followBtn.addEventListener('click', () => {
+      follow = !follow;
+      store.set('hg-prompter-follow', follow);
+      renderFollow();
+    });
+    renderFollow();
+    window.addEventListener('storage', (e) => {
+      if (!follow || e.key !== 'homegarden-deck-slide' || !e.newValue) return;
+      try {
+        const { id } = JSON.parse(e.newValue);
+        goTo(document.getElementById(id));
+      } catch {
+        /* ignore malformed sync messages */
+      }
+    });
+
+    // ── Navigation toggle ──────────────────────────────────────────────
+    const navBtn = document.getElementById('toggle-nav');
+    const toggleNav = () => {
+      const hidden = layout.classList.toggle('nav-hidden');
+      navBtn.setAttribute('aria-pressed', String(!hidden));
+    };
+    navBtn.addEventListener('click', toggleNav);
+
+    // ── Keyboard ───────────────────────────────────────────────────────
+    document.addEventListener('keydown', (e) => {
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.target.closest('select, input, textarea')) return;
+      switch (e.key) {
+        case ' ':
+        case 'ArrowRight':
+          step(1);
+          break;
+        case 'ArrowLeft':
+          step(-1);
+          break;
+        case '+':
+        case '=':
+          font(2);
+          break;
+        case '-':
+        case '_':
+          font(-2);
+          break;
+        case 'p':
+        case 'P':
+          toggleScroll();
+          break;
+        case '[':
+          changeSpeed(-5);
+          break;
+        case ']':
+          changeSpeed(5);
+          break;
+        case 't':
+        case 'T':
+          toggleTimer();
+          break;
+        case 'n':
+        case 'N':
+          toggleNav();
+          break;
+        default:
+          return;
+      }
+      e.preventDefault();
+    });
+
+    // The sticky bar wraps on narrower screens: measure it so headings and the
+    // navigation are never hidden underneath.
+    const bar = document.querySelector('.bar');
+    const measureBar = () =>
+      document.documentElement.style.setProperty('--bar-h', `${bar.offsetHeight}px`);
+    window.addEventListener('resize', measureBar);
+    measureBar();
+
+    const start = document.getElementById(location.hash.slice(1));
+    if (start) goTo(start);
+    detect();
+    updateBar();
+  })();
+</script>
+</body>
+</html>
