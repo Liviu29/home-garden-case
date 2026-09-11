@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint, typecheck, unit tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint and typecheck
+        run: npx nx run-many -t lint typecheck -p api web web-e2e
+
+      - name: API tests
+        run: npx nx test api
+
+      - name: Web unit tests with the 95% coverage gate
+        run: npm run test:coverage
+
+      - name: Production build (bundle budgets enforced)
+        run: npm run build
+
+      - name: Spinner ban
+        run: npm run check:no-spinners
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: apps/web/coverage
+          if-no-files-found: ignore
+
+  e2e:
+    name: Playwright (mocked, WebKit smoke, real API)
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Playwright (mocked + real API)
+        run: npx playwright test -c apps/web-e2e/playwright.config.ts --project=mocked --project=integration
+
+      # Cross-engine smoke. Reported, but not yet a merge gate.
+      - name: Playwright (WebKit smoke)
+        continue-on-error: true
+        run: npx playwright test -c apps/web-e2e/playwright.config.ts --project=webkit
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/web-e2e/playwright-report
+          if-no-files-found: ignore
