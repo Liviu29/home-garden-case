@@ -4,7 +4,13 @@ import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import type { Garden, Plant } from '../../../core/api/models';
-import { PlantFormDialog, type PlantFormData } from './plant-form-dialog';
+import { PlantFormDialog, type PlantFormData, type PlantModel } from './plant-form-dialog';
+
+/** Set a few fields of the model, as typing into them would. */
+const patch = (
+  vm: { model: { update: (fn: (m: PlantModel) => PlantModel) => void } },
+  values: Partial<PlantModel>,
+) => vm.model.update((m) => ({ ...m, ...values }));
 
 const garden: Garden = {
   gardenId: 1,
@@ -59,7 +65,7 @@ describe('PlantFormDialog (capacity behaviour — the core business rule)', () =
     const store = storeStub();
     const fixture = await mount({ garden, plants: [existingPlant], plant: null, store });
 
-    fixture.componentInstance['form'].controls.surfaceAreaRequired.setValue(3);
+    fixture.componentInstance['f'].surfaceAreaRequired().value.set(3);
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -75,11 +81,12 @@ describe('PlantFormDialog (capacity behaviour — the core business rule)', () =
     const store = storeStub();
     const fixture = await mount({ garden, plants: [existingPlant], plant: null, store });
 
-    fixture.componentInstance['form'].patchValue({
+    fixture.componentInstance['model'].update((m) => ({
+      ...m,
       plantName: 'Pumpkin',
       species: 'Cucurbita maxima',
       surfaceAreaRequired: 7, // only 4 m² available
-    });
+    }));
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -96,11 +103,12 @@ describe('PlantFormDialog (capacity behaviour — the core business rule)', () =
     const store = storeStub();
     const fixture = await mount({ garden, plants: [existingPlant], plant: null, store });
 
-    fixture.componentInstance['form'].patchValue({
+    fixture.componentInstance['model'].update((m) => ({
+      ...m,
       plantName: 'Lettuce',
       species: 'Lactuca sativa',
       surfaceAreaRequired: 4, // exactly the remaining capacity
-    });
+    }));
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -114,7 +122,7 @@ describe('PlantFormDialog (capacity behaviour — the core business rule)', () =
     const fixture = await mount({ garden, plants: [existingPlant], plant: existingPlant, store });
 
     // Growing the tomato from 6 to 10 m² fits: the whole garden is available to it.
-    fixture.componentInstance['form'].controls.surfaceAreaRequired.setValue(10);
+    fixture.componentInstance['f'].surfaceAreaRequired().value.set(10);
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -123,7 +131,7 @@ describe('PlantFormDialog (capacity behaviour — the core business rule)', () =
     expect(store.updatePlant).toHaveBeenCalledOnce();
 
     // 10.5 m² does not.
-    fixture.componentInstance['form'].controls.surfaceAreaRequired.setValue(10.5);
+    fixture.componentInstance['f'].surfaceAreaRequired().value.set(10.5);
     await fixture.whenStable();
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('[role="alert"]')).not.toBeNull();
@@ -144,7 +152,7 @@ describe('PlantFormDialog (capacity behaviour — the core business rule)', () =
     fixture.detectChanges();
 
     // 2 m² preset vs 0.5 m² available: preset chose the value, the domain rule blocks it.
-    expect(fixture.componentInstance['form'].controls.surfaceAreaRequired.value).toBe(2);
+    expect(fixture.componentInstance['f'].surfaceAreaRequired().value()).toBe(2);
     expect(el.textContent).toContain('only');
     await fixture.componentInstance['submit']();
     expect(store.createPlant).not.toHaveBeenCalled();
@@ -163,8 +171,8 @@ describe('PlantFormDialog — catalog search, presets and submit paths', () => {
     remainingAfterSave: () => number;
     overcrowds: () => boolean;
     serverError: () => string | null;
-    form: { patchValue: (v: Record<string, unknown>) => void };
-    submit: () => Promise<void>;
+    model: { update: (fn: (m: PlantModel) => PlantModel) => void };
+    submit: () => Promise<boolean>;
   };
 
   const api = (fixture: { componentInstance: unknown }) => fixture.componentInstance as DialogApi;
@@ -258,7 +266,7 @@ describe('PlantFormDialog — catalog search, presets and submit paths', () => {
 
     it('never previews a negative footprint', async () => {
       const { fixture, vm } = await mountWith({ plant: null, plants: [] });
-      vm.form.patchValue({ surfaceAreaRequired: -5 });
+      patch(vm, { surfaceAreaRequired: -5 });
       fixture.detectChanges();
 
       expect(vm.requires()).toBe(0);
@@ -267,7 +275,7 @@ describe('PlantFormDialog — catalog search, presets and submit paths', () => {
 
     it('reports the remaining area after saving as-is', async () => {
       const { fixture, vm } = await mountWith({ plant: null, plants: [] });
-      vm.form.patchValue({ surfaceAreaRequired: 5 });
+      patch(vm, { surfaceAreaRequired: 5 });
       fixture.detectChanges();
 
       expect(vm.remainingAfterSave()).toBe(garden.totalSurfaceArea - 5);
@@ -290,7 +298,7 @@ describe('PlantFormDialog — catalog search, presets and submit paths', () => {
 
   describe('submit', () => {
     const fill = (vm: DialogApi) =>
-      vm.form.patchValue({
+      patch(vm, {
         plantName: 'Tomato',
         species: 'Solanum',
         plantType: 'vegetable',
@@ -352,7 +360,8 @@ describe('PlantFormDialog — catalog search, presets and submit paths', () => {
 
 describe('PlantFormDialog — every validation message renders', () => {
   type Vm = {
-    form: { patchValue: (v: Record<string, unknown>) => void; markAllAsTouched: () => void };
+    model: { update: (fn: (m: PlantModel) => PlantModel) => void };
+    f: () => { markAsTouched: () => void };
     serverError: { set: (v: string) => void };
   };
 
@@ -378,10 +387,10 @@ describe('PlantFormDialog — every validation message renders', () => {
     };
   };
 
-  const show = async (values: Record<string, unknown>) => {
+  const show = async (values: Partial<PlantModel>) => {
     const { fixture, vm, el } = await mountFresh();
-    vm.form.patchValue(values);
-    vm.form.markAllAsTouched();
+    patch(vm, values);
+    vm.f().markAsTouched();
     fixture.detectChanges();
     return el.textContent ?? '';
   };
@@ -428,5 +437,42 @@ describe('PlantFormDialog — every validation message renders', () => {
 
     expect(el.querySelector('mat-spinner, .mat-mdc-progress-spinner')).toBeNull();
     expect(el.querySelector('.btn-ghost')).not.toBeNull();
+  });
+});
+
+describe('PlantFormDialog — typing into the fields (the DOM path, not the model)', () => {
+  it('a negative area typed into the input shows the rule under the field', async () => {
+    const store = storeStub();
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [PlantFormDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { garden, plants: [], plant: null, store } },
+        { provide: MatDialogRef, useValue: { close: vi.fn() } },
+      ],
+    });
+    const fixture = TestBed.createComponent(PlantFormDialog);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const input = el.querySelector<HTMLInputElement>('input[type="number"]')!;
+
+    input.value = '-5';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('blur', { bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const field = fixture.componentInstance['f'].surfaceAreaRequired();
+    expect(
+      field.errors().map((e) => e.kind + ':' + (e.message ?? '')),
+      `value=${String(field.value())}`,
+    ).toContain("min:Surface area can't be negative");
+    expect(el.textContent).toContain("Surface area can't be negative");
+    // The browser must not answer first: `[formField]` sets native `required`
+    // and `min`, and without `novalidate` its bubble would block the submit
+    // before `submit()` could show the app's own errors.
+    expect(el.querySelector('form')?.hasAttribute('novalidate')).toBe(true);
   });
 });

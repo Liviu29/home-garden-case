@@ -7,7 +7,22 @@ import { GardensApi } from '../../../core/api/gardens-api';
 import { PlantsApi } from '../../../core/api/plants-api';
 import type { Garden, Plant } from '../../../core/api/models';
 import { PlantsIndexStore } from '../../../state/plants-index-store/plants-index-store';
-import { GardenFormDialog } from './garden-form-dialog';
+import { GardenFormDialog, type GardenModel } from './garden-form-dialog';
+
+/** Set a few fields of the model, as typing into them would. */
+const patch = (
+  vm: { model: { update: (fn: (m: GardenModel) => GardenModel) => void } },
+  values: Partial<GardenModel>,
+) => vm.model.update((m) => ({ ...m, ...values }));
+
+/** The dialog's surface the specs drive, behind its protected members. */
+type DialogApi = {
+  model: { update: (fn: (m: GardenModel) => GardenModel) => void };
+  serverError: () => string | null;
+  submit: () => Promise<boolean>;
+  usedArea: () => number | null;
+  shrinksBelowUsed: () => boolean;
+};
 
 const garden: Garden = {
   gardenId: 4,
@@ -63,7 +78,7 @@ describe('GardenFormDialog (shrink-below-used warning)', () => {
     // Initial total (20) is above used (15): no warning.
     expect(el.querySelector('.form-warning')).toBeNull();
 
-    fixture.componentInstance['form'].controls.totalSurfaceArea.setValue(10);
+    fixture.componentInstance['f'].totalSurfaceArea().value.set(10);
     await fixture.whenStable();
     fixture.detectChanges();
     const warning = el.querySelector('.form-warning');
@@ -71,7 +86,7 @@ describe('GardenFormDialog (shrink-below-used warning)', () => {
     expect(warning?.textContent).toContain('15');
 
     // Exactly the used area is allowed without warning (strict <).
-    fixture.componentInstance['form'].controls.totalSurfaceArea.setValue(15);
+    fixture.componentInstance['f'].totalSurfaceArea().value.set(15);
     await fixture.whenStable();
     fixture.detectChanges();
     expect(el.querySelector('.form-warning')).toBeNull();
@@ -79,7 +94,7 @@ describe('GardenFormDialog (shrink-below-used warning)', () => {
 
   it('never warns when creating a new garden', async () => {
     const fixture = await mount({ garden: null });
-    fixture.componentInstance['form'].controls.totalSurfaceArea.setValue(0.5);
+    fixture.componentInstance['f'].totalSurfaceArea().value.set(0.5);
     await fixture.whenStable();
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('.form-warning')).toBeNull();
@@ -96,8 +111,8 @@ describe('GardenFormDialog (shrink-below-used warning)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(fixture.componentInstance['form'].controls.totalSurfaceArea.value).toBe(50);
-    expect(fixture.componentInstance['form'].controls.totalSurfaceArea.dirty).toBe(true);
+    expect(fixture.componentInstance['f'].totalSurfaceArea().value()).toBe(50);
+    expect(fixture.componentInstance['f'].totalSurfaceArea().dirty()).toBe(true);
     expect(large.getAttribute('aria-pressed')).toBe('true');
   });
 
@@ -111,16 +126,25 @@ describe('GardenFormDialog (shrink-below-used warning)', () => {
     balanced.click();
     await fixture.whenStable();
     fixture.detectChanges();
-    const humidity = fixture.componentInstance['form'].controls.targetHumidityLevel;
-    expect(humidity.value).toBe(60);
-    expect(humidity.valid).toBe(true);
+    const humidity = fixture.componentInstance['f'].targetHumidityLevel();
+    expect(humidity.value()).toBe(60);
+    expect(humidity.valid()).toBe(true);
 
     // Custom values are first-class: presets never lock the field…
-    humidity.setValue(73);
-    expect(humidity.valid).toBe(true);
+    humidity.value.set(73);
+    expect(humidity.valid()).toBe(true);
     // …and the validator (not the preset list) remains the authority.
-    humidity.setValue(140);
-    expect(humidity.hasError('max')).toBe(true);
+    humidity.value.set(140);
+    expect(humidity.getError('max')).toBeDefined();
+  });
+
+  it('leaves validation to the app, not the browser: the form is novalidate', async () => {
+    // `[formField]` sets the native `required`/`min` attributes from the schema.
+    // Without `novalidate` the browser would block the submit with its own
+    // bubble before `submit()` could mark the fields touched and show ours.
+    const fixture = await mount({ garden: null });
+    const form = (fixture.nativeElement as HTMLElement).querySelector('form');
+    expect(form?.hasAttribute('novalidate')).toBe(true);
   });
 
   it('exactly one preset per group carries the Recommended badge', async () => {
@@ -141,14 +165,6 @@ describe('GardenFormDialog — submit paths', () => {
     longitude: null,
     createdAt: '',
     updatedAt: '',
-  };
-
-  type DialogApi = {
-    form: { patchValue: (v: Record<string, unknown>) => void };
-    serverError: () => string | null;
-    submit: () => Promise<void>;
-    usedArea: () => number | null;
-    shrinksBelowUsed: () => boolean;
   };
 
   let api: Record<string, ReturnType<typeof vi.fn>>;
@@ -188,21 +204,21 @@ describe('GardenFormDialog — submit paths', () => {
 
   it('refuses to submit an invalid form', async () => {
     const { vm } = await mountFor(null);
-    vm.form.patchValue({ gardenName: '' });
+    patch(vm, { gardenName: '' });
     await vm.submit();
     expect(api['create']).not.toHaveBeenCalled();
   });
 
   it('rejects a whitespace-only name', async () => {
     const { vm } = await mountFor(null);
-    vm.form.patchValue({ gardenName: '   ', totalSurfaceArea: 20, targetHumidityLevel: 50 });
+    patch(vm, { gardenName: '   ', totalSurfaceArea: 20, targetHumidityLevel: 50 });
     await vm.submit();
     expect(api['create']).not.toHaveBeenCalled();
   });
 
   it('creates a garden with trimmed values and closes', async () => {
     const { vm } = await mountFor(null);
-    vm.form.patchValue({
+    patch(vm, {
       gardenName: '  New bed  ',
       totalSurfaceArea: 12,
       targetHumidityLevel: 55,
@@ -219,7 +235,7 @@ describe('GardenFormDialog — submit paths', () => {
 
   it('nulls an empty location rather than sending an empty string', async () => {
     const { vm } = await mountFor(null);
-    vm.form.patchValue({
+    patch(vm, {
       gardenName: 'Bed',
       totalSurfaceArea: 12,
       targetHumidityLevel: 55,
@@ -235,7 +251,7 @@ describe('GardenFormDialog — submit paths', () => {
 
   it('updates an existing garden rather than creating a second one', async () => {
     const { vm } = await mountFor(GARDEN);
-    vm.form.patchValue({ gardenName: 'Renamed' });
+    patch(vm, { gardenName: 'Renamed' });
 
     await vm.submit();
 
@@ -249,7 +265,7 @@ describe('GardenFormDialog — submit paths', () => {
   it('renders a functional verdict inline and keeps the dialog open', async () => {
     api['create'].mockRejectedValue(new ApiError('functional', 'Name already used', 400));
     const { vm } = await mountFor(null);
-    vm.form.patchValue({ gardenName: 'Bed', totalSurfaceArea: 12, targetHumidityLevel: 55 });
+    patch(vm, { gardenName: 'Bed', totalSurfaceArea: 12, targetHumidityLevel: 55 });
 
     await vm.submit();
 
@@ -260,7 +276,7 @@ describe('GardenFormDialog — submit paths', () => {
   it('leaves a technical failure to the toast, not the form', async () => {
     api['create'].mockRejectedValue(new ApiError('technical', 'Server exploded', 500));
     const { vm } = await mountFor(null);
-    vm.form.patchValue({ gardenName: 'Bed', totalSurfaceArea: 12, targetHumidityLevel: 55 });
+    patch(vm, { gardenName: 'Bed', totalSurfaceArea: 12, targetHumidityLevel: 55 });
 
     await vm.submit();
 
@@ -311,12 +327,8 @@ describe('GardenFormDialog — coordinate cross-validation', () => {
     const fixture = TestBed.createComponent(GardenFormDialog);
     await fixture.whenStable();
     fixture.detectChanges();
-    return fixture.componentInstance as unknown as {
-      form: {
-        patchValue: (v: Record<string, unknown>) => void;
-        hasError: (e: string) => boolean;
-        valid: boolean;
-      };
+    return fixture.componentInstance as unknown as DialogApi & {
+      f: () => { getError: (kind: string) => unknown };
     };
   };
 
@@ -328,7 +340,7 @@ describe('GardenFormDialog — coordinate cross-validation', () => {
     { label: 'longitude alone', latitude: null, longitude: 3.72, valid: false },
   ])('$label → group error: $valid', async ({ latitude, longitude, valid }) => {
     const vm = await mountBlank();
-    vm.form.patchValue({
+    patch(vm, {
       gardenName: 'Bed',
       totalSurfaceArea: 10,
       targetHumidityLevel: 50,
@@ -336,13 +348,13 @@ describe('GardenFormDialog — coordinate cross-validation', () => {
       longitude,
     });
 
-    expect(vm.form.hasError('coordinatesTogether')).toBe(!valid);
+    expect(vm.f().getError('coordinatesTogether') !== undefined).toBe(!valid);
   });
 });
 
 describe('GardenFormDialog — every validation message renders', () => {
-  type Vm = {
-    form: { patchValue: (v: Record<string, unknown>) => void; markAllAsTouched: () => void };
+  type Vm = DialogApi & {
+    f: () => { markAsTouched: () => void };
     serverError: { set: (v: string) => void };
   };
 
@@ -370,8 +382,8 @@ describe('GardenFormDialog — every validation message renders', () => {
 
   const show = async (values: Record<string, unknown>) => {
     const { fixture, vm, el } = await mountBlank();
-    vm.form.patchValue(values);
-    vm.form.markAllAsTouched();
+    patch(vm, values);
+    vm.f().markAsTouched();
     fixture.detectChanges();
     return el.textContent ?? '';
   };

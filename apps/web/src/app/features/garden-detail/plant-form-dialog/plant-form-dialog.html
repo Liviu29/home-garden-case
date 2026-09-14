@@ -64,18 +64,18 @@
     </section>
   }
 
-  <form class="form" [formGroup]="form" (ngSubmit)="submit()" id="plant-form">
+  <form class="form" novalidate (submit)="onSubmit($event)" id="plant-form">
     <div class="row">
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label i18n>Plant name</mat-label>
         <input
           matInput
-          formControlName="plantName"
+          [formField]="f.plantName"
           placeholder="e.g. Cherry tomato"
           i18n-placeholder
         />
-        @if (form.controls.plantName.hasError('required')) {
-          <mat-error i18n>Plant name is required</mat-error>
+        @if (f.plantName().errors()[0]; as error) {
+          <mat-error>{{ error.message }}</mat-error>
         }
       </mat-form-field>
 
@@ -83,12 +83,12 @@
         <mat-label i18n>Species</mat-label>
         <input
           matInput
-          formControlName="species"
+          [formField]="f.species"
           placeholder="e.g. Solanum lycopersicum"
           i18n-placeholder
         />
-        @if (form.controls.species.hasError('required')) {
-          <mat-error i18n>Species is required</mat-error>
+        @if (f.species().errors()[0]; as error) {
+          <mat-error>{{ error.message }}</mat-error>
         }
       </mat-form-field>
     </div>
@@ -96,7 +96,7 @@
     <div class="row">
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label i18n>Type</mat-label>
-        <mat-select formControlName="plantType">
+        <mat-select [formField]="f.plantType">
           @for (type of plantTypes; track type) {
             <mat-option [value]="type">{{ plantTypeLabels[type] }}</mat-option>
           }
@@ -105,11 +105,11 @@
 
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label i18n>Plantation date</mat-label>
-        <input matInput [matDatepicker]="picker" formControlName="plantationDate" />
+        <input matInput [matDatepicker]="picker" [formField]="f.plantationDate" />
         <mat-datepicker-toggle matIconSuffix [for]="picker" />
         <mat-datepicker #picker />
-        @if (form.controls.plantationDate.hasError('required')) {
-          <mat-error i18n>Plantation date is required</mat-error>
+        @if (f.plantationDate().errors()[0]; as error) {
+          <mat-error>{{ error.message }}</mat-error>
         }
       </mat-form-field>
     </div>
@@ -118,15 +118,12 @@
       <div class="area-block">
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label i18n>Surface area required (m²)</mat-label>
-          <input matInput type="number" formControlName="surfaceAreaRequired" min="0" step="0.5" />
+          <input matInput type="number" [formField]="f.surfaceAreaRequired" step="0.5" />
           <mat-hint i18n
             >{{ capacityLeft() | number: '1.0-2' }} m² available in this garden</mat-hint
           >
-          @if (form.controls.surfaceAreaRequired.hasError('min')) {
-            <mat-error i18n>Surface area can't be negative</mat-error>
-          }
-          @if (form.controls.surfaceAreaRequired.hasError('required')) {
-            <mat-error i18n>Surface area is required</mat-error>
+          @if (areaError(); as error) {
+            <mat-error>{{ error.message }}</mat-error>
           }
         </mat-form-field>
         <app-value-presets
@@ -141,10 +138,10 @@
       <div class="humidity-block">
         <div class="humidity-label">
           <span id="plant-humidity-label" i18n>Ideal humidity level</span>
-          <span class="humidity-value tabular">{{ form.controls.idealHumidityLevel.value }}%</span>
+          <span class="humidity-value tabular">{{ model().idealHumidityLevel }}%</span>
         </div>
         <mat-slider min="0" max="100" step="1" discrete aria-labelledby="plant-humidity-label">
-          <input matSliderThumb formControlName="idealHumidityLevel" />
+          <input matSliderThumb [formField]="f.idealHumidityLevel" />
         </mat-slider>
         <p class="target-hint" i18n>Garden target: {{ data.garden.targetHumidityLevel }}%</p>
       </div>
@@ -173,11 +170,8 @@
           [total]="data.garden.totalSurfaceArea"
           [showLabel]="false"
         />
-        @if (overcrowds()) {
-          <p class="form-error" role="alert" i18n>
-            This plant requires {{ requires() | number: '1.0-2' }} m², but only
-            {{ capacityLeft() | number: '1.0-2' }} m² is available in this garden.
-          </p>
+        @if (overcrowdedMessage(); as message) {
+          <p class="form-error" role="alert">{{ message }}</p>
         }
       </div>
 
@@ -194,8 +188,8 @@
       </div>
     </div>
 
-    @if (serverError()) {
-      <p class="form-error" role="alert">{{ serverError() }}</p>
+    @if (serverError(); as message) {
+      <p class="form-error" role="alert">{{ message }}</p>
     }
   </form>
 </mat-dialog-content>
@@ -208,7 +202,7 @@
     form="plant-form"
     class="press-feedback"
     [attr.aria-busy]="data.store.saving() ? true : null"
-    [disabled]="(form.invalid && form.touched) || overcrowds() || data.store.saving()"
+    [disabled]="(f().invalid() && f().touched()) || data.store.saving()"
   >
     <span class="btn-stack" [class.is-pending]="data.store.saving()">
       <span class="btn-label">{{ submitLabel }}</span>

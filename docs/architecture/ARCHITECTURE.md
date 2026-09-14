@@ -24,15 +24,15 @@ handled.
 
 ## 2. Tech stack
 
-| Concern   | Choice                                                                        | Why                                                                                                                                |
-| --------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Framework | **Angular 22** — standalone, zoneless (the default; zone.js is not installed) | The framework's settled direction: signals-driven change detection, no zone.js payload.                                            |
-| State     | **Signals + NgRx SignalStore**                                                | One state pattern app-wide; structure without classic-Store ceremony. [ADR-002](../adr/ADR-002-signalstore.md)                     |
-| UI kit    | **Angular Material 22 (M3)** + design tokens                                  | Accessible primitives (dialogs, menus, form fields), themed to the product. [DESIGN-SYSTEM.md](../design/DESIGN-SYSTEM.md)         |
-| HTTP      | `HttpClient` (fetch backend), typed API layer, functional interceptors        | The resilience policy lives in one place; features never re-implement it.                                                          |
-| Forms     | Typed Reactive Forms (`NonNullableFormBuilder`)                               | Validators mirror the backend zod contracts 1:1.                                                                                   |
-| Workspace | **Nx** (`apps/web` beside `apps/api`)                                         | The case repository is already an Nx workspace: one install, shared lint/format. [ADR-006](../adr/ADR-006-monorepo-and-tooling.md) |
-| Testing   | Vitest + TestBed; Playwright (integration + mocked)                           | Tests assert behaviour, not implementation. [TESTING-STRATEGY.md](./TESTING-STRATEGY.md)                                           |
+| Concern   | Choice                                                                        | Why                                                                                                                                                         |
+| --------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Framework | **Angular 22** — standalone, zoneless (the default; zone.js is not installed) | The framework's settled direction: signals-driven change detection, no zone.js payload.                                                                     |
+| State     | **Signals + NgRx SignalStore**                                                | One state pattern app-wide; structure without classic-Store ceremony. [ADR-002](../adr/ADR-002-signalstore.md)                                              |
+| UI kit    | **Angular Material 22 (M3)** + design tokens                                  | Accessible primitives (dialogs, menus, form fields), themed to the product. [DESIGN-SYSTEM.md](../design/DESIGN-SYSTEM.md)                                  |
+| HTTP      | `HttpClient` (fetch backend), typed API layer, functional interceptors        | The resilience policy lives in one place; features never re-implement it.                                                                                   |
+| Forms     | **Signal Forms** (`@angular/forms/signals`) for the garden and plant dialogs  | The model is a signal, the rules a schema that mirrors the backend zod contracts 1:1, the capacity rule included. [ADR-011](../adr/ADR-011-signal-forms.md) |
+| Workspace | **Nx** (`apps/web` beside `apps/api`)                                         | The case repository is already an Nx workspace: one install, shared lint/format. [ADR-006](../adr/ADR-006-monorepo-and-tooling.md)                          |
+| Testing   | Vitest + TestBed; Playwright (integration + mocked)                           | Tests assert behaviour, not implementation. [TESTING-STRATEGY.md](./TESTING-STRATEGY.md)                                                                    |
 
 ## 3. Structure
 
@@ -296,8 +296,11 @@ selection, layers); business state stays in the stores. Rationale and trade-offs
   them.
 - **HTTP:** features call the typed API services only; retry lives in the one interceptor and
   caching in `core/resilience`; every call resolves to data or a typed `ApiError`.
-- **Forms:** typed forms from `NonNullableFormBuilder`; validation limits mirror the backend's zod
-  schemas exactly; submit is single-flight, with an in-button ghost bar instead of a spinner.
+- **Forms:** Signal Forms — a `signal` model, a `schema` of rules that mirror the backend's zod
+  schemas exactly (the capacity rule is a validator on the area field), `[formField]` on the
+  Material controls, and `submit()` running the store's single-flight write; an in-button ghost bar
+  instead of a spinner. The welcome and profile screens still use reactive forms
+  ([ADR-011](../adr/ADR-011-signal-forms.md)).
 - **Errors and feedback:** functional errors render inline, technical errors as a toast with Try
   again, deep-link misses as the not-found page, empty results as the shared `empty-state`;
   destructive actions confirm through the shared dialog.

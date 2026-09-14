@@ -120,8 +120,9 @@ kit is presentational — inputs in, outputs out. That is what makes each layer 
 - **Built-in control flow and `@defer`** — the planner and both charts ship in their own
   `@defer (on viewport)` chunks behind placeholders of the same size.
 - **Standalone components and lazy routes**, with view transitions.
-- **Typed Reactive Forms** whose limits mirror the backend's zod schemas; **Angular Material 3**
-  themed through design tokens.
+- **Signal Forms** for the garden and plant dialogs — a signal model and a schema of rules that
+  mirror the backend's zod schemas, the capacity rule included ([ADR-011](docs/adr/ADR-011-signal-forms.md));
+  **Angular Material 3** themed through design tokens.
 
 ## State management
 
@@ -440,7 +441,7 @@ account.
 | Design system                                    | [DESIGN-SYSTEM.md](docs/design/DESIGN-SYSTEM.md)                           |
 | Build, hosting, dependencies                     | [PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md)                    |
 | Presenting the demo, feature by feature          | [DEMO-GUIDE.md](docs/DEMO-GUIDE.md)                                        |
-| Architecture decisions                           | [ADR-001 … ADR-010](docs/adr/)                                             |
+| Architecture decisions                           | [ADR-001 … ADR-011](docs/adr/)                                             |
 
 A walkthrough deck is in [docs/presentation/home-garden-demo.html](docs/presentation/home-garden-demo.html)
 (open it locally in a browser).

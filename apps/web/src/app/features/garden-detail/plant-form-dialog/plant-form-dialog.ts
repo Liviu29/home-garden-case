@@ -1,7 +1,22 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  LOCALE_ID,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
+import { DecimalPipe, formatNumber } from '@angular/common';
+import {
+  FormField,
+  form,
+  max,
+  min,
+  required,
+  schema,
+  submit,
+  validate,
+} from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
@@ -37,18 +52,57 @@ export interface PlantFormData {
   readonly store: InstanceType<typeof GardenDetailStore>;
 }
 
+/** What the form edits. A number field the user empties reads as null, which `required` refuses. */
+export interface PlantModel {
+  plantName: string;
+  species: string;
+  plantType: Plant['plantType'];
+  plantationDate: Date | null;
+  surfaceAreaRequired: number | null;
+  idealHumidityLevel: number;
+}
+
 /**
- * Create/edit plant dialog — the validation showcase:
- * - rules mirror plant.schema.ts 1:1 (required fields, humidity 0–100, area ≥ 0)
- * - live remaining-capacity meter reacts to the surface-area field
- * - the overcrowding rule runs client-side for instant feedback, while the
- *   server verdict stays authoritative and renders inline on 400
+ * Every rule the form knows. Mirrors apps/api/src/app/schemas/plant.schema.ts
+ * — change together. The capacity rule is here too, as a validator on the
+ * area field: the client-side mirror of the server's verdict, which stays
+ * authoritative and renders inline when it arrives.
+ */
+const plantSchema = (data: PlantFormData, formatArea: (m2: number) => string) =>
+  schema<PlantModel>((p) => {
+    required(p.plantName, { message: $localize`Plant name is required` });
+    required(p.species, { message: $localize`Species is required` });
+    required(p.plantType);
+    required(p.plantationDate, { message: $localize`Plantation date is required` });
+    required(p.surfaceAreaRequired, { message: $localize`Surface area is required` });
+    min(p.surfaceAreaRequired, 0, { message: $localize`Surface area can't be negative` });
+    validate(p.surfaceAreaRequired, ({ value }) => {
+      const requested = value() ?? 0;
+      if (!wouldOvercrowd(data.garden, data.plants, requested, data.plant?.plantId)) {
+        return undefined;
+      }
+      const available = remainingCapacity(data.garden, data.plants, data.plant?.plantId);
+      return {
+        kind: 'overcrowded',
+        message: $localize`This plant requires ${formatArea(requested)}:required: m², but only ${formatArea(available)}:available: m² is available in this garden.`,
+      };
+    });
+    required(p.idealHumidityLevel);
+    min(p.idealHumidityLevel, 0);
+    max(p.idealHumidityLevel, 100);
+  });
+
+/**
+ * Create/edit plant dialog — the validation showcase, on Signal Forms: the
+ * model is a signal, the rules (the capacity rule included) are a schema,
+ * and the live garden-fit meter, the preview and the errors are computeds
+ * over them. The server verdict stays authoritative and renders inline on 400.
  */
 @Component({
   selector: 'app-plant-form-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    ReactiveFormsModule,
+    FormField,
     MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
@@ -66,8 +120,8 @@ export interface PlantFormData {
   styleUrl: './plant-form-dialog.scss',
 })
 export class PlantFormDialog {
-  private readonly fb = inject(NonNullableFormBuilder);
   private readonly ref = inject(MatDialogRef<PlantFormDialog>);
+  private readonly locale = inject(LOCALE_ID);
   protected readonly data = inject<PlantFormData>(MAT_DIALOG_DATA);
 
   protected readonly isEdit = this.data.plant !== null;
@@ -80,35 +134,25 @@ export class PlantFormDialog {
   protected readonly plantTypeLabels = PLANT_TYPE_LABEL;
   protected readonly serverError = signal<string | null>(null);
 
-  // Rules mirror apps/api/src/app/schemas/plant.schema.ts — change together.
-  protected readonly form = this.fb.group({
-    plantName: this.fb.control(this.data.plant?.plantName ?? '', [Validators.required]),
-    species: this.fb.control(this.data.plant?.species ?? '', [Validators.required]),
-    plantType: this.fb.control<Plant['plantType']>(this.data.plant?.plantType ?? 'vegetable', [
-      Validators.required,
-    ]),
-    plantationDate: this.fb.control<Date>(
-      this.data.plant ? fromPlantationDate(this.data.plant.plantationDate) : new Date(),
-      [Validators.required],
-    ),
-    surfaceAreaRequired: this.fb.control(this.data.plant?.surfaceAreaRequired ?? 1, [
-      Validators.required,
-      Validators.min(0),
-    ]),
-    idealHumidityLevel: this.fb.control(this.data.plant?.idealHumidityLevel ?? 50, [
-      Validators.required,
-      Validators.min(0),
-      Validators.max(100),
-    ]),
+  protected readonly model = signal<PlantModel>({
+    plantName: this.data.plant?.plantName ?? '',
+    species: this.data.plant?.species ?? '',
+    plantType: this.data.plant?.plantType ?? 'vegetable',
+    plantationDate: this.data.plant
+      ? fromPlantationDate(this.data.plant.plantationDate)
+      : new Date(),
+    surfaceAreaRequired: this.data.plant?.surfaceAreaRequired ?? 1,
+    idealHumidityLevel: this.data.plant?.idealHumidityLevel ?? 50,
   });
 
-  private readonly requestedArea = toSignal(this.form.controls.surfaceAreaRequired.valueChanges, {
-    initialValue: this.form.controls.surfaceAreaRequired.value,
-  });
+  protected readonly f = form(
+    this.model,
+    plantSchema(this.data, (m2) => formatNumber(m2, this.locale, '1.0-2')),
+  );
 
   /** Convenience quick-picks (product defaults, not botany, not backend rules). */
   protected readonly areaPresets = PLANT_AREA_PRESETS;
-  protected readonly currentArea = this.requestedArea;
+  protected readonly currentArea = computed(() => this.model().surfaceAreaRequired);
 
   // ── Plant discovery: local catalog, ranked for THIS
   // garden; selecting a card prefills — every value stays editable and every
@@ -138,14 +182,15 @@ export class PlantFormDialog {
 
   protected applyPreset(rec: PlantRecommendation): void {
     this.selectedPresetId.set(rec.preset.id);
-    this.form.patchValue({
+    this.model.update((m) => ({
+      ...m,
       plantName: rec.preset.commonName,
       species: rec.preset.scientificName,
       plantType: rec.preset.plantType,
       surfaceAreaRequired: rec.preset.suggestedArea,
       idealHumidityLevel: rec.preset.suggestedHumidity,
-    });
-    this.form.markAsDirty();
+    }));
+    this.f().markAsDirty();
   }
 
   /** The card’s reasons, in words. */
@@ -166,27 +211,17 @@ export class PlantFormDialog {
 
   // ── Live preview: always derived from the ACTUAL form values, so custom
   // plants get the same treatment as catalog picks (generic artwork fallback).
-  private readonly nameValue = toSignal(this.form.controls.plantName.valueChanges, {
-    initialValue: this.form.controls.plantName.value,
-  });
-  private readonly speciesValue = toSignal(this.form.controls.species.valueChanges, {
-    initialValue: this.form.controls.species.value,
-  });
-  private readonly typeValue = toSignal(this.form.controls.plantType.valueChanges, {
-    initialValue: this.form.controls.plantType.value,
-  });
-
   protected readonly previewPlant = computed(() => ({
     plantId: 0,
-    plantName: this.nameValue() || $localize`New plant`,
-    species: this.speciesValue() || '',
-    plantType: this.typeValue(),
+    plantName: this.model().plantName || $localize`New plant`,
+    species: this.model().species,
+    plantType: this.model().plantType,
   }));
 
-  /** Writes through the control — the overcrowding check still applies live. */
+  /** Writes through the field — the overcrowding rule still applies live. */
   protected applyAreaPreset(value: number): void {
-    this.form.controls.surfaceAreaRequired.setValue(value);
-    this.form.controls.surfaceAreaRequired.markAsDirty();
+    this.f.surfaceAreaRequired().value.set(value);
+    this.f.surfaceAreaRequired().markAsDirty();
   }
 
   /** m² the rest of the garden leaves for this plant (self excluded on edit). */
@@ -194,58 +229,71 @@ export class PlantFormDialog {
     remainingCapacity(this.data.garden, this.data.plants, this.data.plant?.plantId),
   );
 
-  /** Live client-side mirror of the server's overcrowding rule. */
-  protected readonly overcrowds = computed(() =>
-    wouldOvercrowd(
-      this.data.garden,
-      this.data.plants,
-      this.requestedArea() ?? 0,
-      this.data.plant?.plantId,
-    ),
+  /** The capacity rule's verdict on what the form asks for, from the schema. */
+  protected readonly overcrowdedMessage = computed(
+    () => this.f.surfaceAreaRequired().getError('overcrowded')?.message ?? null,
   );
+  protected readonly overcrowds = computed(() => this.overcrowdedMessage() !== null);
+
+  /** The area field's own error, if any — the capacity verdict has a place of its own. */
+  protected readonly areaError = computed(
+    () =>
+      this.f
+        .surfaceAreaRequired()
+        .errors()
+        .find((e) => e.kind !== 'overcrowded') ?? null,
+  );
+
+  /** What this form currently asks for (never negative for display purposes). */
+  protected readonly requires = computed(() => Math.max(0, this.model().surfaceAreaRequired ?? 0));
 
   /** Occupancy preview: other plants' area + what this form currently asks for. */
   protected readonly previewUsed = computed(() => {
     const others = usedSurfaceArea(
       this.data.plants.filter((p) => p.plantId !== this.data.plant?.plantId),
     );
-    return others + Math.max(0, this.requestedArea() ?? 0);
+    return others + this.requires();
   });
-
-  /** What this form currently asks for (never negative for display purposes). */
-  protected readonly requires = computed(() => Math.max(0, this.requestedArea() ?? 0));
 
   /** m² left in the garden after saving this form as-is (negative = overcrowded). */
   protected readonly remainingAfterSave = computed(() => this.capacityLeft() - this.requires());
 
-  protected async submit(): Promise<void> {
-    this.form.markAllAsTouched();
-    if (this.form.invalid || this.overcrowds() || this.data.store.saving()) {
-      return;
-    }
+  protected onSubmit(event: Event): void {
+    event.preventDefault();
+    void this.submit();
+  }
+
+  /**
+   * `submit()` marks every field touched and runs the action only when the
+   * form is valid — the capacity rule included. The store is single-flight,
+   * so a second submit while one is in flight joins it.
+   */
+  protected submit(): Promise<boolean> {
     this.serverError.set(null);
+    return submit(this.f, async () => {
+      const raw = this.model();
+      const input: PlantInput = {
+        plantName: raw.plantName.trim(),
+        species: raw.species.trim(),
+        plantType: raw.plantType,
+        plantationDate: toPlantationDate(raw.plantationDate ?? new Date()),
+        surfaceAreaRequired: raw.surfaceAreaRequired ?? 0,
+        idealHumidityLevel: raw.idealHumidityLevel,
+        gardenId: this.data.garden.gardenId,
+      };
 
-    const raw = this.form.getRawValue();
-    const input: PlantInput = {
-      plantName: raw.plantName.trim(),
-      species: raw.species.trim(),
-      plantType: raw.plantType,
-      plantationDate: toPlantationDate(raw.plantationDate),
-      surfaceAreaRequired: raw.surfaceAreaRequired,
-      idealHumidityLevel: raw.idealHumidityLevel,
-      gardenId: this.data.garden.gardenId,
-    };
+      const existing = this.data.plant;
+      const result = existing
+        ? await this.data.store.updatePlant(existing.plantId, input)
+        : await this.data.store.createPlant(input);
 
-    const existing = this.data.plant;
-    const result = existing
-      ? await this.data.store.updatePlant(existing.plantId, input)
-      : await this.data.store.createPlant(input);
-
-    if (result.ok) {
-      this.ref.close(true);
-    } else if (result.error.kind !== 'technical') {
-      // The server verdict is authoritative — render it inline, verbatim.
-      this.serverError.set(result.error.message);
-    }
+      if (result.ok) {
+        this.ref.close(true);
+      } else if (result.error.kind !== 'technical') {
+        // The server verdict is authoritative — render it inline, verbatim.
+        this.serverError.set(result.error.message);
+      }
+      return undefined;
+    });
   }
 }

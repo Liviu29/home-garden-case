@@ -1,7 +1,17 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  FormField,
+  form,
+  max,
+  maxLength,
+  min,
+  required,
+  schema,
+  submit,
+  validate,
+  validateTree,
+} from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -24,16 +34,58 @@ interface GardenFormData {
   readonly garden: Garden | null;
 }
 
+/** What the form edits. A number field the user empties reads as null, which `required` refuses. */
+export interface GardenModel {
+  gardenName: string;
+  totalSurfaceArea: number | null;
+  targetHumidityLevel: number;
+  locationDescription: string;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+/** Every rule the form knows. Mirrors apps/api/src/app/schemas/garden.schema.ts — change together. */
+const gardenSchema = schema<GardenModel>((g) => {
+  required(g.gardenName, { message: $localize`Garden name is required` });
+  maxLength(g.gardenName, 80);
+  // Spaces alone are not a name; the input is trimmed on submit.
+  validate(g.gardenName, ({ value }) =>
+    value().length > 0 && value().trim().length === 0
+      ? { kind: 'whitespace', message: $localize`Garden name is required` }
+      : undefined,
+  );
+  required(g.totalSurfaceArea, { message: $localize`Surface area is required` });
+  min(g.totalSurfaceArea, 0, { message: $localize`Surface area can't be negative` });
+  required(g.targetHumidityLevel);
+  min(g.targetHumidityLevel, 0);
+  max(g.targetHumidityLevel, 100);
+  min(g.latitude, -90, { message: $localize`Between −90 and 90` });
+  max(g.latitude, 90, { message: $localize`Between −90 and 90` });
+  min(g.longitude, -180, { message: $localize`Between −180 and 180` });
+  max(g.longitude, 180, { message: $localize`Between −180 and 180` });
+  // The backend's refine: both coordinates, or neither — a rule of the whole form.
+  validateTree(g, ({ value }) => {
+    const { latitude, longitude } = value();
+    return (latitude === null) === (longitude === null)
+      ? undefined
+      : {
+          kind: 'coordinatesTogether',
+          message: $localize`Provide both latitude and longitude, or leave both empty.`,
+        };
+  });
+});
+
 /**
- * Create/edit garden dialog. Validation mirrors the backend contract exactly
- * (garden.schema.ts): name required, area ≥ 0, humidity 0–100, lat/lng
- * together-or-neither. Server verdicts render inline.
+ * Create/edit garden dialog, on Signal Forms: the model is a signal, the
+ * rules are a schema, and everything the screen derives — the live shrink
+ * warning, the preset highlights, the errors — is a computed over them.
+ * Server verdicts render inline.
  */
 @Component({
   selector: 'app-garden-form-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    ReactiveFormsModule,
+    FormField,
     MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
@@ -46,7 +98,6 @@ interface GardenFormData {
   styleUrl: './garden-form-dialog.scss',
 })
 export class GardenFormDialog {
-  private readonly fb = inject(NonNullableFormBuilder);
   private readonly ref = inject(MatDialogRef<GardenFormDialog>);
   private readonly data = inject<GardenFormData>(MAT_DIALOG_DATA);
   protected readonly store = inject(GardensStore);
@@ -71,59 +122,40 @@ export class GardenFormDialog {
     }
   }
 
-  // Rules mirror apps/api/src/app/schemas/garden.schema.ts — change together.
-  protected readonly form = this.fb.group(
-    {
-      gardenName: this.fb.control(this.data.garden?.gardenName ?? '', [
-        Validators.required,
-        noWhitespaceOnly,
-      ]),
-      totalSurfaceArea: this.fb.control(this.data.garden?.totalSurfaceArea ?? 20, [
-        Validators.required,
-        Validators.min(0),
-      ]),
-      targetHumidityLevel: this.fb.control(this.data.garden?.targetHumidityLevel ?? 50, [
-        Validators.required,
-        Validators.min(0),
-        Validators.max(100),
-      ]),
-      locationDescription: this.fb.control(this.data.garden?.locationDescription ?? ''),
-      latitude: this.fb.control<number | null>(this.data.garden?.latitude ?? null, [
-        Validators.min(-90),
-        Validators.max(90),
-      ]),
-      longitude: this.fb.control<number | null>(this.data.garden?.longitude ?? null, [
-        Validators.min(-180),
-        Validators.max(180),
-      ]),
-    },
-    { validators: [coordinatesTogether] },
-  );
-
-  private readonly totalAreaValue = toSignal(this.form.controls.totalSurfaceArea.valueChanges, {
-    initialValue: this.form.controls.totalSurfaceArea.value,
+  protected readonly model = signal<GardenModel>({
+    gardenName: this.data.garden?.gardenName ?? '',
+    totalSurfaceArea: this.data.garden?.totalSurfaceArea ?? 20,
+    targetHumidityLevel: this.data.garden?.targetHumidityLevel ?? 50,
+    locationDescription: this.data.garden?.locationDescription ?? '',
+    latitude: this.data.garden?.latitude ?? null,
+    longitude: this.data.garden?.longitude ?? null,
   });
+
+  protected readonly f = form(this.model, gardenSchema);
 
   // ── Quick presets (product defaults, not backend rules) ──────────────────
   protected readonly sizePresets = GARDEN_SIZE_PRESETS;
   protected readonly humidityPresets = TARGET_HUMIDITY_PRESETS;
 
-  protected readonly currentArea = this.totalAreaValue;
-  protected readonly currentHumidity = toSignal(
-    this.form.controls.targetHumidityLevel.valueChanges,
-    { initialValue: this.form.controls.targetHumidityLevel.value },
-  );
+  protected readonly currentArea = computed(() => this.model().totalSurfaceArea);
+  protected readonly currentHumidity = computed(() => this.model().targetHumidityLevel);
 
-  /** Writes through the form control, so every validator still applies. */
+  /** Writes through the field, so every rule still applies. */
   protected applyAreaPreset(value: number): void {
-    this.form.controls.totalSurfaceArea.setValue(value);
-    this.form.controls.totalSurfaceArea.markAsDirty();
+    this.f.totalSurfaceArea().value.set(value);
+    this.f.totalSurfaceArea().markAsDirty();
   }
 
   protected applyHumidityPreset(value: number): void {
-    this.form.controls.targetHumidityLevel.setValue(value);
-    this.form.controls.targetHumidityLevel.markAsDirty();
+    this.f.targetHumidityLevel().value.set(value);
+    this.f.targetHumidityLevel().markAsDirty();
   }
+
+  /** The form-wide coordinates rule, once either coordinate has been touched. */
+  protected readonly coordinatesError = computed(() => {
+    const touched = this.f.latitude().touched() || this.f.longitude().touched();
+    return touched ? (this.f().getError('coordinatesTogether')?.message ?? null) : null;
+  });
 
   /** m² this garden's plants currently use; null while unknown (plants not loaded). */
   protected readonly usedArea = computed<number | null>(() => {
@@ -146,51 +178,44 @@ export class GardenFormDialog {
       return false;
     }
     const plants = this.plantsIndex.byGarden()[existing.gardenId] ?? [];
-    return wouldShrinkBelowUsed(plants, this.totalAreaValue() ?? 0);
+    return wouldShrinkBelowUsed(plants, this.model().totalSurfaceArea ?? 0);
   });
 
-  protected async submit(): Promise<void> {
-    this.form.markAllAsTouched();
-    if (this.form.invalid || this.store.saving()) {
-      return;
-    }
-    this.serverError.set(null);
-
-    const raw = this.form.getRawValue();
-    const input: GardenInput = {
-      gardenName: raw.gardenName.trim(),
-      totalSurfaceArea: raw.totalSurfaceArea,
-      targetHumidityLevel: raw.targetHumidityLevel,
-      locationDescription: raw.locationDescription.trim() || null,
-      latitude: raw.latitude,
-      longitude: raw.longitude,
-    };
-
-    const existing = this.data.garden;
-    const result = existing
-      ? await this.store.update(existing.gardenId, input)
-      : await this.store.create(input);
-
-    if (result.ok) {
-      this.ref.close(true);
-    } else if (result.error.kind !== 'technical') {
-      this.serverError.set(result.error.message);
-    }
+  protected onSubmit(event: Event): void {
+    event.preventDefault();
+    void this.submit();
   }
-}
 
-function noWhitespaceOnly(control: { value: string }): { whitespace: true } | null {
-  return control.value.trim().length === 0 && control.value.length > 0
-    ? { whitespace: true }
-    : null;
-}
+  /**
+   * `submit()` marks every field touched and runs the action only when the
+   * form is valid. The store is single-flight, so a second submit while one
+   * is in flight joins it.
+   */
+  protected submit(): Promise<boolean> {
+    this.serverError.set(null);
+    return submit(this.f, async () => {
+      const raw = this.model();
+      const input: GardenInput = {
+        gardenName: raw.gardenName.trim(),
+        totalSurfaceArea: raw.totalSurfaceArea ?? 0,
+        targetHumidityLevel: raw.targetHumidityLevel,
+        locationDescription: raw.locationDescription.trim() || null,
+        latitude: raw.latitude,
+        longitude: raw.longitude,
+      };
 
-/** Mirrors the backend's refine: both coordinates or neither. */
-function coordinatesTogether(group: {
-  value: { latitude?: number | null; longitude?: number | null };
-}): { coordinatesTogether: true } | null {
-  const { latitude, longitude } = group.value;
-  const hasLat = latitude !== null && latitude !== undefined;
-  const hasLng = longitude !== null && longitude !== undefined;
-  return hasLat === hasLng ? null : { coordinatesTogether: true };
+      const existing = this.data.garden;
+      const result = existing
+        ? await this.store.update(existing.gardenId, input)
+        : await this.store.create(input);
+
+      if (result.ok) {
+        this.ref.close(true);
+      } else if (result.error.kind !== 'technical') {
+        // The server verdict is authoritative — render it inline, verbatim.
+        this.serverError.set(result.error.message);
+      }
+      return undefined;
+    });
+  }
 }
