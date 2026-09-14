@@ -236,8 +236,8 @@ Coverage follows risk: the most tests sit where a bug would hurt most.
 | Playwright, integration   | the core flows against the real slow, flaky API — retry layer included                                                      | Playwright          |
 | UI kit                    | every shared component in its states, each story scanned by axe in isolation                                                | Storybook + axe     |
 
-Supporting numbers: 933 web and 38 API Vitest tests; 77 mocked and 6 integration Playwright tests,
-plus a WebKit smoke run in CI; 34 Storybook stories scanned by axe; a 95% threshold on statements,
+Supporting numbers: 936 web and 38 API Vitest tests; 77 mocked and 6 integration Playwright tests,
+plus a WebKit smoke run in CI; 43 Storybook stories scanned by axe; a 95% threshold on statements,
 branches, functions and lines.
 
 The e2e suite starts its own API and dev server with a fresh database per run, so it never writes
