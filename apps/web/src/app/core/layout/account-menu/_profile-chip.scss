@@ -1,0 +1,43 @@
+// The profile chip in the topbar — initials in a gradient disc, the name
+// beside it. Shared by the account menu's trigger and the shell's
+// placeholder for it, so the chip looks the same before and after the
+// menu's chunk arrives.
+@mixin profile-chip {
+  .profile {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+    border-radius: var(--radius-pill);
+    padding: var(--sp-1) var(--sp-3) var(--sp-1) var(--sp-1);
+    font: inherit;
+    color: var(--text-2);
+  }
+
+  button.profile {
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--border-strong);
+    }
+  }
+
+  .avatar {
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    background: var(--gradient-hero);
+    color: var(--text-on-dark);
+    font-size: 0.6875rem;
+    font-weight: 700;
+  }
+
+  @media (max-width: 640px) {
+    .profile-name {
+      display: none;
+    }
+  }
+}

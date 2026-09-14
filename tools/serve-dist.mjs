@@ -93,6 +93,21 @@ function proxy(req, res, url) {
   req.pipe(proxied);
 }
 
+/** Angular hashes its bundles (`main-6L6GNWEQ.js`, `chunk-DunDG0z_.js`, `styles-….css`). */
+const HASHED_BUNDLE = /-[A-Za-z0-9_-]{8}\.(js|css)$/;
+
+/**
+ * Hashed bundles are immutable. Media and assets keep their names (so the
+ * fonts can be preloaded from index.html) and are cached for a day; index.html
+ * must never be cached.
+ */
+function cacheControl(file) {
+  if (file.endsWith('index.html')) {
+    return 'no-cache';
+  }
+  return HASHED_BUNDLE.test(file) ? 'public, max-age=31536000, immutable' : 'public, max-age=86400';
+}
+
 /** A file under `base`, or that folder's index.html (the SPA fallback). */
 function serveFrom(base, pathname, res) {
   // Contain path traversal before touching the filesystem.
@@ -105,10 +120,7 @@ function serveFrom(base, pathname, res) {
 
   res.writeHead(200, {
     'content-type': MIME[extname(file)] ?? 'application/octet-stream',
-    // Hashed assets are immutable; index.html must never be cached.
-    'cache-control': file.endsWith('index.html')
-      ? 'no-cache'
-      : 'public, max-age=31536000, immutable',
+    'cache-control': cacheControl(file),
   });
   createReadStream(file).pipe(res);
 }

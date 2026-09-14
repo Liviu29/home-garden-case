@@ -274,8 +274,12 @@ Zoneless + OnPush + signals: change detection runs only where a signal changed. 
 lazy chunk, and the planner ships in its own `@defer (on viewport; prefetch on idle)` chunk behind a
 dimension-matched ghost; the two charts load the same way, and the Highcharts library is imported only
 when one scrolls into view ([ADR-008](../adr/ADR-008-charts-highcharts.md)). Skeletons reserve the final layout, bars and gauges animate `transform`
-only, fonts are self-hosted, and `angular.json` budgets fail the build on regression. Measurements
-and the cache design: [PERFORMANCE-AND-CACHING.md](./PERFORMANCE-AND-CACHING.md).
+only, fonts are self-hosted with the two latin faces preloaded from `index.html`, and the app
+shell imports no Material: its one Material control, the account menu, is a `@defer (on idle)`
+block behind a placeholder that is the same chip. `angular.json` budgets — the initial bundle and
+each named chunk — fail the build on regression, and CI diffs every chunk against a committed
+baseline (`npm run bundle:check`). Measurements and the cache design:
+[PERFORMANCE-AND-CACHING.md](./PERFORMANCE-AND-CACHING.md).
 
 ## 7. The Garden Planner
 

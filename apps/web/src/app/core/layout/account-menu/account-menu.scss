@@ -1,0 +1,7 @@
+@use './profile-chip';
+
+:host {
+  display: contents;
+}
+
+@include profile-chip.profile-chip;

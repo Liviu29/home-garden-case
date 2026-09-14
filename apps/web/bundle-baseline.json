@@ -1,0 +1,56 @@
+{
+  "initial": {
+    "raw": 381310,
+    "gzip": 121444
+  },
+  "chunks": {
+    "accessibility": {
+      "raw": 137161,
+      "gzip": 40130
+    },
+    "account-menu": {
+      "raw": 3917,
+      "gzip": 1757
+    },
+    "browser": {
+      "raw": 67957,
+      "gzip": 19837
+    },
+    "chart": {
+      "raw": 1955,
+      "gzip": 1041
+    },
+    "dashboard": {
+      "raw": 54266,
+      "gzip": 14868
+    },
+    "garden-detail": {
+      "raw": 195185,
+      "gzip": 48364
+    },
+    "garden-list": {
+      "raw": 16441,
+      "gzip": 5638
+    },
+    "garden-map": {
+      "raw": 97575,
+      "gzip": 25983
+    },
+    "onboarding": {
+      "raw": 21888,
+      "gzip": 6849
+    },
+    "profile-dialog": {
+      "raw": 5252,
+      "gzip": 2245
+    },
+    "variwide": {
+      "raw": 4043,
+      "gzip": 1859
+    },
+    "web-vitals": {
+      "raw": 2084,
+      "gzip": 1121
+    }
+  }
+}

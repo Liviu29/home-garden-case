@@ -42,16 +42,47 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "520kB",
-                  "maximumError": "600kB"
+                  "maximumWarning": "420kB",
+                  "maximumError": "480kB"
                 },
                 {
                   "type": "anyComponentStyle",
                   "maximumWarning": "12kB",
                   "maximumError": "16kB"
+                },
+                {
+                  "type": "bundle",
+                  "name": "dashboard",
+                  "maximumWarning": "65kB",
+                  "maximumError": "80kB"
+                },
+                {
+                  "type": "bundle",
+                  "name": "garden-list",
+                  "maximumWarning": "25kB",
+                  "maximumError": "35kB"
+                },
+                {
+                  "type": "bundle",
+                  "name": "garden-detail",
+                  "maximumWarning": "210kB",
+                  "maximumError": "250kB"
+                },
+                {
+                  "type": "bundle",
+                  "name": "garden-map",
+                  "maximumWarning": "110kB",
+                  "maximumError": "130kB"
+                },
+                {
+                  "type": "bundle",
+                  "name": "onboarding",
+                  "maximumWarning": "30kB",
+                  "maximumError": "40kB"
                 }
               ],
-              "outputHashing": "all",
+              "outputHashing": "bundles",
+              "statsJson": true,
               "optimization": true,
               "sourceMap": false,
               "extractLicenses": true,

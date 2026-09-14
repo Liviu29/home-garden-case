@@ -254,8 +254,10 @@ request it did not mock. CI runs all of it on every push and pull request.
 - **Fewer requests** — a 30-second stale-while-revalidate cache serves repeat visits with zero
   requests, identical in-flight reads collapse into one, hovering a garden card prefetches its
   detail, and the dashboard reads every garden's plants with a single `GET /plants`.
-- **Less code up front** — about 133 kB of JavaScript transferred on first load (gzip). Every route
-  is lazy, and budgets in `angular.json` fail the build on regression.
+- **Less code up front** — about 107 kB of JavaScript transferred on first load (gzip). Every route
+  is lazy, the app shell carries no Material (its account menu is a deferred block), budgets in
+  `angular.json` fail the build on regression — the initial bundle and each named chunk — and CI
+  diffs every chunk against a committed baseline.
 - **Charts on demand** — Highcharts (about 127 kB transferred) is never in the initial bundle: the
   two screens with a chart fetch it while the browser is idle
   ([ADR-008](docs/adr/ADR-008-charts-highcharts.md)).
@@ -350,6 +352,8 @@ dated from the day of the seed.
 | `npm run test:e2e`          | Playwright, mocked and integration (starts its own API and web app)                                |
 | `npm run build`             | production builds of api and web, with bundle budgets                                              |
 | `npm run check:no-spinners` | fails if a spinner appears anywhere in the app                                                     |
+| `npm run bundle:check`      | after a build: every chunk diffed against `apps/web/bundle-baseline.json`, fails past tolerance    |
+| `npm run bundle:baseline`   | accepts the current sizes as the new baseline (commit it, and say why the bundle grew)             |
 | `npm run seed`              | adds the demo profiles and gardens (the API must be running)                                       |
 | `npm run seed:reset`        | removes the demo data, then adds it again                                                          |
 | `npm run demo`              | the production build, as the demo container runs it, on http://localhost:8080 with fresh demo data |

@@ -35,6 +35,9 @@ jobs:
       - name: Production build (bundle budgets enforced)
         run: npm run build
 
+      - name: Bundle diff against the committed baseline
+        run: npm run bundle:check
+
       - name: Spinner ban
         run: npm run check:no-spinners
 

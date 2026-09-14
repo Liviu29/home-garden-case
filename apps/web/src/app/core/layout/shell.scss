@@ -1,0 +1,216 @@
+@use './account-menu/profile-chip';
+
+.shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  // Own stacking context: the page backdrop (z-index -1) paints beneath
+  // the content but never beneath the page itself.
+  position: relative;
+  isolation: isolate;
+}
+
+// ── Page backdrop: the case brief's garden photo ─────────────────────────
+// In flow after <main>, pulled up under its bottom padding. A gradient MASK
+// (not a colour overlay) fades it into whatever page colour is behind it,
+// so the same photo sits right on the light theme and the dark one.
+.page-backdrop {
+  position: relative;
+  z-index: -1;
+  height: clamp(14rem, 30vw, 26rem);
+  margin-top: calc(-1 * var(--sp-16));
+  overflow: hidden;
+  pointer-events: none;
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 62%;
+    mask-image: linear-gradient(to bottom, transparent 0%, rgb(0 0 0 / 0.4) 38%, #000 88%);
+  }
+}
+
+:host-context([data-theme='dark']) .page-backdrop img {
+  filter: brightness(0.72) saturate(0.9);
+}
+
+// Visible only on keyboard focus (ACCESSIBILITY.md)
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: var(--sp-4);
+  z-index: 200;
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--surface-inverse);
+  color: var(--text-on-inverse);
+  border-radius: 0 0 var(--radius-s) var(--radius-s);
+  font-weight: 600;
+  text-decoration: none;
+
+  &:focus-visible {
+    top: 0;
+  }
+}
+
+.content:focus {
+  outline: none;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: 0 var(--sp-6);
+  height: 3.75rem;
+  background: var(--topbar-glass);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text-1);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: none;
+  }
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 1.875rem;
+  height: 1.875rem;
+  border-radius: var(--radius-s);
+  background: var(--gradient-brand);
+  color: white;
+}
+
+.nav {
+  display: flex;
+  gap: var(--sp-6);
+  flex: 1;
+
+  a {
+    position: relative;
+    color: var(--text-2);
+    font-weight: 550;
+    padding-block: 1.125rem;
+    text-decoration: none;
+
+    // Active-route underline: grows with a transform (not by animating
+    // the right offset), so navigating never re-lays out the bar.
+    &::after {
+      content: '';
+      position: absolute;
+      inset-inline: 0;
+      bottom: 0;
+      height: 2px;
+      background: var(--gradient-brand);
+      transform: scaleX(0);
+      transform-origin: left center;
+      transition: transform var(--dur-base) var(--ease-out);
+    }
+
+    &:hover {
+      color: var(--text-1);
+    }
+
+    &.active {
+      color: var(--text-1);
+
+      &::after {
+        transform: scaleX(1);
+      }
+    }
+  }
+}
+
+// EN | NL: the current language solid, the other a quiet link
+.lang {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-1);
+
+  a {
+    padding: 0.2rem 0.55rem;
+    border-radius: var(--radius-pill);
+    font-size: var(--fs-caption);
+    font-weight: 650;
+    color: var(--text-2);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--text-1);
+    }
+
+    &[aria-current='true'] {
+      background: var(--surface-inverse);
+      color: var(--text-on-inverse);
+    }
+  }
+}
+
+.theme-toggle {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  border-radius: 50%;
+  color: var(--text-2);
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--border-strong);
+    color: var(--text-1);
+  }
+}
+
+// The account menu's placeholder is the same chip, until the menu arrives.
+@include profile-chip.profile-chip;
+
+.content {
+  flex: 1;
+  // 80rem (1280px): large desktops get real information density — the
+  // dashboard control center and the garden planner both earn the width.
+  width: min(80rem, 100% - var(--sp-8));
+  margin-inline: auto;
+  padding-bottom: var(--sp-16);
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    gap: var(--sp-4);
+  }
+}
+
+// 360px-class phones: logo mark only, tighter rhythm (responsive audit)
+@media (max-width: 480px) {
+  .topbar {
+    gap: var(--sp-3);
+    padding: 0 var(--sp-4);
+  }
+
+  .brand .name {
+    display: none;
+  }
+
+  .nav {
+    gap: var(--sp-4);
+  }
+}
