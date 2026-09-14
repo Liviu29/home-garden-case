@@ -122,7 +122,10 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      command: `npx nx dev web --port=${WEB_PORT} --proxy-config=proxy.e2e.conf.mjs`,
+      // No dependency pre-bundling: Vite would otherwise discover a lazily
+      // imported dependency at runtime, re-optimise and reload the page under
+      // a test — a chunk fetch then fails once per fresh cache.
+      command: `npx nx dev web --port=${WEB_PORT} --proxy-config=proxy.e2e.conf.mjs --prebundle=false`,
       url: `http://localhost:${WEB_PORT}`,
       cwd: '../..',
       env: { E2E_API_PORT: String(API_PORT) },
@@ -132,7 +135,7 @@ export default defineConfig({
     {
       // The same app compiled in Dutch: the development server serves one
       // language at `/` (ADR-010), so the Dutch build gets a server of its own.
-      command: `npx nx serve-nl web --port=${NL_PORT} --proxy-config=proxy.e2e.conf.mjs`,
+      command: `npx nx serve-nl web --port=${NL_PORT} --proxy-config=proxy.e2e.conf.mjs --prebundle=false`,
       url: `http://localhost:${NL_PORT}`,
       cwd: '../..',
       env: { E2E_API_PORT: String(API_PORT) },

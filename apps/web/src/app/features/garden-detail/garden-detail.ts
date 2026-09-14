@@ -551,6 +551,17 @@ export class GardenDetail {
     );
   }
 
+  /**
+   * Escape in the panel's search field — where fullscreen opens, outside the
+   * map — leaves fullscreen. Inside the map, the map's own cascade (layers →
+   * timeline → list → fullscreen → selection) decides what Escape means.
+   */
+  protected leaveFullscreen(): void {
+    if (this.plannerFullscreen()) {
+      this.toggleFullscreen();
+    }
+  }
+
   /** Fullscreen search: Enter focuses the first matching plant. */
   protected focusSearchMatch(): void {
     const q = this.plannerQuery().trim().toLowerCase();

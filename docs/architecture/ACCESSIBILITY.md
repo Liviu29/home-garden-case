@@ -26,7 +26,7 @@ Target: WCAG 2.2 AA. Accessibility here is architecture, not garnish — the sam
 
 - Skip-to-content link as the first focusable element of every page, visible on keyboard focus, jumping to `#main-content`.
 - **Focus follows navigation.** After a route change, focus moves to the new page's `main` (`tabindex="-1"`, no ring — a landmark, not a control), so a keyboard or screen-reader user starts the new page at its content instead of wherever focus was left on the old one. The page load itself is left alone: a document starts at its top. (`app.ts`, asserted in `app.spec.ts`.)
-- **The fullscreen planner behaves like a dialog.** It traps focus (`cdkTrapFocus`), opens on its search field, returns focus to the control that opened it, and gives the page its scroll back even when the screen is left while the planner is still fullscreen.
+- **The fullscreen planner behaves like a dialog.** It traps focus (`cdkTrapFocus`), opens on its search field, leaves on Escape from that field as from the map, returns focus to the control that opened it, and gives the page its scroll back even when the screen is left while the planner is still fullscreen.
 - Everything interactive is a native `button`/`a` — no clickable divs. Focus is never trapped except in dialogs, where Material CDK manages containment and restore; `cdkFocusInitial` lands on the primary action.
 - Visible focus everywhere: a global `:focus-visible` ring (2px brand ring with offset) that no component removes.
 

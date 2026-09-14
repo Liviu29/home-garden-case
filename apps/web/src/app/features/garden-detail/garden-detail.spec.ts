@@ -444,6 +444,31 @@ describe('GardenDetail', () => {
       expect(anchors().every((a) => !a.hasAttribute('tabindex'))).toBe(true);
     });
 
+    it('Escape in the panel’s search leaves fullscreen; inside the map, the map decides', async () => {
+      const { vm, store, fixture, el } = render();
+      await settled(store);
+      fixture.detectChanges();
+      const escape = (target: Element) =>
+        target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+
+      vm.toggleFullscreen();
+      fixture.detectChanges();
+      escape(el.querySelector('.planner-search')!);
+      fixture.detectChanges();
+      expect(vm.plannerFullscreen()).toBe(false);
+
+      // From inside the map the event is the map's (its own cascade decides
+      // what Escape means there); the panel leaves it alone.
+      vm.toggleFullscreen();
+      fixture.detectChanges();
+      const blocks = await fixture.getDeferBlocks();
+      await blocks[0].render(DeferBlockState.Complete);
+      fixture.detectChanges();
+      escape(el.querySelector('app-garden-map')!);
+      fixture.detectChanges();
+      expect(vm.plannerFullscreen()).toBe(true);
+    });
+
     it('moves focus into the search when it opens, and back to the opener when it closes', async () => {
       const { vm, store, fixture, el } = render();
       await settled(store);

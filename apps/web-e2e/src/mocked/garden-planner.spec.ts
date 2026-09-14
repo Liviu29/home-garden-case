@@ -202,6 +202,12 @@ test.describe('fullscreen planner + layers', () => {
     // focus is trapped inside (the CDK's anchors are live while it is).
     await expect(page.getByRole('searchbox', { name: 'Find a plant on the plan' })).toBeFocused();
     await expect(page.locator('.cdk-focus-trap-anchor[tabindex="0"]')).toHaveCount(2);
+    // Escape from the search field leaves fullscreen and hands focus back to
+    // the opener; Expand brings it back for the rest of the tour.
+    await page.keyboard.press('Escape');
+    await expect(map.getByRole('button', { name: 'Expand planner' })).toBeFocused();
+    await map.getByRole('button', { name: 'Expand planner' }).click();
+    await expect(page.locator('.cdk-focus-trap-anchor[tabindex="0"]')).toHaveCount(2);
 
     // Layers: hiding labels removes the name plates from the scene
     await map.getByRole('button', { name: 'Toggle layers menu' }).click();

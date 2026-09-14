@@ -280,6 +280,7 @@
               [value]="plannerQuery()"
               (input)="onPlannerQueryInput($event)"
               (keydown.enter)="focusSearchMatch()"
+              (keydown.escape)="leaveFullscreen()"
             />
           } @else {
             <div class="panel-actions">
