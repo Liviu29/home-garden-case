@@ -79,3 +79,32 @@ jobs:
           name: playwright-report
           path: apps/web-e2e/playwright-report
           if-no-files-found: ignore
+
+  image:
+    name: Demo image (built and started, not pushed)
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the image
+        run: docker build -t home-garden:ci .
+
+      - name: Start it and check both languages, the API and the demo data
+        run: |
+          docker run -d --name demo -p 8080:8080 home-garden:ci
+          for i in $(seq 1 60); do curl -fsS http://localhost:8080/en/ > /dev/null && break; sleep 2; done
+          curl -fsS http://localhost:8080/en/ | grep -q '<html lang="en"'
+          curl -fsS http://localhost:8080/nl/ | grep -q '<html lang="nl"'
+          # The API fails 10% of requests on purpose: poll until the seed has added the profiles.
+          for i in $(seq 1 90); do
+            n=$(curl -fsS http://localhost:8080/api/users 2> /dev/null | grep -o '"userId"' | wc -l || true)
+            if [ "${n:-0}" -ge 3 ]; then echo "demo profiles: $n"; exit 0; fi
+            sleep 2
+          done
+          docker logs demo
+          exit 1
+
+      - name: Container log
+        if: failure()
+        run: docker logs demo || true

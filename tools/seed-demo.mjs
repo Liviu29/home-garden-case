@@ -351,7 +351,12 @@ async function main() {
     console.log(`  + ${garden.gardenName} — ${plants.length} plants, ${who}`);
   }
 
-  console.log('\nDone. Open http://localhost:4200 and pick Liviu, Maya or Tom.');
+  // With SEED_API set (the demo container, a hosted API) the app is not on :4200.
+  console.log(
+    process.env.SEED_API
+      ? '\nDone. Pick Liviu, Maya or Tom on the welcome screen.'
+      : '\nDone. Open http://localhost:4200 and pick Liviu, Maya or Tom.',
+  );
 }
 
 main().catch((error) => {

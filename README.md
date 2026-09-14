@@ -368,7 +368,16 @@ are in [PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md).
 ## Deploying the demo
 
 The repository ships a container image for hosting a live demo: the API and the built SPA in one
-container, with the SPA serving `/api` from the same origin.
+container, with the SPA serving `/api` from the same origin. On boot it adds the demo profiles and
+gardens, so a fresh deploy is ready to explore. CI builds the image and starts it on every push.
+
+**On Render, in a few clicks.** [`render.yaml`](render.yaml) describes the service. Open
+https://render.com/deploy?repo=https://github.com/Liviu29/home-garden-case, sign in with your own
+account and apply the blueprint: Render builds the Dockerfile and gives the demo a public
+`onrender.com` address. The free plan has no persistent disk, so the database starts over on every
+deploy or restart, with the demo data added again — right for a demo.
+
+**Anywhere else that runs a container** (Fly.io, Railway, a VM):
 
 ```bash
 docker build -t home-garden .
@@ -378,11 +387,10 @@ docker build -t home-garden .
 docker run -p 8080:8080 -v home-garden-data:/data home-garden
 ```
 
-Any host that runs a container will do (Render, Fly.io, Railway, a VM). Give it a persistent disk
-at `/data` for the SQLite file, then fill it with the demo data from your machine:
-`SEED_API=https://<your-host>/api npm run seed`. The API keeps its deliberate latency and 10%
-failures, as the case asks; set `API_CHAOS=off` to turn them off. There is no hosted demo yet —
-deploying needs a hosting account.
+With a disk at `/data` the database survives restarts, and the seed only adds what is missing
+(`DEMO_SEED=0` turns it off). The API keeps its deliberate latency and 10% failures, as the case
+asks; set `API_CHAOS=off` to turn them off. There is no hosted demo yet: deploying needs a hosting
+account.
 
 ## Deliberate trade-offs
 

@@ -24,11 +24,12 @@ RUN npx nx run-many -t build -p @itp-home-garden/api web --configuration=product
 RUN cd apps/api/dist && npm ci --omit=dev
 
 FROM node:${NODE_VERSION}-bookworm-slim
-ENV NODE_ENV=production PORT=8080 DB_PATH=/data/db.sqlite
+# DEMO_SEED=1: the demo profiles and gardens are added on boot (tools/start-demo.mjs).
+ENV NODE_ENV=production PORT=8080 DB_PATH=/data/db.sqlite DEMO_SEED=1
 WORKDIR /app
 COPY --from=build /repo/apps/api/dist ./api
 COPY --from=build /repo/apps/web/dist/web/browser ./web
-COPY --from=build /repo/tools/serve-dist.mjs /repo/tools/start-demo.mjs ./tools/
+COPY --from=build /repo/tools/serve-dist.mjs /repo/tools/start-demo.mjs /repo/tools/seed-demo.mjs ./tools/
 RUN mkdir /data && chown node:node /data
 USER node
 VOLUME /data

@@ -83,8 +83,10 @@ and can be `max-age=31536000, immutable`.
 previews the production bundle locally (`node tools/serve-dist.mjs`). The
 `Dockerfile` reuses it for a **demo image**: the built API on loopback and this
 server on `$PORT`, started together by `tools/start-demo.mjs`, with the SQLite
-file on a `/data` volume and the API's pruned production dependencies only. It
-runs on any container host; it is not tied to one platform. A production
+file on a `/data` volume and the API's pruned production dependencies only. On
+boot it adds the demo profiles and gardens (`DEMO_SEED=1`; the seed only adds
+what is missing). It runs on any container host; `render.yaml` deploys it on
+Render's free plan, and CI builds and starts it on every push. A production
 deployment would move the SPA to a CDN and give these rules to its proxy.
 
 ### Recommended security headers (deployment concern)

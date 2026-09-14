@@ -1,0 +1,16 @@
+# A live demo on Render, from this repository's Dockerfile: the API and the
+# built SPA in one web service (docs/PRODUCTION-READINESS.md).
+#
+#   https://render.com/deploy?repo=https://github.com/Liviu29/home-garden-case
+#
+# The free plan has no persistent disk: the SQLite database starts empty on
+# every deploy and restart, and DEMO_SEED=1 (set in the image) adds the demo
+# profiles and gardens each time. Render supplies PORT.
+services:
+  - type: web
+    name: home-garden
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /en/
+    autoDeploy: true
