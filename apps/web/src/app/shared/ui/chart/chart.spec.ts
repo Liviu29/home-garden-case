@@ -52,7 +52,7 @@ describe('Chart (Highcharts on demand)', () => {
     fixture.detectChanges();
 
     const [container, options] = chart.mock.calls[0];
-    expect(container.classList.contains('chart-host')).toBe(true);
+    expect(container.classList.contains('chart__host')).toBe(true);
     expect(options).toEqual({ title: { text: 'First' } });
     expect(el.querySelector('app-skeleton')).toBeNull();
   });

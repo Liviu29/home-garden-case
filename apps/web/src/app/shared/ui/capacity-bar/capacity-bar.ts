@@ -13,51 +13,55 @@ type CapacityLevel = 'ok' | 'warn' | 'full';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [DecimalPipe, PercentPipe],
   template: `
-    <div class="wrap">
+    <div class="capacity-bar">
       @if (showLabel()) {
-        <div class="label">
+        <div class="capacity-bar__label">
           <span>{{ used() | number: '1.0-2' }} / {{ total() | number: '1.0-2' }} m²</span>
-          <span class="pct tabular">{{ ratio() | percent: '1.0-0' }}</span>
+          <span class="capacity-bar__pct tabular">{{ ratio() | percent: '1.0-0' }}</span>
         </div>
       }
       <div
-        class="track"
+        class="capacity-bar__track"
         role="progressbar"
         [attr.aria-valuenow]="usedRounded()"
         [attr.aria-valuemin]="0"
         [attr.aria-valuemax]="total()"
         [attr.aria-label]="surfaceLabel()"
       >
-        <div class="fill" [class]="level()" [style.transform]="'scaleX(' + clamped() + ')'"></div>
+        <div
+          class="capacity-bar__fill"
+          [class]="'capacity-bar__fill--' + level()"
+          [style.transform]="'scaleX(' + clamped() + ')'"
+        ></div>
       </div>
     </div>
   `,
   styles: `
-    .wrap {
+    .capacity-bar {
       display: grid;
       gap: var(--sp-1);
     }
 
-    .label {
+    .capacity-bar__label {
       display: flex;
       justify-content: space-between;
       font-size: var(--fs-caption);
       color: var(--text-2);
     }
 
-    .pct {
+    .capacity-bar__pct {
       font-weight: 600;
       color: var(--text-1);
     }
 
-    .track {
+    .capacity-bar__track {
       height: 0.5rem;
       border-radius: var(--radius-pill);
       background: var(--surface-2);
       overflow: hidden;
     }
 
-    .fill {
+    .capacity-bar__fill {
       height: 100%;
       border-radius: inherit;
       transform-origin: left center;
@@ -68,15 +72,15 @@ type CapacityLevel = 'ok' | 'warn' | 'full';
         transform: scaleX(0) !important;
       }
 
-      &.ok {
+      &.capacity-bar__fill--ok {
         background: var(--gradient-brand);
       }
 
-      &.warn {
+      &.capacity-bar__fill--warn {
         background: linear-gradient(90deg, var(--accent-amber), #f59e0b);
       }
 
-      &.full {
+      &.capacity-bar__fill--full {
         background: linear-gradient(90deg, var(--danger), #ef4444);
       }
     }

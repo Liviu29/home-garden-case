@@ -290,7 +290,7 @@ describe('Dashboard — greeting, KPI edges and insight tones', () => {
       expect(sub.textContent).not.toMatch(/\d+\s+plants?\b/);
       expect(sub.querySelector('.hero-count-ghost')).not.toBeNull();
       // Plants growing and Utilization hold value ghosts — no partial totals.
-      expect(el.querySelectorAll('app-stat-card .value-ghost')).toHaveLength(2);
+      expect(el.querySelectorAll('app-stat-card .stat-card__value--ghost')).toHaveLength(2);
     });
 
     it('shows the real plant count once every list has landed', async () => {

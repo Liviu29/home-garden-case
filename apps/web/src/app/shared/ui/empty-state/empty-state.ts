@@ -9,8 +9,8 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
   selector: 'app-empty-state',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="empty anim-fade-up">
-      <svg class="art" viewBox="0 0 120 120" aria-hidden="true">
+    <div class="empty-state anim-fade-up">
+      <svg class="empty-state__art" viewBox="0 0 120 120" aria-hidden="true">
         <circle cx="60" cy="60" r="52" fill="var(--surface-2)" />
         <path
           d="M60 88 V56"
@@ -28,23 +28,23 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
       </svg>
       @switch (headingLevel()) {
         @case (1) {
-          <h1 class="title">{{ title() }}</h1>
+          <h1 class="empty-state__title">{{ title() }}</h1>
         }
         @case (2) {
-          <h2 class="title">{{ title() }}</h2>
+          <h2 class="empty-state__title">{{ title() }}</h2>
         }
         @default {
-          <h3 class="title">{{ title() }}</h3>
+          <h3 class="empty-state__title">{{ title() }}</h3>
         }
       }
-      <p class="message">{{ message() }}</p>
-      <div class="action">
+      <p class="empty-state__message">{{ message() }}</p>
+      <div class="empty-state__action">
         <ng-content />
       </div>
     </div>
   `,
   styles: `
-    .empty {
+    .empty-state {
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -53,22 +53,22 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
       gap: var(--sp-2);
     }
 
-    .art {
+    .empty-state__art {
       width: 7.5rem;
       height: 7.5rem;
       margin-bottom: var(--sp-2);
     }
 
-    .title {
+    .empty-state__title {
       font-size: var(--fs-h3);
     }
 
-    .message {
+    .empty-state__message {
       color: var(--text-2);
       max-width: 26rem;
     }
 
-    .action {
+    .empty-state__action {
       margin-top: var(--sp-4);
     }
   `,
@@ -77,7 +77,7 @@ export class EmptyState {
   readonly title = input.required<string>();
   readonly message = input<string>('');
   /**
-   * Semantic level only — the visual size is fixed by `.title`, so callers
+   * Semantic level only — the visual size is fixed by `.empty-state__title`, so callers
    * place the heading correctly in the document outline without changing how
    * it looks.
    *

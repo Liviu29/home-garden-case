@@ -20,36 +20,36 @@ export interface ValuePresetOption {
   selector: 'app-value-presets',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="presets" role="group" [attr.aria-label]="label()">
+    <div class="value-presets" role="group" [attr.aria-label]="label()">
       @for (option of options(); track option.value) {
         <button
           type="button"
-          class="preset press-feedback"
-          [class.active]="option.value === value()"
+          class="value-presets__option press-feedback"
+          [class.value-presets__option--active]="option.value === value()"
           [attr.aria-pressed]="option.value === value()"
           (click)="selectedChange.emit(option.value)"
         >
-          <span class="preset-label">
+          <span class="value-presets__label">
             {{ option.label }}
             @if (option.recommended) {
-              <span class="recommended-badge" i18n>Recommended</span>
+              <span class="value-presets__badge" i18n>Recommended</span>
             }
           </span>
           @if (option.description) {
-            <span class="preset-desc">{{ option.description }}</span>
+            <span class="value-presets__desc">{{ option.description }}</span>
           }
         </button>
       }
     </div>
   `,
   styles: `
-    .presets {
+    .value-presets {
       display: flex;
       flex-wrap: wrap;
       gap: var(--sp-2);
     }
 
-    .preset {
+    .value-presets__option {
       display: grid;
       gap: 0.1rem;
       justify-items: start;
@@ -72,13 +72,13 @@ export interface ValuePresetOption {
         box-shadow: var(--focus-ring);
       }
 
-      &.active {
+      &.value-presets__option--active {
         border-color: var(--brand-500);
         background: var(--brand-soft);
       }
     }
 
-    .preset-label {
+    .value-presets__label {
       display: inline-flex;
       align-items: center;
       gap: var(--sp-2);
@@ -86,7 +86,7 @@ export interface ValuePresetOption {
       color: var(--text-1);
     }
 
-    .recommended-badge {
+    .value-presets__badge {
       padding: 0.05rem var(--sp-2);
       border-radius: var(--radius-pill);
       background: var(--brand-soft);
@@ -98,7 +98,7 @@ export interface ValuePresetOption {
       letter-spacing: 0.03em;
     }
 
-    .preset-desc {
+    .value-presets__desc {
       font-size: var(--fs-micro);
       color: var(--text-3);
     }

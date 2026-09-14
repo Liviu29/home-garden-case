@@ -14,13 +14,13 @@ export type StatusTone = 'success' | 'neutral' | 'warning' | 'critical';
 @Component({
   selector: 'app-status-badge',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<span class="chip" [class]="tone()"><ng-content /></span>`,
+  template: `<span class="status-badge" [class]="'status-badge--' + tone()"><ng-content /></span>`,
   styles: `
     :host {
       display: inline-flex;
     }
 
-    .chip {
+    .status-badge {
       display: inline-flex;
       align-items: center;
       font-size: var(--fs-caption);
@@ -30,25 +30,25 @@ export type StatusTone = 'success' | 'neutral' | 'warning' | 'critical';
       white-space: nowrap;
     }
 
-    .success {
+    .status-badge--success {
       background: var(--brand-soft);
       color: var(--brand-700);
       border: 1px solid var(--brand-soft-border);
     }
 
-    .neutral {
+    .status-badge--neutral {
       background: var(--surface-2);
       color: var(--text-2);
       border: 1px solid var(--border-strong);
     }
 
-    .warning {
+    .status-badge--warning {
       background: var(--amber-soft);
       color: var(--accent-amber);
       border: 1px solid color-mix(in srgb, var(--accent-amber) 30%, transparent);
     }
 
-    .critical {
+    .status-badge--critical {
       background: var(--danger-soft);
       color: var(--danger);
       border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);

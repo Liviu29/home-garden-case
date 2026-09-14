@@ -27,7 +27,7 @@ export interface ConfirmDialogData {
   template: `
     <h2 mat-dialog-title>{{ data.title }}</h2>
     <mat-dialog-content>
-      <p class="message">{{ data.message }}</p>
+      <p class="confirm-dialog__message">{{ data.message }}</p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button type="button" matButton mat-dialog-close class="press-feedback" i18n>Cancel</button>
@@ -35,7 +35,7 @@ export interface ConfirmDialogData {
         type="button"
         matButton="filled"
         class="press-feedback"
-        [class.destructive]="data.destructive"
+        [class.confirm-dialog__confirm--destructive]="data.destructive"
         [mat-dialog-close]="true"
         cdkFocusInitial
       >
@@ -44,12 +44,12 @@ export interface ConfirmDialogData {
     </mat-dialog-actions>
   `,
   styles: `
-    .message {
+    .confirm-dialog__message {
       color: var(--text-2);
       max-width: 26rem;
     }
 
-    .destructive {
+    .confirm-dialog__confirm--destructive {
       --mat-sys-primary: var(--danger);
       --mdc-filled-button-container-color: var(--danger);
     }

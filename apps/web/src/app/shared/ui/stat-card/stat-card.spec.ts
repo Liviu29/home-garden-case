@@ -42,7 +42,7 @@ describe('StatCard', () => {
     return { fixture, host: fixture.componentInstance, el: fixture.nativeElement as HTMLElement };
   };
 
-  const fill = (el: HTMLElement) => el.querySelector<HTMLElement>('.strip-fill');
+  const fill = (el: HTMLElement) => el.querySelector<HTMLElement>('.stat-card__strip-fill');
 
   it('renders the label', () => {
     const { el } = render();
@@ -55,7 +55,7 @@ describe('StatCard', () => {
     host.value.set(42);
     fixture.detectChanges();
 
-    expect(el.querySelector('.value')?.textContent?.trim()).toBe('42');
+    expect(el.querySelector('.stat-card__value')?.textContent?.trim()).toBe('42');
   });
 
   it('renders a suffix beside the value', () => {
@@ -65,12 +65,12 @@ describe('StatCard', () => {
     host.suffix.set('%');
     fixture.detectChanges();
 
-    expect(el.querySelector('.value')?.textContent?.trim()).toBe('71%');
+    expect(el.querySelector('.stat-card__value')?.textContent?.trim()).toBe('71%');
   });
 
   it('renders the secondary context line only when there is one', () => {
     const { fixture, host, el } = render();
-    expect(el.querySelector('.context')).toBeNull();
+    expect(el.querySelector('.stat-card__context')).toBeNull();
 
     host.context.set('3 healthy · 0 need attention');
     fixture.detectChanges();
@@ -84,7 +84,7 @@ describe('StatCard', () => {
     host.context.set('not yet');
     fixture.detectChanges();
 
-    const ghost = el.querySelector('.context-ghost');
+    const ghost = el.querySelector('.stat-card__context--ghost');
     expect(ghost).not.toBeNull();
     expect(ghost?.getAttribute('aria-hidden')).toBe('true');
     expect(ghost?.querySelector('app-skeleton')).not.toBeNull();
@@ -92,7 +92,7 @@ describe('StatCard', () => {
 
     host.pending.set(false);
     fixture.detectChanges();
-    expect(el.querySelector('.context-ghost')).toBeNull();
+    expect(el.querySelector('.stat-card__context--ghost')).toBeNull();
     expect(el.textContent).toContain('not yet');
   });
 
@@ -103,7 +103,7 @@ describe('StatCard', () => {
     host.valuePending.set(true);
     fixture.detectChanges();
 
-    const ghost = el.querySelector('.value-ghost');
+    const ghost = el.querySelector('.stat-card__value--ghost');
     expect(ghost?.getAttribute('aria-hidden')).toBe('true');
     expect(ghost?.querySelector('app-skeleton')).not.toBeNull();
     expect(el.textContent).not.toContain('8');
@@ -111,13 +111,13 @@ describe('StatCard', () => {
     host.value.set(34);
     host.valuePending.set(false);
     fixture.detectChanges();
-    expect(el.querySelector('.value-ghost')).toBeNull();
-    expect(el.querySelector('.value')?.textContent?.trim()).toBe('34');
+    expect(el.querySelector('.stat-card__value--ghost')).toBeNull();
+    expect(el.querySelector('.stat-card__value')?.textContent?.trim()).toBe('34');
   });
 
   it('renders no progress strip by default', () => {
     const { el } = render();
-    expect(el.querySelector('.strip')).toBeNull();
+    expect(el.querySelector('.stat-card__strip')).toBeNull();
   });
 
   it('draws the progress strip as a transform scale, never a width', () => {
@@ -126,7 +126,7 @@ describe('StatCard', () => {
     host.progress.set(0.42);
     fixture.detectChanges();
 
-    expect(el.querySelector('.strip')?.getAttribute('aria-valuenow')).toBe('42');
+    expect(el.querySelector('.stat-card__strip')?.getAttribute('aria-valuenow')).toBe('42');
     expect(fill(el)?.style.transform).toBe('scaleX(0.42)');
     expect(fill(el)?.style.width).toBe('');
   });
@@ -150,6 +150,6 @@ describe('StatCard', () => {
     host.progressWarn.set(true);
     fixture.detectChanges();
 
-    expect(fill(el)?.classList).toContain('warn');
+    expect(fill(el)?.classList).toContain('stat-card__strip-fill--warn');
   });
 });

@@ -320,8 +320,8 @@ now live in `styles/abstracts/` ([DESIGN-SYSTEM.md §9](../design/DESIGN-SYSTEM.
   out; no feature, `state` or API-service imports).
 - **Styles:** tokens only, never a literal colour, size or z-index; media queries through the
   breakpoint map, zone colours and card surfaces through their mixins (`styles/abstracts/`);
-  the foundations sit in cascade layers under every component ([DESIGN-SYSTEM.md
-  §9](../design/DESIGN-SYSTEM.md)).
+  the foundations sit in cascade layers under every component; the shared kit is named in BEM,
+  feature components keep short scoped names ([DESIGN-SYSTEM.md §9](../design/DESIGN-SYSTEM.md)).
 - **State:** immutable `patchState` updates with new references — zoneless rendering depends on
   them.
 - **HTTP:** features call the typed API services only; retry lives in the one interceptor and

@@ -45,7 +45,7 @@ describe('ConfirmService', () => {
 
     const dialog = document.querySelector('mat-dialog-container') ?? document.body;
     expect(dialog.textContent).toContain('Confirm');
-    expect(dialog.querySelector('.destructive')).toBeNull();
+    expect(dialog.querySelector('.confirm-dialog__confirm--destructive')).toBeNull();
 
     TestBed.inject(MatDialog).closeAll();
     await pending;
@@ -59,7 +59,7 @@ describe('ConfirmService', () => {
     });
     TestBed.tick();
 
-    expect(document.querySelector('.destructive')).not.toBeNull();
+    expect(document.querySelector('.confirm-dialog__confirm--destructive')).not.toBeNull();
 
     TestBed.inject(MatDialog).closeAll();
     await pending;

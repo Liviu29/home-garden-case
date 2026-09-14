@@ -16,7 +16,7 @@ import { SvgExporter } from './svg-export';
     <button
       matButton
       type="button"
-      class="export press-feedback"
+      class="export-png-button press-feedback"
       [disabled]="busy()"
       [attr.aria-label]="saveLabel()"
       (click)="save()"
@@ -39,7 +39,7 @@ import { SvgExporter } from './svg-export';
     :host {
       flex: none;
     }
-    .export {
+    .export-png-button {
       font-size: var(--fs-caption);
       white-space: nowrap;
     }

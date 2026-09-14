@@ -9,18 +9,18 @@ import { ToastStore } from '../../../core/errors/toast-store';
   selector: 'app-toast-host',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="host" aria-live="polite">
+    <div class="toast-host" aria-live="polite">
       @for (toast of store.toasts(); track toast.id) {
         <!-- Pointer or focus on a toast pauses its countdown (ToastStore.hold) -->
         <div
           class="toast anim-fade-up"
-          [class]="toast.tone"
+          [class]="'toast--' + toast.tone"
           (mouseenter)="store.hold(toast.id)"
           (mouseleave)="store.release(toast.id)"
           (focusin)="store.hold(toast.id)"
           (focusout)="store.release(toast.id)"
         >
-          <span class="glyph" aria-hidden="true">
+          <span class="toast__glyph" aria-hidden="true">
             @switch (toast.tone) {
               @case ('success') {
                 ✓
@@ -33,14 +33,14 @@ import { ToastStore } from '../../../core/errors/toast-store';
               }
             }
           </span>
-          <span class="message">{{ toast.message }}</span>
+          <span class="toast__message">{{ toast.message }}</span>
           @if (toast.actionLabel) {
-            <button class="action press-feedback" type="button" (click)="run(toast.id)">
+            <button class="toast__action press-feedback" type="button" (click)="run(toast.id)">
               {{ toast.actionLabel }}
             </button>
           }
           <button
-            class="close"
+            class="toast__close"
             type="button"
             aria-label="Dismiss"
             i18n-aria-label
@@ -53,7 +53,7 @@ import { ToastStore } from '../../../core/errors/toast-store';
     </div>
   `,
   styles: `
-    .host {
+    .toast-host {
       position: fixed;
       bottom: var(--sp-6);
       left: 50%;
@@ -76,7 +76,7 @@ import { ToastStore } from '../../../core/errors/toast-store';
       font-size: var(--fs-body);
     }
 
-    .glyph {
+    .toast__glyph {
       flex: none;
       width: 1.375rem;
       height: 1.375rem;
@@ -88,19 +88,19 @@ import { ToastStore } from '../../../core/errors/toast-store';
       background: var(--brand-500);
     }
 
-    .toast.error .glyph {
+    .toast--error .toast__glyph {
       background: var(--danger);
     }
 
-    .toast.info .glyph {
+    .toast--info .toast__glyph {
       background: var(--info-blue);
     }
 
-    .message {
+    .toast__message {
       flex: 1;
     }
 
-    .action {
+    .toast__action {
       flex: none;
       border: 0;
       // Tinted with the pill's own foreground, so the affordance survives the
@@ -118,7 +118,7 @@ import { ToastStore } from '../../../core/errors/toast-store';
       }
     }
 
-    .close {
+    .toast__close {
       flex: none;
       border: 0;
       background: transparent;

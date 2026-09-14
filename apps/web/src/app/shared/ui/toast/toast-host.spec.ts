@@ -30,7 +30,7 @@ describe('ToastHost', () => {
 
   it('announces politely so assistive tech reads new toasts', () => {
     const el = render().nativeElement as HTMLElement;
-    expect(el.querySelector('.host')?.getAttribute('aria-live')).toBe('polite');
+    expect(el.querySelector('.toast-host')?.getAttribute('aria-live')).toBe('polite');
   });
 
   it('renders a toast per queued item with its tone class', () => {
@@ -41,8 +41,8 @@ describe('ToastHost', () => {
 
     const toasts = el.querySelectorAll('.toast');
     expect(toasts).toHaveLength(2);
-    expect(toasts[0].classList).toContain('success');
-    expect(toasts[1].classList).toContain('error');
+    expect(toasts[0].classList).toContain('toast--success');
+    expect(toasts[1].classList).toContain('toast--error');
     expect(el.textContent).toContain('Garden created');
     expect(el.textContent).toContain('Could not save');
   });
@@ -50,14 +50,14 @@ describe('ToastHost', () => {
   it('renders the info glyph for an info toast', () => {
     store.info('Layout reset');
     const el = render().nativeElement as HTMLElement;
-    expect(el.querySelector('.toast')?.classList).toContain('info');
-    expect(el.querySelector('.glyph')?.textContent?.trim()).toBe('i');
+    expect(el.querySelector('.toast')?.classList).toContain('toast--info');
+    expect(el.querySelector('.toast__glyph')?.textContent?.trim()).toBe('i');
   });
 
   it('renders no action button when the toast has no action', () => {
     store.error('No retry here');
     const el = render().nativeElement as HTMLElement;
-    expect(el.querySelector('.action')).toBeNull();
+    expect(el.querySelector('.toast__action')).toBeNull();
   });
 
   it('runs the action and dismisses the toast when the action is pressed', () => {
@@ -66,7 +66,7 @@ describe('ToastHost', () => {
     const fixture = render();
     const el = fixture.nativeElement as HTMLElement;
 
-    const action = el.querySelector('.action') as HTMLButtonElement;
+    const action = el.querySelector('.toast__action') as HTMLButtonElement;
     expect(action.textContent?.trim()).toBe('Try again');
 
     action.click();
@@ -81,7 +81,7 @@ describe('ToastHost', () => {
     const fixture = render();
     const el = fixture.nativeElement as HTMLElement;
 
-    (el.querySelector('.close') as HTMLButtonElement).click();
+    (el.querySelector('.toast__close') as HTMLButtonElement).click();
     fixture.detectChanges();
 
     expect(store.toasts()).toHaveLength(0);
@@ -91,7 +91,7 @@ describe('ToastHost', () => {
   it('labels the close button for screen readers', () => {
     store.error('x');
     const el = render().nativeElement as HTMLElement;
-    expect(el.querySelector('.close')?.getAttribute('aria-label')).toBe('Dismiss');
+    expect(el.querySelector('.toast__close')?.getAttribute('aria-label')).toBe('Dismiss');
   });
 
   it('pauses the countdown while the pointer is on the toast', () => {
@@ -111,7 +111,7 @@ describe('ToastHost', () => {
   it('pauses the countdown while focus is inside it, so a keyboard user reaches Undo in time', () => {
     store.success('Plant removed', { label: 'Undo', run: vi.fn() });
     const el = render().nativeElement as HTMLElement;
-    const action = el.querySelector('.action') as HTMLButtonElement;
+    const action = el.querySelector('.toast__action') as HTMLButtonElement;
     expect(action.textContent?.trim()).toBe('Undo');
 
     action.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));

@@ -5,20 +5,20 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
   selector: 'app-page-header',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <header class="header anim-fade-up">
-      <div class="titles">
+    <header class="page-header anim-fade-up">
+      <div class="page-header__titles">
         <h1>{{ title() }}</h1>
         @if (subtitle()) {
-          <p class="subtitle">{{ subtitle() }}</p>
+          <p class="page-header__subtitle">{{ subtitle() }}</p>
         }
       </div>
-      <div class="actions">
+      <div class="page-header__actions">
         <ng-content />
       </div>
     </header>
   `,
   styles: `
-    .header {
+    .page-header {
       display: flex;
       align-items: flex-end;
       justify-content: space-between;
@@ -27,12 +27,12 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
       margin-block: var(--sp-8) var(--sp-6);
     }
 
-    .subtitle {
+    .page-header__subtitle {
       color: var(--text-2);
       margin-top: var(--sp-1);
     }
 
-    .actions {
+    .page-header__actions {
       display: flex;
       gap: var(--sp-2);
     }

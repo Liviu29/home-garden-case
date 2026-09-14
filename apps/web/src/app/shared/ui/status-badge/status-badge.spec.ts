@@ -31,7 +31,9 @@ describe('StatusBadge', () => {
   it.each<StatusTone>(['success', 'neutral', 'warning', 'critical'])(
     'applies the %s tone class',
     (tone) => {
-      expect(render(tone).querySelector('.chip')?.classList).toContain(tone);
+      expect(render(tone).querySelector('.status-badge')?.classList).toContain(
+        `status-badge--${tone}`,
+      );
     },
   );
 });

@@ -238,3 +238,12 @@ still passes at 375, 768, 1024, 1440 and 1920.
 three selectors out by hand. `surfaces.card($padding, $radius)` is the one card recipe (raised
 surface, hairline border, soft shadow); an accent border, a layout or a hover is set after the
 include.
+
+**Naming.** The shared kit (`shared/ui`) is written in BEM: the block is the component
+(`.stat-card`, `.toast`, `.value-presets`), its parts are elements (`.stat-card__value`,
+`.toast__close`), its states are modifiers (`.status-badge--warning`, `.stat-card__value--ghost`,
+`.value-presets__option--active`). A kit component is used everywhere and inspected from
+everywhere — in a spec, in the devtools, in an axe report — so its markup names its owner. Feature
+components keep short, scoped names (`.health-card`, `.panel-head`): Angular's emulated
+encapsulation already ties them to their owner, and their reach is one folder. The skeleton family
+keeps its own `ghost-*` vocabulary (§4), which the feature ghosts compose.

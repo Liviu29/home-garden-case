@@ -13,29 +13,29 @@ import { Skeleton } from '../skeleton/skeleton';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Skeleton],
   template: `
-    <div class="card lift-hover">
-      <span class="icon" aria-hidden="true"><ng-content select="[icon]" /></span>
+    <div class="stat-card lift-hover">
+      <span class="stat-card__icon" aria-hidden="true"><ng-content select="[icon]" /></span>
       @if (valuePending()) {
         <!-- The number is derived from data still arriving: hold its exact
              line box rather than show a partial total that later jumps -->
-        <span class="value value-ghost" aria-hidden="true">
+        <span class="stat-card__value stat-card__value--ghost" aria-hidden="true">
           <app-skeleton class="skeleton-appear" variant="title" w="3.5rem" h="0.8em" />
         </span>
       } @else {
-        <span class="value tabular">{{ value() }}{{ suffix() }}</span>
+        <span class="stat-card__value tabular">{{ value() }}{{ suffix() }}</span>
       }
-      <span class="label">{{ label() }}</span>
+      <span class="stat-card__label">{{ label() }}</span>
       @if (pending()) {
         <!-- Holds the context line's exact line box while its data loads -->
-        <span class="context context-ghost" aria-hidden="true">
+        <span class="stat-card__context stat-card__context--ghost" aria-hidden="true">
           <app-skeleton class="skeleton-appear" variant="line" w="70%" h="0.7rem" />
         </span>
       } @else if (context()) {
-        <span class="context">{{ context() }}</span>
+        <span class="stat-card__context">{{ context() }}</span>
       }
       @if (progress() !== null) {
         <span
-          class="strip"
+          class="stat-card__strip"
           role="progressbar"
           [attr.aria-label]="progressLabel()"
           [attr.aria-valuenow]="progressPct()"
@@ -43,8 +43,8 @@ import { Skeleton } from '../skeleton/skeleton';
           aria-valuemax="100"
         >
           <span
-            class="strip-fill"
-            [class.warn]="progressWarn()"
+            class="stat-card__strip-fill"
+            [class.stat-card__strip-fill--warn]="progressWarn()"
             [style.transform]="'scaleX(' + progressPct() / 100 + ')'"
           ></span>
         </span>
@@ -52,24 +52,22 @@ import { Skeleton } from '../skeleton/skeleton';
     </div>
   `,
   styles: `
+    @use 'abstracts/surfaces';
+
     // A grid host lets the card fill its grid row: every tile in a row is the
     // same height (as their ghosts are), instead of three short and one tall.
     :host {
       display: grid;
     }
 
-    .card {
+    .stat-card {
+      @include surfaces.card(var(--sp-6), var(--radius-l));
       display: grid;
       align-content: start;
       gap: var(--sp-1);
-      padding: var(--sp-6);
-      background: var(--surface-1);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-l);
-      box-shadow: var(--shadow-1);
     }
 
-    .icon {
+    .stat-card__icon {
       width: 2.25rem;
       height: 2.25rem;
       display: grid;
@@ -80,7 +78,7 @@ import { Skeleton } from '../skeleton/skeleton';
       margin-bottom: var(--sp-2);
     }
 
-    .value {
+    .stat-card__value {
       font-family: var(--font-display);
       font-size: var(--fs-display);
       font-weight: 700;
@@ -89,18 +87,18 @@ import { Skeleton } from '../skeleton/skeleton';
     }
 
     // One value line box, exactly — the ghost and the number share it.
-    .value-ghost {
+    .stat-card__value--ghost {
       display: grid;
       align-items: center;
       height: 1lh;
     }
 
-    .label {
+    .stat-card__label {
       color: var(--text-2);
       font-size: var(--fs-caption);
     }
 
-    .context {
+    .stat-card__context {
       color: var(--text-3);
       font-size: var(--fs-caption);
       margin-top: var(--sp-1);
@@ -109,14 +107,14 @@ import { Skeleton } from '../skeleton/skeleton';
     // Grid, not flex: a flex item shrinks to its content, and a
     // percentage-wide skeleton has none — the ghost reserved its line but
     // painted nothing.
-    .context-ghost {
+    .stat-card__context--ghost {
       display: grid;
       align-items: center;
       height: 1lh;
     }
 
     // Tiny progress strip — a quiet visual accent, not a chart
-    .strip {
+    .stat-card__strip {
       display: block;
       height: 0.3rem;
       border-radius: var(--radius-pill);
@@ -126,7 +124,7 @@ import { Skeleton } from '../skeleton/skeleton';
     }
 
     // transform, not width: the fill grows without re-laying out the tile.
-    .strip-fill {
+    .stat-card__strip-fill {
       display: block;
       height: 100%;
       border-radius: inherit;
@@ -138,7 +136,7 @@ import { Skeleton } from '../skeleton/skeleton';
         transform: scaleX(0) !important;
       }
 
-      &.warn {
+      &.stat-card__strip-fill--warn {
         background: var(--accent-amber);
       }
     }

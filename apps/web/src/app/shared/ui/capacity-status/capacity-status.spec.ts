@@ -72,7 +72,7 @@ describe('CapacityStatusChip', () => {
 
     const el = fixture.nativeElement as HTMLElement;
     expect(el.textContent).toContain(label);
-    expect(el.querySelector('.chip')?.classList).toContain(tone);
+    expect(el.querySelector('.status-badge')?.classList).toContain(`status-badge--${tone}`);
   });
 
   it('re-derives when the plant set changes', () => {

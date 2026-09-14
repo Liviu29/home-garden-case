@@ -28,11 +28,11 @@ type ChartState = 'loading' | 'ready' | 'failed';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Skeleton],
   template: `
-    <div #host class="chart-host"></div>
+    <div #host class="chart__host"></div>
     @if (state() === 'loading') {
-      <app-skeleton class="chart-cover" variant="rect" w="100%" h="100%" />
+      <app-skeleton class="chart__cover" variant="rect" w="100%" h="100%" />
     } @else if (state() === 'failed') {
-      <p class="chart-cover chart-fallback">{{ fallback() }}</p>
+      <p class="chart__cover chart__fallback">{{ fallback() }}</p>
     }
   `,
   styles: `
@@ -40,15 +40,15 @@ type ChartState = 'loading' | 'ready' | 'failed';
       display: block;
       position: relative;
     }
-    .chart-host {
+    .chart__host {
       width: 100%;
       height: 100%;
     }
-    .chart-cover {
+    .chart__cover {
       position: absolute;
       inset: 0;
     }
-    .chart-fallback {
+    .chart__fallback {
       display: grid;
       place-items: center;
       margin: 0;

@@ -34,7 +34,7 @@ describe('ValuePresets (quick-picks that never bypass the form)', () => {
     const el: HTMLElement = mount().nativeElement;
     const group = el.querySelector('[role="group"]')!;
     expect(group.getAttribute('aria-label')).toBe('Target humidity presets');
-    const buttons = el.querySelectorAll('button.preset');
+    const buttons = el.querySelectorAll('button.value-presets__option');
     expect(buttons).toHaveLength(3);
     expect(buttons[1].textContent).toContain('Balanced');
     expect(buttons[1].textContent).toContain('60%');
@@ -42,7 +42,7 @@ describe('ValuePresets (quick-picks that never bypass the form)', () => {
 
   it('marks the recommended option with a visible badge', () => {
     const el: HTMLElement = mount().nativeElement;
-    const badges = el.querySelectorAll('.recommended-badge');
+    const badges = el.querySelectorAll('.value-presets__badge');
     expect(badges).toHaveLength(1);
     expect(badges[0].closest('button')?.textContent).toContain('Balanced');
   });
@@ -50,8 +50,8 @@ describe('ValuePresets (quick-picks that never bypass the form)', () => {
   it('emits the picked value and reflects the selection as aria-pressed', () => {
     const fixture = mount();
     const el: HTMLElement = fixture.nativeElement;
-    const humid = [...el.querySelectorAll<HTMLButtonElement>('button.preset')].find((b) =>
-      b.textContent?.includes('Humid'),
+    const humid = [...el.querySelectorAll<HTMLButtonElement>('button.value-presets__option')].find(
+      (b) => b.textContent?.includes('Humid'),
     )!;
     humid.click();
     fixture.detectChanges();

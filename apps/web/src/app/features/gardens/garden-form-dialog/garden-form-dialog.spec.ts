@@ -104,8 +104,8 @@ describe('GardenFormDialog (shrink-below-used warning)', () => {
     const fixture = await mount({ garden: null });
     const el: HTMLElement = fixture.nativeElement;
 
-    const large = [...el.querySelectorAll<HTMLButtonElement>('button.preset')].find((b) =>
-      b.textContent?.includes('Large'),
+    const large = [...el.querySelectorAll<HTMLButtonElement>('button.value-presets__option')].find(
+      (b) => b.textContent?.includes('Large'),
     )!;
     large.click();
     await fixture.whenStable();
@@ -120,9 +120,9 @@ describe('GardenFormDialog (shrink-below-used warning)', () => {
     const fixture = await mount({ garden: null });
     const el: HTMLElement = fixture.nativeElement;
 
-    const balanced = [...el.querySelectorAll<HTMLButtonElement>('button.preset')].find((b) =>
-      b.textContent?.includes('Balanced'),
-    )!;
+    const balanced = [
+      ...el.querySelectorAll<HTMLButtonElement>('button.value-presets__option'),
+    ].find((b) => b.textContent?.includes('Balanced'))!;
     balanced.click();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -149,7 +149,7 @@ describe('GardenFormDialog (shrink-below-used warning)', () => {
 
   it('exactly one preset per group carries the Recommended badge', async () => {
     const fixture = await mount({ garden: null });
-    const badges = (fixture.nativeElement as HTMLElement).querySelectorAll('.recommended-badge');
+    const badges = (fixture.nativeElement as HTMLElement).querySelectorAll('.value-presets__badge');
     expect(badges).toHaveLength(2); // one for size, one for humidity
   });
 });

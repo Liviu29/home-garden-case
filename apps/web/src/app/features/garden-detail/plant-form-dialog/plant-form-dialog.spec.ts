@@ -147,9 +147,9 @@ describe('PlantFormDialog (capacity behaviour — the core business rule)', () =
     const fixture = await mount({ garden, plants: [bigNeighbor], plant: null, store });
     const el: HTMLElement = fixture.nativeElement;
 
-    const spreading = [...el.querySelectorAll<HTMLButtonElement>('button.preset')].find((b) =>
-      b.textContent?.includes('Spreading'),
-    )!;
+    const spreading = [
+      ...el.querySelectorAll<HTMLButtonElement>('button.value-presets__option'),
+    ].find((b) => b.textContent?.includes('Spreading'))!;
     spreading.click();
     await fixture.whenStable();
     fixture.detectChanges();

@@ -13,7 +13,7 @@ import { resolvePlantVisual } from './plant-visual-resolver';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { 'aria-hidden': 'true' },
   template: `
-    <span class="thumb" [style]="paletteStyle()">
+    <span class="plant-thumb" [style]="paletteStyle()">
       <svg viewBox="-50 -50 100 100" focusable="false">
         <use [attr.href]="'#' + visual().symbolId" x="-50" y="-50" width="100" height="100" />
       </svg>
@@ -24,7 +24,7 @@ import { resolvePlantVisual } from './plant-visual-resolver';
       display: inline-flex;
     }
 
-    .thumb {
+    .plant-thumb {
       display: inline-grid;
       place-items: center;
       width: var(--thumb-size, 2rem);

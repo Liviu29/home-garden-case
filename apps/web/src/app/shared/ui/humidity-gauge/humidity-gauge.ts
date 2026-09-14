@@ -9,7 +9,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
   selector: 'app-humidity-gauge',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <figure class="gauge">
+    <figure class="humidity-gauge">
       <svg viewBox="0 0 200 118" role="img" [attr.aria-label]="ariaLabel()">
         <!-- track -->
         <path
@@ -26,7 +26,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
           stroke="url(#humidity-gradient)"
           stroke-width="14"
           stroke-linecap="round"
-          class="value-arc"
+          class="humidity-gauge__arc"
           [style.stroke-dasharray]="ARC_LENGTH"
           [style.stroke-dashoffset]="dashOffset()"
         />
@@ -46,25 +46,25 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
           stroke-width="3"
           stroke-linecap="round"
         />
-        <text x="100" y="86" text-anchor="middle" class="value tabular">
+        <text x="100" y="86" text-anchor="middle" class="humidity-gauge__value tabular">
           @if (hasValue()) {
             {{ rounded() }}%
           } @else {
             —
           }
         </text>
-        <text x="100" y="106" text-anchor="middle" class="caption">
+        <text x="100" y="106" text-anchor="middle" class="humidity-gauge__caption">
           {{ caption() }}
         </text>
       </svg>
-      <figcaption class="target-line">
-        <span class="dot" aria-hidden="true"></span>
+      <figcaption class="humidity-gauge__target">
+        <span class="humidity-gauge__dot" aria-hidden="true"></span>
         <ng-container i18n>target {{ target() }}%</ng-container>
       </figcaption>
     </figure>
   `,
   styles: `
-    .gauge {
+    .humidity-gauge {
       margin: 0;
       display: grid;
       justify-items: center;
@@ -76,23 +76,23 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
       max-width: 13rem;
     }
 
-    .value-arc {
+    .humidity-gauge__arc {
       transition: stroke-dashoffset var(--dur-slow) var(--ease-out);
     }
 
-    .value {
+    .humidity-gauge__value {
       font-family: var(--font-display);
       font-size: 1.75rem;
       font-weight: 700;
       fill: var(--text-1);
     }
 
-    .caption {
+    .humidity-gauge__caption {
       font-size: 0.75rem;
       fill: var(--text-3);
     }
 
-    .target-line {
+    .humidity-gauge__target {
       display: inline-flex;
       align-items: center;
       gap: var(--sp-2);
@@ -100,7 +100,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
       color: var(--text-2);
     }
 
-    .dot {
+    .humidity-gauge__dot {
       width: 0.625rem;
       height: 0.125rem;
       background: var(--text-1);
