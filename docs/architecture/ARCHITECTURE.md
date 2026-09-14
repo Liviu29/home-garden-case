@@ -212,14 +212,31 @@ Rules:
   classes with the same private-writable, public-readonly shape — no second store library, no
   `BehaviorSubject` state services.
 - **Mutations return typed verdicts** (`{ok: true} | {ok: false, error: ApiError}`), so forms render
-  functional errors inline without stores knowing about forms.
+  functional errors inline without stores knowing about forms. The verdict and the one policy for
+  a failed write (`failMutation`: a technical failure is toasted, a functional one goes back to the
+  form) live in `state/mutation-result.ts`, shared by every store.
+- **A store's private collaborators are `withProps`**, not state: the detail store's
+  `PlantsIndexStore` handle and its load token sit beside the state, readable by every feature
+  after them, never patched, never a signal.
+- **What is derived from a key is `withLinkedState`**, not reset by hand: `lastCreatedPlantId` and
+  `restored` are linked to `gardenId`, so a new garden clears them by construction — a `load()`
+  cannot forget to.
+- **A store that follows a signal exposes a `signalMethod`**: `GardenDetailStore.loadFor(gardenId)`
+  takes the route input itself, once, in the component's constructor. The component has no
+  effect that reads a signal and calls a method; the per-garden UI state beside it (layout,
+  undo history) is `linkedSignal` on the same input.
+- **A dialog reaches its screen's store through DI**, not through `MAT_DIALOG_DATA`: the screen
+  opens it with its own `injector`, so the route-scoped `GardenDetailStore` is provided, and
+  the dialog's data carries data only.
 
 **Signals vs RxJS.** Signals hold state; RxJS handles I/O and events: HTTP, the retry/backoff
 operator in the interceptor, and `rxMethod` for the plants loading (`distinctUntilChanged` over the
 garden ids, so a component declares its source once instead of running an `effect()` that both reads
-and writes). Effects are few and narrow: route id → load, the document title, and scrolling a newly
-created garden card into view. Subscriptions are limited to streams that complete or live as long
-as the app: dialog `afterClosed()` and the root router-events listener that resets scroll position.
+and writes). Effects are few and narrow: the document title, and scrolling a newly created garden
+card into view. Subscriptions are limited to streams that complete or live as long as the app:
+dialog `afterClosed()` and the root router-events listener that resets scroll position. What a
+store must do when it is destroyed (flush the list preferences, cancel a stale load) is a
+`withHooks` `onDestroy`, not a component's job.
 
 **Async method pattern.** Every async store method pairs its status flag with a `finally` reset and
 maps failures through `toApiError` — a frozen loading state or a swallowed error cannot occur by

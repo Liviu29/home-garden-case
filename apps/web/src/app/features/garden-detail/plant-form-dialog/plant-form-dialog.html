@@ -201,12 +201,12 @@
     type="submit"
     form="plant-form"
     class="press-feedback"
-    [attr.aria-busy]="data.store.saving() ? true : null"
-    [disabled]="(f().invalid() && f().touched()) || data.store.saving()"
+    [attr.aria-busy]="store.saving() ? true : null"
+    [disabled]="(f().invalid() && f().touched()) || store.saving()"
   >
-    <span class="btn-stack" [class.is-pending]="data.store.saving()">
+    <span class="btn-stack" [class.is-pending]="store.saving()">
       <span class="btn-label">{{ submitLabel }}</span>
-      @if (data.store.saving()) {
+      @if (store.saving()) {
         <span class="btn-ghost" aria-hidden="true"></span>
         <span class="visually-hidden">{{ pendingLabel }}</span>
       }

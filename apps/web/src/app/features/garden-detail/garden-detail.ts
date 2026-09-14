@@ -2,10 +2,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   afterNextRender,
+  Injector,
   computed,
   effect,
   inject,
   input,
+  linkedSignal,
   numberAttribute,
   signal,
 } from '@angular/core';
@@ -30,7 +32,7 @@ import { Skeleton } from '../../shared/ui/skeleton/skeleton';
 import { SkeletonGroup } from '../../shared/ui/skeleton/skeleton-group';
 import { GardenFormDialog } from '../gardens/garden-form-dialog/garden-form-dialog';
 import { GardensStore } from '../../state/gardens-store/gardens-store';
-import { GardenDetailStore } from './garden-detail-store/garden-detail-store';
+import { GardenDetailStore, isValidGardenId } from './garden-detail-store/garden-detail-store';
 import {
   GardenLayoutRepository,
   type LayoutPositions,
@@ -107,7 +109,11 @@ const ZONE_SPOKEN: Readonly<Record<WateringZone, string>> = {
   styleUrl: './garden-detail.scss',
 })
 export class GardenDetail {
+  /** The route's garden id (withComponentInputBinding); everything per-garden follows it. */
+  readonly gardenId = input.required({ transform: numberAttribute });
+
   protected readonly store = inject(GardenDetailStore);
+  private readonly injector = inject(Injector);
   /** Header renders as a ghost while a garden PUT is in flight (ASYNC-UX). */
   protected readonly gardensStore = inject(GardensStore);
 
@@ -140,9 +146,20 @@ export class GardenDetail {
   // Positions are browser-local VISUAL preferences (GardenLayoutRepository);
   // history is a bounded stack; none of it ever touches business stores.
   private readonly layoutRepo = inject(GardenLayoutRepository);
-  protected readonly positions = signal<LayoutPositions>({});
-  private readonly layoutPast = signal<readonly LayoutPositions[]>([]);
-  private readonly layoutFuture = signal<readonly LayoutPositions[]>([]);
+  // Linked to the route: a new garden brings its own saved layout and a
+  // fresh undo history, with no effect to keep them in step.
+  protected readonly positions = linkedSignal<number, LayoutPositions>({
+    source: this.gardenId,
+    computation: (id) => (isValidGardenId(id) ? this.layoutRepo.load(id) : {}),
+  });
+  private readonly layoutPast = linkedSignal<number, readonly LayoutPositions[]>({
+    source: this.gardenId,
+    computation: () => [],
+  });
+  private readonly layoutFuture = linkedSignal<number, readonly LayoutPositions[]>({
+    source: this.gardenId,
+    computation: () => [],
+  });
   protected readonly canUndo = computed(() => this.layoutPast().length > 0);
   protected readonly canRedo = computed(() => this.layoutFuture().length > 0);
   protected readonly hasCustomLayout = computed(() => Object.keys(this.positions()).length > 0);
@@ -200,12 +217,10 @@ export class GardenDetail {
   }
 
   /** From the route: /gardens/:gardenId */
-  readonly gardenId = input.required({ transform: numberAttribute });
-
   /** Retry after a transient read failure (5xx/network — not a 404). */
   protected retryGarden(): void {
     const id = this.gardenId();
-    if (Number.isFinite(id) && Number.isInteger(id) && id >= 1) {
+    if (isValidGardenId(id)) {
       this.store.load(id);
     }
   }
@@ -217,20 +232,9 @@ export class GardenDetail {
       this.loadOutdoor(garden?.latitude ?? null, garden?.longitude ?? null);
     });
 
-    effect(() => {
-      const id = this.gardenId();
-      if (Number.isFinite(id) && Number.isInteger(id) && id >= 1) {
-        this.store.load(id);
-        // Restore this garden's locally-persisted visual layout (UI pref).
-        this.positions.set(this.layoutRepo.load(id));
-        this.layoutPast.set([]);
-        this.layoutFuture.set([]);
-      } else {
-        // Malformed deep link (/gardens/abc, /gardens/-1): designed not-found
-        // state, no request issued.
-        this.store.markMissing();
-      }
-    });
+    // The store follows the route's garden id: load it, or the not-found
+    // state for a malformed deep link (/gardens/abc, /gardens/-1).
+    this.store.loadFor(this.gardenId);
     // An undone removal brings a plant back under a new id: its bed returns
     // to the spot it had (the store has already saved it for later visits).
     effect(() => {
@@ -272,7 +276,9 @@ export class GardenDetail {
       // internal scrolling (Playwright-asserted).
       width: 'min(56rem, 96vw)',
       maxWidth: '96vw',
-      data: { garden, plants: this.store.plants(), plant, store: this.store },
+      data: { garden, plants: this.store.plants(), plant },
+      // The dialog takes this screen's store from DI (it is provided here).
+      injector: this.injector,
     });
     // A freshly planted bed becomes the selection, so the map centers
     // it and the inspector invites the user to drag it into place.

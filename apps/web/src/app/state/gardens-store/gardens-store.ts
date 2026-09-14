@@ -1,11 +1,18 @@
 import { computed, inject } from '@angular/core';
-import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
+import {
+  patchState,
+  signalStore,
+  withComputed,
+  withHooks,
+  withMethods,
+  withState,
+} from '@ngrx/signals';
 import { GardensApi } from '../../core/api/gardens-api';
 import { gardenInputOf, plantInputOf } from '../../core/api/write-payloads';
 import { PlantsApi } from '../../core/api/plants-api';
 import { SessionStore } from '../../core/auth/session-store';
 import type { Garden, GardenInput, Plant } from '../../core/api/models';
-import { type ApiError, toApiError } from '../../core/errors/api-error';
+import { toApiError } from '../../core/errors/api-error';
 import { ToastStore } from '../../core/errors/toast-store';
 import { Logger } from '../../core/logging/logger';
 import { QueryCache, cacheKeys } from '../../core/resilience/query-cache';
@@ -14,12 +21,10 @@ import {
   type LayoutPositions,
 } from '../garden-layout/garden-layout-repository';
 import { PlantsIndexStore } from '../plants-index-store/plants-index-store';
+import { type MutationResult, type RequestStatus, failMutation } from '../mutation-result';
 import type { GardenSort } from './garden-view';
 
-export type RequestStatus = 'idle' | 'loading' | 'ready' | 'error';
-
-/** Mutations resolve to a typed verdict so forms can render functional errors inline. */
-export type MutationResult = { ok: true } | { ok: false; error: ApiError };
+export type { MutationResult, RequestStatus } from '../mutation-result';
 
 interface GardensState {
   gardens: readonly Garden[];
@@ -60,15 +65,20 @@ function readPersistedView(): { query: string; sort: GardenSort } {
 
 let persistTimer: ReturnType<typeof setTimeout> | undefined;
 
+function writePersistedView(query: string, sort: GardenSort): void {
+  try {
+    localStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify({ query, sort }));
+  } catch {
+    // storage unavailable — view just won't survive reloads
+  }
+}
+
 /** Trailing-debounced: typing stays instant, storage writes don't churn. */
 function persistView(query: string, sort: GardenSort): void {
   clearTimeout(persistTimer);
   persistTimer = setTimeout(() => {
-    try {
-      localStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify({ query, sort }));
-    } catch {
-      // storage unavailable — view just won't survive reloads
-    }
+    persistTimer = undefined;
+    writePersistedView(query, sort);
   }, 300);
 }
 
@@ -382,13 +392,14 @@ export const GardensStore = signalStore(
       },
     };
   }),
+  withHooks({
+    // The last 300 ms of typing in the toolbar must not be lost with the store.
+    onDestroy(store) {
+      if (persistTimer !== undefined) {
+        clearTimeout(persistTimer);
+        persistTimer = undefined;
+        writePersistedView(store.query(), store.sort());
+      }
+    },
+  }),
 );
-
-function failMutation(err: unknown, toasts: ToastStore): MutationResult {
-  const error = toApiError(err);
-  if (error.kind === 'technical') {
-    toasts.error(error.message);
-  }
-  // Functional verdicts go back to the form — rendered inline, never toasted.
-  return { ok: false, error };
-}

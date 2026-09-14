@@ -28,6 +28,14 @@ Shared custom store features (a `withRequestStatus()`-style helper) were conside
 created**: the three stores have different lifecycles — an SWR list with idempotent appends, a
 detail store with per-entity mutation ghosts, a per-garden fan-out index — and a common feature would
 either flatten those semantics or grow configuration until the state stops being domain-readable.
+What the stores do share is smaller than a feature: the mutation verdict type and the one policy
+for a failed write (`state/mutation-result.ts`), plain functions.
+
+The library's own idioms are used where each fits, rather than re-implemented: `withProps` for a
+store's private collaborators and tokens (never state), `withLinkedState` for state that a key
+resets (the last created plant, keyed on the garden), `signalMethod` for a store that follows a
+signal source without RxJS (`loadFor(gardenId)`), `withHooks` for what happens on destroy. A
+route-scoped store is reached by its dialogs through the screen's injector, not passed as data.
 
 ## Consequences
 

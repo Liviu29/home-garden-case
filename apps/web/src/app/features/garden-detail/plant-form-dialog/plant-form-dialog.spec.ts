@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import type { Garden, Plant } from '../../../core/api/models';
+import { GardenDetailStore } from '../garden-detail-store/garden-detail-store';
 import { PlantFormDialog, type PlantFormData, type PlantModel } from './plant-form-dialog';
 
 /** Set a few fields of the model, as typing into them would. */
@@ -45,12 +46,14 @@ function storeStub() {
   };
 }
 
-async function mount(data: Omit<PlantFormData, 'store'> & { store: ReturnType<typeof storeStub> }) {
+async function mount(data: PlantFormData & { store: ReturnType<typeof storeStub> }) {
+  const { store, ...dialogData } = data;
   TestBed.configureTestingModule({
     imports: [PlantFormDialog],
     providers: [
       provideNoopAnimations(),
-      { provide: MAT_DIALOG_DATA, useValue: data },
+      { provide: MAT_DIALOG_DATA, useValue: dialogData },
+      { provide: GardenDetailStore, useValue: store },
       { provide: MatDialogRef, useValue: { close: vi.fn() } },
     ],
   });
@@ -188,7 +191,8 @@ describe('PlantFormDialog — catalog search, presets and submit paths', () => {
       imports: [PlantFormDialog],
       providers: [
         provideNoopAnimations(),
-        { provide: MAT_DIALOG_DATA, useValue: { garden, ...data, store } },
+        { provide: MAT_DIALOG_DATA, useValue: { garden, ...data } },
+        { provide: GardenDetailStore, useValue: store },
         { provide: MatDialogRef, useValue: ref },
       ],
     });
@@ -372,7 +376,8 @@ describe('PlantFormDialog — every validation message renders', () => {
       imports: [PlantFormDialog],
       providers: [
         provideNoopAnimations(),
-        { provide: MAT_DIALOG_DATA, useValue: { garden, plants: [], plant, store } },
+        { provide: MAT_DIALOG_DATA, useValue: { garden, plants: [], plant } },
+        { provide: GardenDetailStore, useValue: store },
         { provide: MatDialogRef, useValue: { close: vi.fn() } },
       ],
     });
@@ -448,7 +453,8 @@ describe('PlantFormDialog — typing into the fields (the DOM path, not the mode
       imports: [PlantFormDialog],
       providers: [
         provideNoopAnimations(),
-        { provide: MAT_DIALOG_DATA, useValue: { garden, plants: [], plant: null, store } },
+        { provide: MAT_DIALOG_DATA, useValue: { garden, plants: [], plant: null } },
+        { provide: GardenDetailStore, useValue: store },
         { provide: MatDialogRef, useValue: { close: vi.fn() } },
       ],
     });

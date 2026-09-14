@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { GardensApi } from '../../../core/api/gardens-api';
 import { PlantsApi } from '../../../core/api/plants-api';
@@ -690,5 +691,57 @@ describe('GardenDetailStore — Undo for a removed plant', () => {
     expect(errorToast()?.message).toContain('Not enough room left in this garden.');
     expect(errorToast()?.actionLabel).toBeUndefined();
     expect(store.plants().map((p) => p.plantId)).toEqual([2]);
+  });
+});
+
+describe('GardenDetailStore — follows the route', () => {
+  let plantsApi: { getByGarden: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> };
+  let store: InstanceType<typeof GardenDetailStore>;
+
+  beforeEach(() => {
+    plantsApi = {
+      getByGarden: vi.fn().mockResolvedValue([plant(1, 5)]),
+      create: vi.fn().mockResolvedValue(plant(9, 1)),
+    };
+    TestBed.configureTestingModule({
+      providers: [
+        GardenDetailStore,
+        { provide: GardensApi, useValue: { getById: vi.fn().mockResolvedValue(garden) } },
+        { provide: PlantsApi, useValue: plantsApi },
+      ],
+    });
+    store = TestBed.inject(GardenDetailStore);
+  });
+
+  it('loadFor: a valid id loads, an impossible one renders not-found without a request', async () => {
+    const gardenId = signal(3);
+    TestBed.runInInjectionContext(() => store.loadFor(gardenId));
+    await vi.waitFor(() => expect(store.plants()).toHaveLength(1));
+    expect(plantsApi.getByGarden).toHaveBeenCalledWith(3);
+
+    gardenId.set(Number.NaN);
+    TestBed.tick();
+    expect(store.gardenMissing()).toBe(true);
+    expect(plantsApi.getByGarden).toHaveBeenCalledTimes(1);
+  });
+
+  it('what belongs to one garden is forgotten when the route moves to another', async () => {
+    store.load(3);
+    await vi.waitFor(() => expect(store.plants()).toHaveLength(1));
+    await store.createPlant({
+      plantName: 'Late',
+      species: 's',
+      plantType: 'vegetable',
+      plantationDate: '2026-04-01T00:00:00.000Z',
+      surfaceAreaRequired: 1,
+      idealHumidityLevel: 50,
+      gardenId: 3,
+    });
+    expect(store.lastCreatedPlantId()).toBe(9);
+
+    store.load(4);
+
+    expect(store.lastCreatedPlantId()).toBeNull(); // garden 4 created nothing
+    expect(store.restored()).toBeNull();
   });
 });

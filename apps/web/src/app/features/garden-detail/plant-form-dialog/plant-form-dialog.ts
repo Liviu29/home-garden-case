@@ -43,13 +43,12 @@ import {
   usedSurfaceArea,
   wouldOvercrowd,
 } from '../../../domain/garden-insights/garden-insights';
-import type { GardenDetailStore } from '../garden-detail-store/garden-detail-store';
+import { GardenDetailStore } from '../garden-detail-store/garden-detail-store';
 
 export interface PlantFormData {
   readonly garden: Garden;
   readonly plants: readonly Plant[];
   readonly plant: Plant | null;
-  readonly store: InstanceType<typeof GardenDetailStore>;
 }
 
 /** What the form edits. A number field the user empties reads as null, which `required` refuses. */
@@ -123,6 +122,8 @@ export class PlantFormDialog {
   private readonly ref = inject(MatDialogRef<PlantFormDialog>);
   private readonly locale = inject(LOCALE_ID);
   protected readonly data = inject<PlantFormData>(MAT_DIALOG_DATA);
+  /** The garden screen's route-scoped store, reached through the dialog's injector. */
+  protected readonly store = inject(GardenDetailStore);
 
   protected readonly isEdit = this.data.plant !== null;
   protected readonly heading = this.isEdit ? $localize`Edit plant` : $localize`Add a plant`;
@@ -284,8 +285,8 @@ export class PlantFormDialog {
 
       const existing = this.data.plant;
       const result = existing
-        ? await this.data.store.updatePlant(existing.plantId, input)
-        : await this.data.store.createPlant(input);
+        ? await this.store.updatePlant(existing.plantId, input)
+        : await this.store.createPlant(input);
 
       if (result.ok) {
         this.ref.close(true);

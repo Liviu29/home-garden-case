@@ -1,5 +1,15 @@
 import { computed, inject } from '@angular/core';
-import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
+import {
+  patchState,
+  signalMethod,
+  signalStore,
+  withComputed,
+  withHooks,
+  withLinkedState,
+  withMethods,
+  withProps,
+  withState,
+} from '@ngrx/signals';
 import { GardensApi } from '../../../core/api/gardens-api';
 import { plantInputOf } from '../../../core/api/write-payloads';
 import { PlantsApi } from '../../../core/api/plants-api';
@@ -15,7 +25,11 @@ import {
   occupancyRatio,
   usedSurfaceArea,
 } from '../../../domain/garden-insights/garden-insights';
-import type { MutationResult, RequestStatus } from '../../../state/gardens-store/gardens-store';
+import {
+  type MutationResult,
+  type RequestStatus,
+  failMutation,
+} from '../../../state/mutation-result';
 import { PlantsIndexStore } from '../../../state/plants-index-store/plants-index-store';
 import {
   GardenLayoutRepository,
@@ -41,13 +55,6 @@ interface GardenDetailState {
   pendingUpdates: readonly number[];
   /** Plant ids with a DELETE in flight — ghost-confirmed removal. */
   pendingDeletes: readonly number[];
-  /** Set on successful create — lets the screen select the new plant. */
-  lastCreatedPlantId: number | null;
-  /**
-   * Bed positions of a plant an undo brought back (under its new id), so the
-   * planner on screen puts it where it stood.
-   */
-  restored: { readonly gardenId: number; readonly positions: LayoutPositions } | null;
 }
 
 type BedPosition = LayoutPositions[number];
@@ -72,11 +79,40 @@ export const GardenDetailStore = signalStore(
     pendingCreateArea: null,
     pendingUpdates: [],
     pendingDeletes: [],
-    lastCreatedPlantId: null,
-    restored: null,
   }),
+  /**
+   * Per-garden state: whatever these held belongs to the garden the route
+   * has left, so a new gardenId resets them (the planner keeps what it needs
+   * through GardenLayoutRepository).
+   */
+  withLinkedState(({ gardenId }) => ({
+    /** Set on successful create — lets the screen select the new plant. */
+    lastCreatedPlantId: (): number | null => {
+      gardenId();
+      return null;
+    },
+    /**
+     * Bed positions of a plant an undo brought back (under its new id), so the
+     * planner on screen puts it where it stood.
+     */
+    restored: (): { readonly gardenId: number; readonly positions: LayoutPositions } | null => {
+      gardenId();
+      return null;
+    },
+  })),
+  withProps(() => ({
+    /** The single writable owner of plants — one injection, every feature below reads it. */
+    _plantsIndex: inject(PlantsIndexStore),
+    /**
+     * Monotonic request token — the store equivalent of switchMap. Navigating
+     * /gardens/1 → /gardens/2 while garden 1 is still in flight must never let
+     * garden 1's slow response land as garden 2 (audit fix #2). Destroying the
+     * store bumps it too, so nothing lands on a screen that is gone.
+     */
+    _loads: { token: 0 },
+  })),
   withComputed((store) => {
-    const plantsIndex = inject(PlantsIndexStore);
+    const plantsIndex = store._plantsIndex;
 
     const plants = computed<readonly Plant[]>(() => {
       const id = store.gardenId();
@@ -123,7 +159,7 @@ export const GardenDetailStore = signalStore(
     const cache = inject(QueryCache);
     const toasts = inject(ToastStore);
     const logger = inject(Logger);
-    const plantsIndex = inject(PlantsIndexStore);
+    const plantsIndex = store._plantsIndex;
     const layout = inject(GardenLayoutRepository);
 
     /**
@@ -154,13 +190,7 @@ export const GardenDetailStore = signalStore(
     let creating: Promise<MutationResult> | null = null;
     const updating = new Map<number, Promise<MutationResult>>();
 
-    /**
-     * Monotonic request token — the store equivalent of `switchMap`.
-     * Navigating /gardens/1 → /gardens/2 while garden 1 is still in flight must
-     * never let garden 1's slow response land as garden 2 (audit fix #2).
-     */
-    let loadToken = 0;
-    const isStale = (token: number): boolean => token !== loadToken;
+    const isStale = (token: number): boolean => token !== store._loads.token;
 
     const loadGarden = async (gardenId: number, token: number): Promise<void> => {
       const { cached, revalidate } = cache.swr(cacheKeys.garden(gardenId), () =>
@@ -285,7 +315,7 @@ export const GardenDetailStore = signalStore(
         toasts.success($localize`“${created.plantName}:plantName:” planted.`);
         return { ok: true };
       } catch (err) {
-        return failPlantMutation(err, toasts);
+        return failMutation(err, toasts);
       } finally {
         patchState(store, { saving: false, pendingCreateArea: null });
       }
@@ -305,7 +335,7 @@ export const GardenDetailStore = signalStore(
         toasts.success($localize`“${updated.plantName}:plantName:” updated.`);
         return { ok: true };
       } catch (err) {
-        return failPlantMutation(err, toasts);
+        return failMutation(err, toasts);
       } finally {
         patchState(store, {
           saving: false,
@@ -317,7 +347,7 @@ export const GardenDetailStore = signalStore(
     return {
       /** Garden + plants load in parallel — neither blocks the other's skeleton. */
       load(gardenId: number): void {
-        const token = ++loadToken;
+        const token = ++store._loads.token;
         patchState(store, { gardenId, gardenNotFound: false });
         void loadGarden(gardenId, token);
         void loadPlants(gardenId, token);
@@ -328,7 +358,7 @@ export const GardenDetailStore = signalStore(
        * not-found state without issuing any request.
        */
       markMissing(): void {
-        loadToken++; // cancel anything in flight
+        store._loads.token++; // cancel anything in flight
         patchState(store, {
           gardenId: null,
           garden: null,
@@ -394,12 +424,29 @@ export const GardenDetailStore = signalStore(
       },
     };
   }),
+  withMethods((store) => ({
+    /**
+     * Follow a route's garden id: load it, or render the not-found state for
+     * an id that cannot be one. A signal method, so the screen hands over its
+     * input once instead of running an effect that reads a signal and writes
+     * the store.
+     */
+    loadFor: signalMethod<number>((gardenId) => {
+      if (isValidGardenId(gardenId)) {
+        store.load(gardenId);
+      } else {
+        store.markMissing();
+      }
+    }),
+  })),
+  withHooks({
+    onDestroy(store) {
+      store._loads.token++; // a response for a screen that is gone is discarded
+    },
+  }),
 );
 
-function failPlantMutation(err: unknown, toasts: ToastStore): MutationResult {
-  const error = toApiError(err);
-  if (error.kind === 'technical') {
-    toasts.error(error.message);
-  }
-  return { ok: false, error };
+/** A route id that can be a garden: a whole number from 1 up (not NaN, 0, -1 or 'abc'). */
+export function isValidGardenId(id: number): boolean {
+  return Number.isInteger(id) && id >= 1;
 }
