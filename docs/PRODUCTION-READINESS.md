@@ -24,7 +24,7 @@ verified. Companion reading: [ARCHITECTURE.md](./architecture/ARCHITECTURE.md) �
 | Backend     | `npm run dev:api` — Fastify on `:3000`; `HOST`/`PORT` env overrides; Swagger UI at `/docs`                                                                                                           |
 | API address | `proxy.conf.json` forwards `/api/*` → `http://localhost:3000` and strips the prefix. No app code names a host                                                                                        |
 | Source maps | on (`sourceMap: true`), optimization off, named chunks on                                                                                                                                            |
-| Database    | `db.sqlite` in the working directory, created by the migrator on first boot. Git-ignored. **A fresh clone starts empty**; `npm run seed` adds three demo profiles and eleven gardens through the API |
+| Database    | `db.sqlite` in the working directory, created by the migrator on first boot. Git-ignored. **A fresh clone starts empty**; `npm run seed` adds four demo profiles and fifteen gardens through the API |
 
 ## Production configuration
 

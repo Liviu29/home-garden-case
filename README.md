@@ -331,27 +331,30 @@ second terminal while the API is up:
 npm run seed
 ```
 
-It adds three profiles — Liviu, Maya and Tom — each with their own gardens, plus one shared
-allotment: a full garden, humidity drifts, a garden planted over months for the timeline and an
-empty bed. It is safe to re-run; `npm run seed:reset` removes the demo data (and only that) and adds
-it again.
+It adds four profiles. **Demo Account** is a guided tour, with a garden for each feature to show
+([DEMO-GUIDE.md](docs/DEMO-GUIDE.md) walks through them). Liviu, Maya and Tom have gardens of their
+own — a full garden, humidity drifts, a garden planted over months for the timeline, an empty bed —
+and every profile shares one allotment. It is safe to re-run; `npm run seed:reset` removes the demo
+data (and only that) and adds it again. Run it shortly before a demo: the newly planted beds are
+dated from the day of the seed.
 
-| Command                     | Purpose                                                             |
-| --------------------------- | ------------------------------------------------------------------- |
-| `npm run lint`              | ESLint and Prettier for api, web and web-e2e                        |
-| `npm run typecheck`         | strict TypeScript with `strictTemplates`                            |
-| `npm run test`              | Vitest: API tests, web unit and component tests                     |
-| `npm run test:coverage`     | the web suite, enforcing the 95% thresholds                         |
-| `npm run test:e2e`          | Playwright, mocked and integration (starts its own API and web app) |
-| `npm run build`             | production builds of api and web, with bundle budgets               |
-| `npm run check:no-spinners` | fails if a spinner appears anywhere in the app                      |
-| `npm run seed`              | adds the demo profiles and gardens (the API must be running)        |
-| `npm run seed:reset`        | removes the demo data, then adds it again                           |
-| `npm run dev:web:nl`        | the web app in Dutch (the dev server serves one language at a time) |
-| `npm run i18n:extract`      | re-extracts the English messages into `src/locale/messages.json`    |
-| `npm run storybook`         | Storybook for the shared UI kit, on http://localhost:6006           |
-| `npm run build-storybook`   | a static Storybook in `apps/web/dist/storybook`                     |
-| `npm run storybook:a11y`    | axe (WCAG 2.2 AA) on every story of the built Storybook             |
+| Command                     | Purpose                                                                                            |
+| --------------------------- | -------------------------------------------------------------------------------------------------- |
+| `npm run lint`              | ESLint and Prettier for api, web and web-e2e                                                       |
+| `npm run typecheck`         | strict TypeScript with `strictTemplates`                                                           |
+| `npm run test`              | Vitest: API tests, web unit and component tests                                                    |
+| `npm run test:coverage`     | the web suite, enforcing the 95% thresholds                                                        |
+| `npm run test:e2e`          | Playwright, mocked and integration (starts its own API and web app)                                |
+| `npm run build`             | production builds of api and web, with bundle budgets                                              |
+| `npm run check:no-spinners` | fails if a spinner appears anywhere in the app                                                     |
+| `npm run seed`              | adds the demo profiles and gardens (the API must be running)                                       |
+| `npm run seed:reset`        | removes the demo data, then adds it again                                                          |
+| `npm run demo`              | the production build, as the demo container runs it, on http://localhost:8080 with fresh demo data |
+| `npm run dev:web:nl`        | the web app in Dutch (the dev server serves one language at a time)                                |
+| `npm run i18n:extract`      | re-extracts the English messages into `src/locale/messages.json`                                   |
+| `npm run storybook`         | Storybook for the shared UI kit, on http://localhost:6006                                          |
+| `npm run build-storybook`   | a static Storybook in `apps/web/dist/storybook`                                                    |
+| `npm run storybook:a11y`    | axe (WCAG 2.2 AA) on every story of the built Storybook                                            |
 
 ## Production build
 
@@ -370,6 +373,8 @@ are in [PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md).
 The repository ships a container image for hosting a live demo: the API and the built SPA in one
 container, with the SPA serving `/api` from the same origin. On boot it adds the demo profiles and
 gardens, so a fresh deploy is ready to explore. CI builds the image and starts it on every push.
+`npm run demo` runs the same thing on your machine, without Docker: the production build on
+http://localhost:8080, with a fresh database and the demo data on every run.
 
 **On Render, in a few clicks.** [`render.yaml`](render.yaml) describes the service. Open
 https://render.com/deploy?repo=https://github.com/Liviu29/home-garden-case, sign in with your own
@@ -432,6 +437,7 @@ account.
 | Planner interaction design                       | [INTERACTIVE-GARDEN-UX.md](docs/design/INTERACTIVE-GARDEN-UX.md)           |
 | Design system                                    | [DESIGN-SYSTEM.md](docs/design/DESIGN-SYSTEM.md)                           |
 | Build, hosting, dependencies                     | [PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md)                    |
+| Presenting the demo, feature by feature          | [DEMO-GUIDE.md](docs/DEMO-GUIDE.md)                                        |
 | Architecture decisions                           | [ADR-001 … ADR-010](docs/adr/)                                             |
 
 A walkthrough deck is in [docs/presentation/home-garden-demo.html](docs/presentation/home-garden-demo.html)

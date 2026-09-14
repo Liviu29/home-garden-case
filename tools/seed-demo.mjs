@@ -6,10 +6,19 @@
  *   npm run seed         # adds the demo profiles and gardens (safe to re-run)
  *   npm run seed:reset   # removes the demo data first, then adds it again
  *
- * What it creates: three profiles (Liviu, Maya, Tom) and eleven gardens that
- * each show something — a full garden, a humidity drift, a garden planted over
- * months for the timeline, an empty bed — owned by those profiles, plus one
- * shared allotment every profile sees (ADR-009).
+ * What it creates: four profiles and fifteen gardens, one of them an
+ * allotment every profile shares (ADR-009).
+ *
+ * - Demo Account: a guided tour, one garden per feature to show — a courtyard
+ *   with beds planted days ago (watered daily) and an outdoor reading, a
+ *   nearly full allotment, an indoor corner far too humid for its target, and
+ *   a spare bed to delete and bring back with Undo.
+ * - Liviu, Maya and Tom: gardens of their own — a full garden, a humidity
+ *   drift, a garden planted over months for the timeline, an empty bed — so
+ *   switching profile shows each one sees only its own gardens.
+ *
+ * The newly planted beds are dated relative to the day the seed runs: seed
+ * again (`npm run seed:reset`) shortly before a demo.
  *
  * It only ever touches its own data: the reset removes the demo profiles, the
  * gardens they own and the demo gardens by name, never anything else. It goes
@@ -49,6 +58,8 @@ async function call(method, path, body) {
 }
 
 const day = (date) => `${date}T08:00:00.000Z`;
+/** 'YYYY-MM-DD', `n` days before the seed runs: a bed that is still establishing. */
+const daysAgo = (n) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
 const plant = (plantName, species, plantType, surfaceAreaRequired, idealHumidityLevel, date) => ({
   plantName,
   species,
@@ -59,6 +70,7 @@ const plant = (plantName, species, plantType, surfaceAreaRequired, idealHumidity
 });
 
 const PROFILES = {
+  demo: { emailAddress: 'demo@homegarden.demo', firstName: 'Demo', lastName: 'Account', age: null },
   liviu: { emailAddress: 'liviu@homegarden.demo', firstName: 'Liviu', lastName: 'Nita', age: null },
   maya: { emailAddress: 'maya@homegarden.demo', firstName: 'Maya', lastName: 'Lin', age: 29 },
   tom: { emailAddress: 'tom@homegarden.demo', firstName: 'Tom', lastName: 'Peeters', age: 41 },
@@ -66,6 +78,82 @@ const PROFILES = {
 
 /** owner: a PROFILES key, or null for a garden shared with every profile. */
 const GARDENS = [
+  // ── Demo Account: the guided tour ─────────────────────────────────────────
+  {
+    // Watering plan (two beds planted days ago), outdoor humidity, planner,
+    // timeline, humidity profile and their PNG exports.
+    owner: 'demo',
+    garden: {
+      gardenName: 'Ghent Courtyard Garden',
+      totalSurfaceArea: 24,
+      targetHumidityLevel: 60,
+      locationDescription: 'Walled courtyard · Ghent, Patershol',
+      latitude: 51.0582,
+      longitude: 3.7224,
+    },
+    plants: [
+      plant("Climbing Rose 'New Dawn'", 'Rosa wichurana', 'flower', 2, 55, '2026-03-14'),
+      plant("Lavender 'Hidcote'", 'Lavandula angustifolia', 'flower', 2, 42, '2026-03-28'),
+      plant('Rosemary', 'Salvia rosmarinus', 'vegetable', 1, 38, '2026-03-28'),
+      plant('Strawberry Patch', 'Fragaria × ananassa', 'fruit', 2, 60, '2026-04-12'),
+      plant('Mophead Hydrangea', 'Hydrangea macrophylla', 'flower', 2.5, 72, '2026-04-26'),
+      plant('Butterhead Lettuce', 'Lactuca sativa', 'vegetable', 1, 70, '2026-05-10'),
+      plant("Tomato 'Moneymaker'", 'Solanum lycopersicum', 'vegetable', 2.5, 65, daysAgo(5)),
+      plant('Sweet Basil', 'Ocimum basilicum', 'vegetable', 0.6, 60, daysAgo(2)),
+    ],
+  },
+  {
+    // The capacity rule: 9.5 of 10 m² in use — "Needs attention", and a
+    // 1 m² plant is refused.
+    owner: 'demo',
+    garden: {
+      gardenName: 'Antwerp Allotment',
+      totalSurfaceArea: 10,
+      targetHumidityLevel: 55,
+      locationDescription: 'Allotment plot 7 · Antwerp, Zurenborg',
+      latitude: 51.2089,
+      longitude: 4.4264,
+    },
+    plants: [
+      plant("Onion Sets 'Sturon'", 'Allium cepa', 'vegetable', 0.8, 50, '2026-03-30'),
+      plant("Potato 'Charlotte'", 'Solanum tuberosum', 'vegetable', 3, 60, '2026-04-05'),
+      plant("Leek 'Musselburgh'", 'Allium porrum', 'vegetable', 1.2, 55, '2026-04-20'),
+      plant('Runner Beans', 'Phaseolus coccineus', 'vegetable', 2, 60, '2026-05-02'),
+      plant("Courgette 'Defender'", 'Cucurbita pepo', 'vegetable', 2.5, 62, '2026-05-10'),
+    ],
+  },
+  {
+    // A humidity drift (plants want ~80%, the target is 40%), and a garden
+    // without coordinates, so no outdoor reading.
+    owner: 'demo',
+    garden: {
+      gardenName: 'Bathroom Window Ferns',
+      totalSurfaceArea: 3,
+      targetHumidityLevel: 40,
+      locationDescription: 'North-facing bathroom window sill',
+    },
+    plants: [
+      plant('Boston Fern', 'Nephrolepis exaltata', 'flower', 0.6, 88, '2026-05-20'),
+      plant('Maidenhair Fern', 'Adiantum raddianum', 'flower', 0.4, 85, '2026-05-20'),
+      plant('Peace Lily', 'Spathiphyllum wallisii', 'flower', 0.5, 75, '2026-06-03'),
+    ],
+  },
+  {
+    // For Undo: delete it (or one of its plants), then choose Undo in the toast.
+    owner: 'demo',
+    garden: {
+      gardenName: 'Spare Cutting Bed',
+      totalSurfaceArea: 4,
+      targetHumidityLevel: 50,
+      locationDescription: 'Behind the shed · Ghent',
+    },
+    plants: [
+      plant("Dahlia 'Café au Lait'", 'Dahlia pinnata', 'flower', 1, 55, '2026-05-01'),
+      plant("Cosmos 'Sensation'", 'Cosmos bipinnatus', 'flower', 0.8, 50, '2026-05-15'),
+      plant("Zinnia 'Queen Lime'", 'Zinnia elegans', 'flower', 0.6, 45, '2026-05-15'),
+    ],
+  },
+  // ── Liviu, Maya and Tom ───────────────────────────────────────────────────
   {
     owner: 'liviu',
     garden: {
@@ -354,8 +442,8 @@ async function main() {
   // With SEED_API set (the demo container, a hosted API) the app is not on :4200.
   console.log(
     process.env.SEED_API
-      ? '\nDone. Pick Liviu, Maya or Tom on the welcome screen.'
-      : '\nDone. Open http://localhost:4200 and pick Liviu, Maya or Tom.',
+      ? '\nDone. Pick Demo Account for the tour, or Liviu, Maya or Tom, on the welcome screen.'
+      : '\nDone. Open http://localhost:4200 and pick Demo Account for the tour, or Liviu, Maya or Tom.',
   );
 }
 

@@ -22,6 +22,7 @@
     "check:no-spinners": "node tools/check-no-spinners.mjs",
     "seed": "node tools/seed-demo.mjs",
     "seed:reset": "node tools/seed-demo.mjs --reset",
+    "demo": "nx run-many -t build -p api web --configuration=production && node tools/start-demo.mjs --local",
     "test:coverage": "nx test web --coverage",
     "dev:web:nl": "nx serve-nl web",
     "i18n:extract": "nx extract-i18n web",
