@@ -1,5 +1,8 @@
 import { MatDialog } from '@angular/material/dialog';
-import { TestBed } from '@angular/core/testing';
+import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import { MatDialogHarness } from '@angular/material/dialog/testing';
+import { MatMenuHarness } from '@angular/material/menu/testing';
 import { Router, provideRouter } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { UsersApi } from '../../api/users-api';
@@ -206,64 +209,56 @@ describe('AccountMenu', () => {
     });
   });
 
-  describe('menu wiring (driven through the DOM)', () => {
-    const openMenu = (fixture: { detectChanges: () => void }, el: HTMLElement) => {
-      el.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')?.click();
-      fixture.detectChanges();
-      return [...document.querySelectorAll<HTMLButtonElement>('button.mat-mdc-menu-item')];
+  describe('menu wiring (driven through Material’s harnesses)', () => {
+    const openMenu = async (fixture: ComponentFixture<AccountMenu>) => {
+      const menu = await TestbedHarnessEnvironment.loader(fixture).getHarness(MatMenuHarness);
+      await menu.open();
+      return menu;
+    };
+    const choose = async (menu: MatMenuHarness, text: RegExp) => {
+      const [item] = await menu.getItems({ text });
+      expect(item, `menu item ${text}`).toBeDefined();
+      await item.click();
     };
 
     it('Edit profile lazily loads and opens the profile dialog', async () => {
       const fixture = render();
-      const el = fixture.nativeElement as HTMLElement;
-      const items = openMenu(fixture, el);
-
-      const edit = items.find((b) => /edit profile/i.test(b.textContent ?? ''));
-      expect(edit, 'Edit profile menu item').toBeDefined();
-      edit!.click();
+      await choose(await openMenu(fixture), /edit profile/i);
 
       // `editProfile()` dynamically imports ProfileDialog AND MatDialog before
       // opening. The test must wait for the dialog to actually appear —
       // finishing earlier tears the injector down mid-import and the pending
       // `injector.get(MatDialog)` then rejects with NG0205.
-      await vi.waitFor(() => {
-        fixture.detectChanges();
-        expect(document.querySelector('mat-dialog-container')).not.toBeNull();
-      });
+      const root = TestbedHarnessEnvironment.documentRootLoader(fixture);
+      await vi.waitFor(async () =>
+        expect(await root.getAllHarnesses(MatDialogHarness)).toHaveLength(1),
+      );
 
       TestBed.inject(MatDialog).closeAll();
       fixture.detectChanges();
     });
 
-    it('Switch profile returns to onboarding without ending the session', () => {
+    it('Switch profile returns to onboarding without ending the session', async () => {
       const fixture = render();
-      const el = fixture.nativeElement as HTMLElement;
-      const items = openMenu(fixture, el);
-
-      items.find((b) => /switch profile/i.test(b.textContent ?? ''))!.click();
+      await choose(await openMenu(fixture), /switch profile/i);
 
       expect(router.navigate).toHaveBeenCalledWith(['/welcome']);
       expect(session.isActive()).toBe(true);
     });
 
-    it('Sign out ends the session', () => {
+    it('Sign out ends the session', async () => {
       const fixture = render();
-      const el = fixture.nativeElement as HTMLElement;
-      const items = openMenu(fixture, el);
-
-      items.find((b) => /sign out/i.test(b.textContent ?? ''))!.click();
+      await choose(await openMenu(fixture), /sign out/i);
 
       expect(session.isActive()).toBe(false);
     });
 
     it('Delete profile asks for confirmation first', async () => {
       const fixture = render();
-      const el = fixture.nativeElement as HTMLElement;
       const { ConfirmService } = await import('../../../shared/ui/confirm-dialog/confirm-dialog');
       const confirm = vi.spyOn(TestBed.inject(ConfirmService), 'confirm').mockResolvedValue(false);
 
-      const items = openMenu(fixture, el);
-      items.find((b) => /delete profile/i.test(b.textContent ?? ''))!.click();
+      await choose(await openMenu(fixture), /delete profile/i);
       await new Promise((r) => setTimeout(r, 0));
 
       expect(confirm).toHaveBeenCalled();

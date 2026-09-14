@@ -1,4 +1,6 @@
 import { Title } from '@angular/platform-browser';
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import { MatMenuHarness } from '@angular/material/menu/testing';
 import {
   type ComponentFixture,
   DeferBlockBehavior,
@@ -411,6 +413,55 @@ describe('GardenDetail', () => {
       expect(vm.plannerFullscreen()).toBe(false);
       expect(document.body.style.overflow).toBe('');
     });
+
+    it('gives the page its scroll back when the screen is left while fullscreen', async () => {
+      const { vm, store, fixture } = render();
+      await settled(store);
+      vm.toggleFullscreen();
+      expect(document.body.style.overflow).toBe('hidden');
+
+      fixture.destroy(); // Back, or a deep link elsewhere
+
+      expect(document.body.style.overflow).toBe('');
+    });
+
+    it('traps focus in the planner while fullscreen, like a dialog', async () => {
+      const { vm, store, fixture, el } = render();
+      await settled(store);
+      fixture.detectChanges();
+      // The CDK puts two anchors around the trapped panel; they are live
+      // (tabbable, and they bounce focus back inside) only while enabled.
+      const anchors = () => [...el.querySelectorAll('.cdk-focus-trap-anchor')];
+
+      vm.toggleFullscreen();
+      fixture.detectChanges();
+      expect(anchors()).toHaveLength(2);
+      expect(anchors().every((a) => a.getAttribute('tabindex') === '0')).toBe(true);
+
+      vm.toggleFullscreen();
+      fixture.detectChanges();
+      expect(anchors()).toHaveLength(2); // still there, dormant
+      expect(anchors().every((a) => !a.hasAttribute('tabindex'))).toBe(true);
+    });
+
+    it('moves focus into the search when it opens, and back to the opener when it closes', async () => {
+      const { vm, store, fixture, el } = render();
+      await settled(store);
+      fixture.detectChanges();
+      const opener = el.querySelector<HTMLButtonElement>('button')!;
+      opener.focus();
+      expect(document.activeElement).toBe(opener);
+
+      vm.toggleFullscreen();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(document.activeElement).toBe(el.querySelector('.planner-search'));
+
+      vm.toggleFullscreen();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(document.activeElement).toBe(opener);
+    });
   });
 
   describe('fullscreen search', () => {
@@ -625,44 +676,38 @@ describe('GardenDetail', () => {
     });
 
     it('Edit garden, behind the garden actions menu, opens the garden form', async () => {
-      const { fixture, el } = await loaded();
+      const { fixture } = await loaded();
 
-      el.querySelector<HTMLButtonElement>('[aria-label="Garden actions"]')!.click();
-      fixture.detectChanges();
-
-      const item = [...document.querySelectorAll('button.mat-mdc-menu-item')].find((b) =>
-        /edit garden/i.test(b.textContent ?? ''),
-      ) as HTMLButtonElement;
-      item.click();
+      const menu = await TestbedHarnessEnvironment.loader(fixture).getHarness(
+        MatMenuHarness.with({ selector: '[aria-label="Garden actions"]' }),
+      );
+      await menu.open();
+      await (await menu.getItems({ text: /edit garden/i }))[0].click();
 
       expect(dialog.open).toHaveBeenCalled();
     });
 
     it('Remove, behind the plant actions menu, asks for confirmation first', async () => {
-      const { fixture, el } = await loaded();
+      const { fixture } = await loaded();
 
-      el.querySelector<HTMLButtonElement>('[aria-label="Plant actions"]')!.click();
-      fixture.detectChanges();
-
-      const item = [...document.querySelectorAll('button.mat-mdc-menu-item')].find((b) =>
-        /^\s*Remove\s*$/.test(b.textContent ?? ''),
-      ) as HTMLButtonElement;
-      item.click();
+      const menu = await TestbedHarnessEnvironment.loader(fixture).getHarness(
+        MatMenuHarness.with({ selector: '[aria-label="Plant actions"]' }),
+      );
+      await menu.open();
+      await (await menu.getItems({ text: /^\s*Remove\s*$/ }))[0].click();
       await Promise.resolve();
 
       expect(confirm.confirm).toHaveBeenCalled();
     });
 
     it('Edit, behind the plant actions menu, opens the plant form', async () => {
-      const { fixture, el } = await loaded();
+      const { fixture } = await loaded();
 
-      el.querySelector<HTMLButtonElement>('[aria-label="Plant actions"]')!.click();
-      fixture.detectChanges();
-
-      const item = [...document.querySelectorAll('button.mat-mdc-menu-item')].find((b) =>
-        /^\s*Edit\s*$/.test(b.textContent ?? ''),
-      ) as HTMLButtonElement;
-      item.click();
+      const menu = await TestbedHarnessEnvironment.loader(fixture).getHarness(
+        MatMenuHarness.with({ selector: '[aria-label="Plant actions"]' }),
+      );
+      await menu.open();
+      await (await menu.getItems({ text: /^\s*Edit\s*$/ }))[0].click();
 
       expect(dialog.open).toHaveBeenCalled();
     });

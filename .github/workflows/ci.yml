@@ -65,8 +65,8 @@ jobs:
       - name: Install browsers
         run: npx playwright install --with-deps chromium webkit
 
-      - name: Playwright (mocked + real API)
-        run: npx playwright test -c apps/web-e2e/playwright.config.ts --project=mocked --project=integration
+      - name: Playwright (mocked, real API, the Dutch build)
+        run: npx playwright test -c apps/web-e2e/playwright.config.ts --project=mocked --project=integration --project=nl
 
       - name: Storybook, every story scanned by axe
         run: npm run build-storybook && npm run storybook:a11y

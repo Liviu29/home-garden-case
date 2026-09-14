@@ -17,7 +17,13 @@
 
     <mat-form-field appearance="outline">
       <mat-label i18n>Total surface area (m²)</mat-label>
-      <input matInput type="number" [formField]="f.totalSurfaceArea" step="0.5" />
+      <input
+        matInput
+        type="number"
+        [formField]="f.totalSurfaceArea"
+        step="0.5"
+        [aria-describedby]="shrinksBelowUsed() ? 'garden-shrink-warning' : ''"
+      />
       @if (f.totalSurfaceArea().errors()[0]; as error) {
         <mat-error>{{ error.message }}</mat-error>
       }
@@ -32,7 +38,7 @@
     />
 
     @if (shrinksBelowUsed()) {
-      <p class="form-warning" role="alert" i18n>
+      <p id="garden-shrink-warning" class="form-warning" role="alert" i18n>
         Plants currently use {{ usedArea() | number: '1.0-2' }} m² of this garden. Setting the total
         below that leaves the garden over capacity.
       </p>
@@ -68,7 +74,13 @@
     <div class="coords">
       <mat-form-field appearance="outline">
         <mat-label i18n>Latitude</mat-label>
-        <input matInput type="number" [formField]="f.latitude" step="0.000001" />
+        <input
+          matInput
+          type="number"
+          [formField]="f.latitude"
+          step="0.000001"
+          [aria-describedby]="coordinatesError() ? 'garden-coordinates-error' : ''"
+        />
         @if (f.latitude().errors()[0]; as error) {
           <mat-error>{{ error.message }}</mat-error>
         }
@@ -76,7 +88,13 @@
 
       <mat-form-field appearance="outline">
         <mat-label i18n>Longitude</mat-label>
-        <input matInput type="number" [formField]="f.longitude" step="0.000001" />
+        <input
+          matInput
+          type="number"
+          [formField]="f.longitude"
+          step="0.000001"
+          [aria-describedby]="coordinatesError() ? 'garden-coordinates-error' : ''"
+        />
         @if (f.longitude().errors()[0]; as error) {
           <mat-error>{{ error.message }}</mat-error>
         }
@@ -84,7 +102,7 @@
     </div>
 
     @if (coordinatesError(); as message) {
-      <p class="form-error" role="alert">{{ message }}</p>
+      <p id="garden-coordinates-error" class="form-error" role="alert">{{ message }}</p>
     }
 
     @if (serverError(); as message) {

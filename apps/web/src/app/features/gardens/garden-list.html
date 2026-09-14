@@ -36,6 +36,16 @@
       </mat-select>
     </mat-form-field>
   </div>
+  <!-- What a search left, for those who cannot see the grid change -->
+  @if (store.query()) {
+    <p class="visually-hidden" role="status" i18n>
+      {cards().length, plural,
+        =0 {No gardens match your search}
+        =1 {1 garden matches your search}
+        other {{{ cards().length }} gardens match your search}
+      }
+    </p>
+  }
 }
 
 <app-skeleton-group [loading]="store.isLoading()" label="Loading your gardens" i18n-label>

@@ -118,7 +118,13 @@
       <div class="area-block">
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label i18n>Surface area required (m²)</mat-label>
-          <input matInput type="number" [formField]="f.surfaceAreaRequired" step="0.5" />
+          <input
+            matInput
+            type="number"
+            [formField]="f.surfaceAreaRequired"
+            step="0.5"
+            [aria-describedby]="overcrowds() ? 'plant-overcrowded' : ''"
+          />
           <mat-hint i18n
             >{{ capacityLeft() | number: '1.0-2' }} m² available in this garden</mat-hint
           >
@@ -171,7 +177,7 @@
           [showLabel]="false"
         />
         @if (overcrowdedMessage(); as message) {
-          <p class="form-error" role="alert">{{ message }}</p>
+          <p id="plant-overcrowded" class="form-error" role="alert">{{ message }}</p>
         }
       </div>
 

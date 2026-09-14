@@ -3,6 +3,7 @@
 <app-plant-artwork-defs />
 
 <div class="page">
+  <a class="skip-link" href="#main-content" i18n>Skip to content</a>
   <!-- The case brief's own garden behind the brand side, on a gradient mask:
        decorative, low priority, and faded in once decoded — it never pops -->
   <img
@@ -107,7 +108,7 @@
     </aside>
 
     <!-- ── Profile experience ── -->
-    <section class="panel anim-fade-up">
+    <main id="main-content" class="panel anim-fade-up" tabindex="-1">
       <!-- Each view fades in as it swaps (list ⇄ form), instead of cutting -->
       @if (!showCreate()) {
         <div class="panel-view">
@@ -339,6 +340,6 @@
           </form>
         </div>
       }
-    </section>
+    </main>
   </div>
 </div>

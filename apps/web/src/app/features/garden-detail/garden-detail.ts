@@ -1,6 +1,8 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
+  ElementRef,
   afterNextRender,
   Injector,
   computed,
@@ -11,6 +13,7 @@ import {
   numberAttribute,
   signal,
 } from '@angular/core';
+import { CdkTrapFocus } from '@angular/cdk/a11y';
 import { type OutdoorConditions, OutdoorWeather } from '../../core/weather/weather';
 import { DatePipe, DecimalPipe, NgTemplateOutlet } from '@angular/common';
 import { Title } from '@angular/platform-browser';
@@ -86,6 +89,7 @@ const ZONE_SPOKEN: Readonly<Record<WateringZone, string>> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [GardenDetailStore],
   imports: [
+    CdkTrapFocus,
     RouterLink,
     DatePipe,
     DecimalPipe,
@@ -165,6 +169,9 @@ export class GardenDetail {
   protected readonly hasCustomLayout = computed(() => Object.keys(this.positions()).length > 0);
   protected readonly plannerFullscreen = signal(false);
   protected readonly plannerQuery = signal('');
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  /** Where focus was when the planner went fullscreen; it returns there. */
+  private returnFocusTo: HTMLElement | null = null;
 
   /** Typed bridge for the native input event — keeps `$any` out of templates. */
   protected onPlannerQueryInput(event: Event): void {
@@ -226,6 +233,11 @@ export class GardenDetail {
   }
 
   constructor() {
+    // The page behind a fullscreen planner gets its scroll back even when
+    // the screen is left with the planner still open (Back, a deep link).
+    inject(DestroyRef).onDestroy(() => {
+      document.body.style.overflow = '';
+    });
     // The outdoor reading follows the garden's coordinates.
     effect(() => {
       const garden = this.store.garden();
@@ -516,9 +528,27 @@ export class GardenDetail {
 
   protected toggleFullscreen(): void {
     const next = !this.plannerFullscreen();
+    if (next) {
+      this.returnFocusTo =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    }
     this.plannerFullscreen.set(next);
     // Lock page scroll behind the fullscreen planner overlay.
     document.body.style.overflow = next ? 'hidden' : '';
+    // Focus follows the mode: into the planner's search when it opens, back
+    // to the control that opened it when it closes. The panel traps focus in
+    // between (cdkTrapFocus in the template), like a dialog would.
+    afterNextRender(
+      () => {
+        if (next) {
+          this.host.nativeElement.querySelector<HTMLElement>('.planner-search')?.focus();
+        } else {
+          this.returnFocusTo?.focus();
+          this.returnFocusTo = null;
+        }
+      },
+      { injector: this.injector },
+    );
   }
 
   /** Fullscreen search: Enter focuses the first matching plant. */

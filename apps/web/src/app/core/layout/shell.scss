@@ -37,26 +37,11 @@
   filter: brightness(0.72) saturate(0.9);
 }
 
-// Visible only on keyboard focus (ACCESSIBILITY.md)
-.skip-link {
-  position: absolute;
-  top: -100%;
-  left: var(--sp-4);
-  z-index: var(--z-skip-link);
-  padding: var(--sp-2) var(--sp-4);
-  background: var(--surface-inverse);
-  color: var(--text-on-inverse);
-  border-radius: 0 0 var(--radius-s) var(--radius-s);
-  font-weight: 600;
-  text-decoration: none;
-
-  &:focus-visible {
-    top: 0;
-  }
-}
-
+// A landmark, not a control: focus lands here after the skip link or a
+// navigation, and needs no ring.
 .content:focus {
   outline: none;
+  box-shadow: none;
 }
 
 .topbar {

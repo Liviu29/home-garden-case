@@ -84,6 +84,9 @@ describe('GardenFormDialog (shrink-below-used warning)', () => {
     const warning = el.querySelector('.form-warning');
     expect(warning?.getAttribute('role')).toBe('alert');
     expect(warning?.textContent).toContain('15');
+    // …and it describes the field it judges.
+    expect(warning?.id).toBe('garden-shrink-warning');
+    expect(el.querySelector('input[aria-describedby~="garden-shrink-warning"]')).not.toBeNull();
 
     // Exactly the used area is allowed without warning (strict <).
     fixture.componentInstance['f'].totalSurfaceArea().value.set(15);

@@ -6,7 +6,7 @@ Target: WCAG 2.2 AA. Accessibility here is architecture, not garnish — the sam
 
 **Semantics & structure**
 
-- One `h1` per page (PageHeader / hero), sectioned headings (`h2` + `aria-labelledby`) on detail panels; landmarks: `header`, `nav[aria-label="Primary"]`, `main`.
+- One `h1` per page (PageHeader / hero), sectioned headings (`h2` + `aria-labelledby`) on detail panels; landmarks: `header`, `nav[aria-label="Primary"]`, `main` — the welcome page, outside the shell, has its own `main` and skip link.
 - The plants table is a real `<table>` with `scope="col"` headers; the humidity gauge is `role="img"` with a full-sentence `aria-label` (the numbers, not just the shape).
 
 **Garden Map (the SVG digital twin — ADR-007)**
@@ -24,18 +24,20 @@ Target: WCAG 2.2 AA. Accessibility here is architecture, not garnish — the sam
 
 **Keyboard**
 
-- Skip-to-content link as the first focusable element, visible on keyboard focus, jumping to `#main-content`.
+- Skip-to-content link as the first focusable element of every page, visible on keyboard focus, jumping to `#main-content`.
+- **Focus follows navigation.** After a route change, focus moves to the new page's `main` (`tabindex="-1"`, no ring — a landmark, not a control), so a keyboard or screen-reader user starts the new page at its content instead of wherever focus was left on the old one. The page load itself is left alone: a document starts at its top. (`app.ts`, asserted in `app.spec.ts`.)
+- **The fullscreen planner behaves like a dialog.** It traps focus (`cdkTrapFocus`), opens on its search field, returns focus to the control that opened it, and gives the page its scroll back even when the screen is left while the planner is still fullscreen.
 - Everything interactive is a native `button`/`a` — no clickable divs. Focus is never trapped except in dialogs, where Material CDK manages containment and restore; `cdkFocusInitial` lands on the primary action.
 - Visible focus everywhere: a global `:focus-visible` ring (2px brand ring with offset) that no component removes.
 
 **Forms & validation**
 
-- Every field has a real `<mat-label>`; errors render inside `mat-error` (wired via `aria-describedby` by Material); cross-field and server verdicts render as `role="alert"` paragraphs so they are announced when they appear.
+- Every field has a real `<mat-label>`; errors render inside `mat-error` (wired via `aria-describedby` by Material); cross-field and server verdicts render as `role="alert"` paragraphs so they are announced when they appear — and the cross-field verdicts (a plant that would overcrowd its garden, a garden shrunk below its plants, one coordinate without the other) also describe the fields they judge (`aria-describedby`), so a screen reader hears the verdict on the input, not only at the moment it appears.
 - The humidity sliders are labelled via `aria-labelledby` with a live numeric readout; validation happens on input, not only on submit.
 
 **Loading & async**
 
-- SkeletonGroup exposes `role="status"` + `aria-live="polite"` with a visually-hidden "Loading…"; the ghost blocks themselves are `aria-hidden`.
+- SkeletonGroup exposes `role="status"` + `aria-live="polite"` with a visually-hidden "Loading…"; the ghost blocks themselves are `aria-hidden`. A search on the gardens grid announces what it left ("3 gardens match your search", a visually-hidden `role="status"`), for those who cannot see the grid change.
 - The toast host is an `aria-live="polite"` region; error toasts persist until dismissed (no timed removal of content the user hasn't seen); dismiss buttons carry `aria-label`. A timed toast pauses while the pointer is on it or focus is inside it (WCAG 2.2.1), so a keyboard user can still reach its Undo.
 
 **Not color alone**
@@ -50,7 +52,8 @@ Target: WCAG 2.2 AA. Accessibility here is architecture, not garnish — the sam
 **Automated verification**
 
 - @axe-core/playwright scans dashboard (both themes, portfolio map included), gardens and garden detail (humidity profile included) in the mocked e2e project; `serious`/`critical` violations fail the suite. Accent tokens (`--text-3`, amber, info, danger) are tuned per theme to pass AA (darker in light, lighter in dark). Scans run under reduced-motion emulation so entry animations can't blend colors mid-scan.
-- Keyboard behaviour is asserted in e2e: dialog autofocus, focus containment, Escape-restore to trigger, slider arrow-key operation.
+- Keyboard behaviour is asserted in e2e: dialog autofocus, focus containment, Escape-restore to trigger, slider arrow-key operation. Unit specs drive Material through the CDK component harnesses (menus, selects, dialogs, form fields) rather than its DOM, so what a test presses is what a user reaches.
+- The `nl` Playwright project boots the Dutch build on a development server of its own and checks the document language, the first headings and the decimal comma — the second build is run, not only compiled.
 
 ## Known gaps
 

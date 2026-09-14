@@ -196,6 +196,12 @@ $ring-room: 5px;
 // ── Profile panel ──────────────────────────────────────────────────
 .panel {
   width: 100%;
+  // A landmark, not a control: focus lands here after the skip link or a
+  // navigation, and needs no ring.
+  &:focus {
+    outline: none;
+    box-shadow: var(--shadow-3);
+  }
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: var(--radius-l);

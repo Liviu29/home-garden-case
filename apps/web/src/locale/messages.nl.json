@@ -515,6 +515,8 @@
     "694530693773247099": "Tuin “{$name}” bijgewerkt.",
     "1191902556246067440": "Tuinen uit de cache worden getoond — vernieuwen is mislukt.",
     "2515819007800717658": "Tuin “{$name}” verwijderd.",
-    "7590403173124827674": "Kon “{$name}” niet verwijderen."
+    "7590403173124827674": "Kon “{$name}” niet verwijderen.",
+    "8856905278208146821": " {$ICU} ",
+    "8619000275131963372": "{VAR_PLURAL, plural, =0 {Geen tuinen komen overeen met je zoekopdracht} =1 {1 tuin komt overeen met je zoekopdracht} other {{INTERPOLATION} tuinen komen overeen met je zoekopdracht}}"
   }
 }

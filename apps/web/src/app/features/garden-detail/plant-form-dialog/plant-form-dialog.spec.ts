@@ -1,6 +1,8 @@
 import { ApiError } from '../../../core/errors/api-error';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import { MatFormFieldHarness } from '@angular/material/form-field/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import type { Garden, Plant } from '../../../core/api/models';
@@ -97,6 +99,9 @@ describe('PlantFormDialog (capacity behaviour — the core business rule)', () =
     const alert = el.querySelector('[role="alert"]');
     expect(alert?.textContent).toContain('7 m²');
     expect(alert?.textContent).toContain('4 m²');
+    // The verdict describes the field it judges: read on the input, not only when it appears.
+    expect(alert?.id).toBe('plant-overcrowded');
+    expect(el.querySelector('input[aria-describedby~="plant-overcrowded"]')).not.toBeNull();
 
     await fixture.componentInstance['submit']();
     expect(store.createPlant).not.toHaveBeenCalled();
@@ -295,8 +300,10 @@ describe('PlantFormDialog — catalog search, presets and submit paths', () => {
           { ...existingPlant, plantId: 2, surfaceAreaRequired: 0.2 },
         ],
       });
-      const hint = (fixture.nativeElement as HTMLElement).querySelector('mat-hint');
-      expect(hint?.textContent?.trim()).toBe('9.7 m² available in this garden');
+      const field = await TestbedHarnessEnvironment.loader(fixture).getHarness(
+        MatFormFieldHarness.with({ floatingLabelText: 'Surface area required (m²)' }),
+      );
+      expect(await field.getTextHints()).toEqual(['9.7 m² available in this garden']);
     });
   });
 

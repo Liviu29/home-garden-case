@@ -22,6 +22,12 @@ export class App {
         popstate = event.navigationTrigger === 'popstate';
       } else if (event instanceof NavigationEnd && !popstate) {
         window.scrollTo(0, 0);
+        // Keyboard and screen-reader users start the new page at its content,
+        // not wherever focus was left on the old one. The first navigation is
+        // the page load: a document starts at its top by itself.
+        if (event.id > 1) {
+          document.getElementById('main-content')?.focus({ preventScroll: true });
+        }
       }
     });
   }

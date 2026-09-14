@@ -3,6 +3,8 @@ import { GardensStore } from '../../state/gardens-store/gardens-store';
 import { ConfirmService } from '../../shared/ui/confirm-dialog/confirm-dialog';
 import { MatDialog } from '@angular/material/dialog';
 import { TestBed } from '@angular/core/testing';
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import { MatSelectHarness } from '@angular/material/select/testing';
 import { provideRouter } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { GardensApi } from '../../core/api/gardens-api';
@@ -450,19 +452,17 @@ describe('GardenList — every rendered control', () => {
     fixture.detectChanges();
 
     expect(store.query()).toBe('herb');
+    // …and says what the search left, for those who cannot see the grid change.
+    const status = [...el.querySelectorAll('[role="status"]')].map((n) => n.textContent ?? '');
+    expect(status.some((text) => /your search/.test(text))).toBe(true);
   });
 
   it('changing the sort updates the store', async () => {
-    const { fixture, store, el } = await mountList();
-    const select = el.querySelector('mat-select') as HTMLElement;
+    const { fixture, store } = await mountList();
+    const select = await TestbedHarnessEnvironment.loader(fixture).getHarness(MatSelectHarness);
 
-    select.click();
-    fixture.detectChanges();
-    const option = [...document.querySelectorAll('mat-option')].find((o) =>
-      /utilization/i.test(o.textContent ?? ''),
-    ) as HTMLElement;
-    option.click();
-    fixture.detectChanges();
+    await select.open();
+    await select.clickOptions({ text: /utilization/i });
 
     expect(store.sort()).toBe('utilization');
   });

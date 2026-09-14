@@ -143,6 +143,25 @@
   font-variant-numeric: tabular-nums;
 }
 
+// The skip link: the first focusable element of every page, visible only on
+// keyboard focus, jumping to that page's #main-content (ACCESSIBILITY.md).
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: var(--sp-4);
+  z-index: var(--z-skip-link);
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--surface-inverse);
+  color: var(--text-on-inverse);
+  border-radius: 0 0 var(--radius-s) var(--radius-s);
+  font-weight: 600;
+  text-decoration: none;
+
+  &:focus-visible {
+    top: 0;
+  }
+}
+
 // Visually hidden (a11y)
 .visually-hidden {
   position: absolute;

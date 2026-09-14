@@ -19,6 +19,10 @@ import { join } from 'node:path';
  *   fully parallel with tight timeouts and no retries. A shared fixture fails
  *   any mocked test that makes an API request it did not mock.
  *
+ * - `nl` (src/nl): the Dutch build, on a development server of its own —
+ *   the second build boots, speaks Dutch from the first paint, formats
+ *   numbers its way.
+ *
  * - `webkit`: a cross-engine smoke of the mocked screens on Safari's engine.
  *   Opt-in locally (`E2E_WEBKIT=1`, after `npx playwright install webkit`);
  *   always on in CI.
@@ -35,6 +39,7 @@ import { join } from 'node:path';
  */
 const API_PORT = Number(process.env['E2E_API_PORT'] ?? 3310);
 const WEB_PORT = Number(process.env['E2E_WEB_PORT'] ?? 4310);
+const NL_PORT = Number(process.env['E2E_NL_PORT'] ?? 4311);
 
 const dbDir = join(tmpdir(), 'home-garden-e2e');
 mkdirSync(dbDir, { recursive: true });
@@ -75,6 +80,15 @@ export default defineConfig({
       retries: 0, // deterministic by construction
       use: chromium,
     },
+    {
+      name: 'nl',
+      testDir: './src/nl',
+      fullyParallel: true,
+      timeout: 60_000,
+      expect: { timeout: 10_000 },
+      retries: 0,
+      use: { ...chromium, baseURL: `http://localhost:${NL_PORT}` },
+    },
     ...(withWebkit
       ? [
           {
@@ -110,6 +124,16 @@ export default defineConfig({
     {
       command: `npx nx dev web --port=${WEB_PORT} --proxy-config=proxy.e2e.conf.mjs`,
       url: `http://localhost:${WEB_PORT}`,
+      cwd: '../..',
+      env: { E2E_API_PORT: String(API_PORT) },
+      reuseExistingServer: !process.env['CI'],
+      timeout: 180_000,
+    },
+    {
+      // The same app compiled in Dutch: the development server serves one
+      // language at `/` (ADR-010), so the Dutch build gets a server of its own.
+      command: `npx nx serve-nl web --port=${NL_PORT} --proxy-config=proxy.e2e.conf.mjs`,
+      url: `http://localhost:${NL_PORT}`,
       cwd: '../..',
       env: { E2E_API_PORT: String(API_PORT) },
       reuseExistingServer: !process.env['CI'],
