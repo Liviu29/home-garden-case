@@ -175,6 +175,17 @@ the five real plant fields.
    garden. Every `POST` now carries an `Idempotency-Key`, the API de-duplicates by it, and a
    `POST` without a key is never retried ([ADR-004](../adr/ADR-004-resilience-layer.md) addendum).
    The stores also make create and update single-flight: a second call joins the one in flight.
+5. **A profile switch could show the previous profile's gardens.** Invalidating the list key left
+   its in-flight request in place, so the next profile's load joined the previous profile's
+   `GET /gardens`; and a list arriving after the switch was applied regardless. The list is now
+   cached per profile, an invalidation forgets the pending request too, sign-in and sign-out clear
+   the cache, and `load()` discards an answer for a profile no longer signed in.
+6. **A plant write finishing after navigation landed in the wrong garden.** `createPlant`,
+   `updatePlant` and `removePlant` read "the plants on screen", which follow the route, so a POST
+   answering after `/gardens/1 → /gardens/2` filed garden 2's plants plus the new one under garden
+   1 — and marked garden 2's still-loading plants as ready. Every plant mutation now reads and
+   writes by the garden it targets. Deleting a garden also drops its entry from `PlantsIndexStore`,
+   which the dashboard had been working around.
 
 ## 8. UX state per operation
 

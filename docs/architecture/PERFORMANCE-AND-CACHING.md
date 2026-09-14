@@ -76,13 +76,20 @@ Keys come from one registry (`cacheKeys`), never ad-hoc strings, so invalidation
 | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `POST /gardens`                 | write through `gardens` with the store's new list                                                                                 | the server returns the created garden, so the list is known exactly — a re-read would cost another 1 s for data we already hold                                                             |
 | `PUT /gardens/{id}`             | write through **both** `gardens:{id}` (response body) and `gardens` (updated list)                                                | the server echoes the full updated row; both keys stay consistent without a network round trip                                                                                              |
-| `DELETE /gardens/{id}`          | write through `gardens`, **invalidate** `gardens:{id}` and `plants:garden:{id}`                                                   | verified: the backend cascades — the garden's plants really are gone (a later `GET /plants/{plantId}` answers 404), so those keys must not survive as stale hits for resources that now 404 |
+| `DELETE /gardens/{id}`          | write through `gardens`, **invalidate** `gardens:{id}` and `plants:garden:{id}`, and `PlantsIndexStore.forget(id)`                | verified: the backend cascades — the garden's plants really are gone (a later `GET /plants/{plantId}` answers 404), so those keys must not survive as stale hits for resources that now 404 |
 | `POST` / `PUT` / `DELETE` plant | `PlantsIndexStore.setPlants()` — one write that updates the cross-feature index **and** writes through `plants:garden:{gardenId}` | occupancy on the dashboard and gardens grid must agree with detail the moment detail changes, with no refetch                                                                               |
 
 Two deliberate rules:
 
 - **Write through when the server handed us the resource; invalidate when it did not.** Every write-through above stores a value the API actually returned (or a list rebuilt from such values) — never a row reconstructed from form input. Reconstruction would drift on fields the client does not own: `updatedAt` is the real example — the backend never touches it, so a locally invented value would be _more_ wrong than the row we already have.
 - **Invalidate, never write through, on delete's dependents.** A deleted garden's detail and plant keys are the one case where the correct cached value is "nothing" — leaving them would serve a stale hit for a resource that now answers 404.
+
+Two rules about _what_ an invalidation touches:
+
+- **Exactly one key.** `invalidate('gardens:3')` leaves `gardens:30` alone. (An earlier prefix match evicted every garden whose id started with the same digits — invisible in a test with three gardens, a cache defeat in an account with thirty.)
+- **The fetch in flight for it, too.** An invalidated key's pending request is forgotten: the next `swr` starts a request of its own instead of joining one that answers an old question, and the old answer is not stored when it lands. `clear()` does the same for every key — that is what `SessionStore` calls on sign-out and on a change of profile, so nothing of one session's data, in the cache or on its way, reaches the next.
+
+The gardens list is cached **per profile** (`cacheKeys.gardens(ownerId)`, ADR-009): switching profiles never serves the previous profile's list, and switching back finds the previous list where it was left. `GardensStore.load()` also re-checks the owner once its response arrives, so a slow answer to the previous profile's question is discarded rather than shown.
 
 Freshness is 30 s. That is a product choice, not a technical one: garden data changes at human speed, and a 30-second window turns the common "detail → back → detail" loop into zero requests.
 

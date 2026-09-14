@@ -24,7 +24,7 @@ interface SwrResult<T> {
  * - stale hit  → cached value instantly + background revalidation
  * - miss       → fetch (caller renders skeletons meanwhile)
  * - identical concurrent fetches are de-duplicated into one in-flight promise
- * - mutations invalidate by key prefix
+ * - mutations invalidate one key, or write the fresh value through
  */
 @Injectable({ providedIn: 'root' })
 export class QueryCache {
@@ -32,13 +32,17 @@ export class QueryCache {
   private readonly entries = new Map<string, CacheEntry>();
   private readonly inflight = new Map<string, Promise<unknown>>();
   /**
-   * Bumped by every write-through `set()`. An in-flight fetch that started
-   * before a local mutation wrote through resolves to the mutation's (newer)
-   * view instead of its own stale response — otherwise creating a garden
-   * while the list revalidates would make the new card vanish (race fixed
-   * by spec: 'a write-through during an in-flight fetch wins').
+   * Bumped by every write-through `set()` and every `invalidate()`. An
+   * in-flight fetch that started before either resolves to what the cache
+   * holds now (or its own value, when nothing is held) instead of storing
+   * its response — otherwise creating a garden while the list revalidates
+   * would make the new card vanish, and a profile switch would file the
+   * previous profile's list under the new one (specs: 'a write-through
+   * during an in-flight fetch wins', 'an invalidated fetch is not stored').
    */
   private readonly writeVersions = new Map<string, number>();
+  /** Bumped by `clear()`: every fetch that was in flight is then a stranger. */
+  private generation = 0;
 
   read<T>(key: string): T | undefined {
     return this.entries.get(key)?.value as T | undefined;
@@ -65,21 +69,32 @@ export class QueryCache {
 
   /** Write-through: mutations that already know the fresh value store it directly. */
   set<T>(key: string, value: T): void {
-    this.writeVersions.set(key, (this.writeVersions.get(key) ?? 0) + 1);
+    this.bump(key);
     this.entries.set(key, { value, storedAt: Date.now() });
   }
 
-  /** Drop every key starting with the prefix (e.g. `plants:garden:3`, or all `gardens`). */
-  invalidate(prefix: string): void {
-    for (const key of this.entries.keys()) {
-      if (key.startsWith(prefix)) {
-        this.entries.delete(key);
-      }
-    }
+  /**
+   * Forget one key — exactly that key: `gardens:3` leaves `gardens:30` alone.
+   * A fetch in flight for it is forgotten too, so the next `swr` starts a
+   * request of its own instead of joining one that answers an old question,
+   * and the late answer is not stored.
+   */
+  invalidate(key: string): void {
+    this.bump(key);
+    this.entries.delete(key);
+    this.inflight.delete(key);
   }
 
+  /** Forget everything, in-flight fetches included — a session change. */
   clear(): void {
+    this.generation++;
     this.entries.clear();
+    this.inflight.clear();
+    this.writeVersions.clear();
+  }
+
+  private bump(key: string): void {
+    this.writeVersions.set(key, (this.writeVersions.get(key) ?? 0) + 1);
   }
 
   private dedupedFetch<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
@@ -89,12 +104,17 @@ export class QueryCache {
     }
 
     const versionAtStart = this.writeVersions.get(key) ?? 0;
+    const generationAtStart = this.generation;
     const request = fetcher()
       .then((value) => {
-        if ((this.writeVersions.get(key) ?? 0) !== versionAtStart) {
-          // A mutation wrote through while this response was in flight — the
-          // response is older than what the user already sees. Prefer the
-          // mutated view; fall back to the response only if it was invalidated.
+        const superseded =
+          this.generation !== generationAtStart ||
+          (this.writeVersions.get(key) ?? 0) !== versionAtStart;
+        if (superseded) {
+          // A mutation wrote through, or the key was invalidated, while this
+          // response was in flight: it answers an older question. Prefer what
+          // the cache holds now; hand back the response only as a value, never
+          // as the cache's.
           const current = this.read<T>(key);
           return current ?? value;
         }
@@ -102,7 +122,9 @@ export class QueryCache {
         return value;
       })
       .finally(() => {
-        this.inflight.delete(key);
+        if (this.inflight.get(key) === request) {
+          this.inflight.delete(key);
+        }
       });
 
     this.inflight.set(key, request);
@@ -112,11 +134,12 @@ export class QueryCache {
 
 /** Central cache-key registry so invalidation never relies on ad-hoc strings. */
 export const cacheKeys = {
-  gardens: 'gardens',
+  /** A profile's list (its own gardens and the shared ones, ADR-009); `null` before any profile. */
+  gardens: (owner: number | null): string =>
+    owner === null ? 'gardens' : `gardens:owner:${owner}`,
   garden: (gardenId: number) => `gardens:${gardenId}`,
   plantsOfGarden: (gardenId: number) => `plants:garden:${gardenId}`,
   /** The one-request `GET /plants`; only de-duplicates, its result is filed per garden. */
   allPlants: 'plants:all',
-  plants: 'plants',
   users: 'users',
 } as const;

@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { UserProfile } from '../api/models';
 import { UsersApi } from '../api/users-api';
 import { toApiError } from '../errors/api-error';
+import { QueryCache } from '../resilience/query-cache';
 
 const STORAGE_KEY = 'itp-home-garden.session';
 
@@ -13,6 +14,7 @@ const STORAGE_KEY = 'itp-home-garden.session';
 @Injectable({ providedIn: 'root' })
 export class SessionStore {
   private readonly usersApi = inject(UsersApi);
+  private readonly cache = inject(QueryCache);
   private readonly _profile = signal<UserProfile | null>(readPersisted());
 
   readonly profile = computed(() => this._profile());
@@ -35,12 +37,24 @@ export class SessionStore {
     return (first + last).toUpperCase();
   });
 
+  /**
+   * Sign in. Another profile than the one signed in is another session:
+   * whatever was cached — its gardens, their plants, any answer still in
+   * flight — was that profile's, and is forgotten. The same profile again
+   * (`revalidate` adopting the server's copy) keeps its cache.
+   */
   signIn(profile: UserProfile): void {
+    const previous = this._profile();
+    if (previous !== null && previous.userId !== profile.userId) {
+      this.cache.clear();
+    }
     this._profile.set(profile);
     persist(profile);
   }
 
+  /** Sign out: the session's data goes with it — nothing of it can leak into the next. */
   signOut(): void {
+    this.cache.clear();
     this._profile.set(null);
     persist(null);
   }

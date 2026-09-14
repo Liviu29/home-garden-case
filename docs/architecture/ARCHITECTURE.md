@@ -221,6 +221,13 @@ construction.
   ([ADR-004](../adr/ADR-004-resilience-layer.md) addendum). A `POST` without a key is never
   retried.
 - **…two identical loads race?** The QueryCache hands both callers the same in-flight promise.
+- **…another profile signs in while the list is loading?** The list key is per profile, the sign-in
+  clears the cache (pending fetches included), and `GardensStore.load()` re-checks the owner when
+  its answer arrives: the previous profile's gardens are never shown, not even for a frame.
+- **…a plant write finishes after the user opened another garden?** Every plant mutation reads and
+  writes the plants of the garden it targets, by id — never "the plants on screen" — and marks the
+  route's status only when the route's garden is the one written. The new plant lands in its own
+  garden; the garden on screen keeps loading its own.
 - **…a slow response arrives for a garden the user already left?** Each `GardenDetailStore.load()`
   takes a monotonic token; a stale response is discarded instead of rendering garden A as garden B.
 - **…the page is refreshed?** The session restores from `localStorage`; entity caches are memory-only

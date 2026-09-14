@@ -7,6 +7,7 @@ import { GardenLayoutRepository } from '../garden-layout/garden-layout-repositor
 import { ApiError } from '../../core/errors/api-error';
 import { ToastStore } from '../../core/errors/toast-store';
 import { QueryCache, cacheKeys } from '../../core/resilience/query-cache';
+import { PlantsIndexStore } from '../plants-index-store/plants-index-store';
 import { GardensStore } from './gardens-store';
 
 const garden = (id: number, name = `Garden ${id}`): Garden => ({
@@ -81,7 +82,7 @@ describe('GardensStore (behaviour, not implementation)', () => {
   it('load: a failed refresh keeps the stale list on screen and says so quietly', async () => {
     vi.useFakeTimers();
     try {
-      TestBed.inject(QueryCache).set(cacheKeys.gardens, [garden(1)]);
+      TestBed.inject(QueryCache).set(cacheKeys.gardens(null), [garden(1)]);
       vi.advanceTimersByTime(31_000); // past the 30 s freshness window: stale, not gone
       api.getAll.mockRejectedValue(new ApiError('technical', 'boom', 500));
 
@@ -505,6 +506,41 @@ describe('GardensStore — a profile sees its own gardens and the shared ones (A
       7,
     );
   });
+
+  it("a list that arrives after another profile signed in is discarded — it was the previous profile's", async () => {
+    const answers = new Map<number, (gardens: Garden[]) => void>();
+    gardensApi['getAll'].mockImplementation(
+      (owner: number) => new Promise<Garden[]>((resolve) => answers.set(owner, resolve)),
+    );
+
+    session.signIn(profile(7));
+    const sevens = store.load();
+    session.signIn(profile(8));
+    const eights = store.load();
+
+    expect(gardensApi['getAll']).toHaveBeenCalledTimes(2); // two questions, not one shared answer
+    answers.get(7)?.([garden(1, 'Seven’s')]);
+    await sevens;
+    expect(store.gardens()).toEqual([]); // still waiting for eight's list
+    expect(store.isLoading()).toBe(true);
+
+    answers.get(8)?.([garden(2, 'Eight’s')]);
+    await eights;
+    expect(store.gardens().map((g) => g.gardenName)).toEqual(['Eight’s']);
+  });
+
+  it('switching back to a profile finds its list still cached — no flash of the other one', async () => {
+    gardensApi['getAll'].mockImplementation(async (owner: number) => [
+      garden(owner, `Owner ${owner}`),
+    ]);
+    session.signIn(profile(7));
+    await store.load();
+    // Signing in as another profile clears the cache; the same profile again keeps it.
+    await store.load();
+
+    expect(gardensApi['getAll']).toHaveBeenCalledTimes(1);
+    expect(store.gardens().map((g) => g.gardenName)).toEqual(['Owner 7']);
+  });
 });
 
 describe('GardensStore — Undo for a deleted garden', () => {
@@ -587,6 +623,17 @@ describe('GardensStore — Undo for a deleted garden', () => {
     expect(layout.load(1)).toEqual({});
   });
 
+  it('a deleted garden’s plants leave the cross-feature index with it', async () => {
+    const index = TestBed.inject(PlantsIndexStore);
+    index.setPlants(1, [plantOf(1)]);
+    index.setPlants(2, [plantOf(3)]);
+
+    await deleteWithPlants();
+
+    expect(index.byGarden()[1]).toBeUndefined();
+    expect(index.byGarden()[2]).toHaveLength(1);
+  });
+
   it('offers no Undo when its plants were never loaded — it could not bring them back', async () => {
     await store.load();
     await store.remove(garden(1));
@@ -612,7 +659,7 @@ describe('GardensStore — Undo for a deleted garden', () => {
     );
     expect(store.gardens().map((g) => g.gardenId)).toEqual([2, 10]);
     expect(store.lastCreatedId()).toBe(10);
-    expect(cache.read(cacheKeys.gardens)).toEqual(store.gardens());
+    expect(cache.read(cacheKeys.gardens(store.listOwner()))).toEqual(store.gardens());
     expect(cache.read<Plant[]>(cacheKeys.plantsOfGarden(10))?.map((p) => p.plantId)).toEqual([
       100, 101,
     ]);

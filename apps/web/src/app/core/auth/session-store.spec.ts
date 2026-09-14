@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { HttpErrorResponse } from '@angular/common/http';
 import { UserProfile } from '../api/models';
 import { UsersApi } from '../api/users-api';
+import { QueryCache } from '../resilience/query-cache';
 import { SessionStore } from './session-store';
 
 const STORAGE_KEY = 'itp-home-garden.session';
@@ -50,6 +51,40 @@ describe('SessionStore (ADR-005 profile session)', () => {
 
       expect(store.isActive()).toBe(false);
       expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+    });
+
+    it('signing out forgets everything the session had cached', () => {
+      const store = makeStore();
+      const cache = TestBed.inject(QueryCache);
+      store.signIn(profile());
+      cache.set('gardens:owner:1', ['mine']);
+
+      store.signOut();
+
+      expect(cache.read('gardens:owner:1')).toBeUndefined();
+    });
+
+    it('signing in as another profile is another session: the cache is cleared', () => {
+      const store = makeStore();
+      const cache = TestBed.inject(QueryCache);
+      store.signIn(profile({ userId: 1 }));
+      cache.set('plants:garden:3', ['one’s']);
+
+      store.signIn(profile({ userId: 2 }));
+
+      expect(cache.read('plants:garden:3')).toBeUndefined();
+    });
+
+    it('the same profile again (a revalidation) keeps its cache', () => {
+      const store = makeStore();
+      const cache = TestBed.inject(QueryCache);
+      store.signIn(profile({ userId: 1, firstName: 'Old' }));
+      cache.set('plants:garden:3', ['kept']);
+
+      store.signIn(profile({ userId: 1, firstName: 'New' }));
+
+      expect(cache.read('plants:garden:3')).toEqual(['kept']);
+      expect(store.profile()?.firstName).toBe('New');
     });
 
     it('rehydrates a persisted session on construction', () => {

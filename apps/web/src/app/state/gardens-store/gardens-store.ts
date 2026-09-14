@@ -10,6 +10,7 @@ import { ToastStore } from '../../core/errors/toast-store';
 import { Logger } from '../../core/logging/logger';
 import { QueryCache, cacheKeys } from '../../core/resilience/query-cache';
 import { GardenLayoutRepository, LayoutPositions } from '../garden-layout/garden-layout-repository';
+import { PlantsIndexStore } from '../plants-index-store/plants-index-store';
 import { GardenSort } from './garden-view';
 
 export type RequestStatus = 'idle' | 'loading' | 'ready' | 'error';
@@ -102,6 +103,7 @@ export const GardensStore = signalStore(
     const logger = inject(Logger);
     const session = inject(SessionStore);
     const layout = inject(GardenLayoutRepository);
+    const plantsIndex = inject(PlantsIndexStore);
 
     const applyList = (gardens: readonly Garden[]) =>
       patchState(store, { gardens, status: 'ready' });
@@ -117,6 +119,9 @@ export const GardensStore = signalStore(
     let creating: Promise<MutationResult> | null = null;
     const updating = new Map<number, Promise<MutationResult>>();
 
+    /** The cache key of the list on screen — the signed-in profile's. */
+    const listKey = (): string => cacheKeys.gardens(store.listOwner());
+
     /** Idempotent add: a revalidation may already have delivered this garden. */
     const addToList = (garden: Garden): void => {
       patchState(store, {
@@ -124,7 +129,7 @@ export const GardensStore = signalStore(
         status: 'ready',
         lastCreatedId: garden.gardenId,
       });
-      cache.set(cacheKeys.gardens, store.gardens());
+      cache.set(listKey(), store.gardens());
     };
 
     /**
@@ -228,7 +233,7 @@ export const GardensStore = signalStore(
         patchState(store, {
           gardens: store.gardens().map((g) => (g.gardenId === gardenId ? updated : g)),
         });
-        cache.set(cacheKeys.gardens, store.gardens());
+        cache.set(listKey(), store.gardens());
         // Write-through (not invalidate): the detail screen re-reads this
         // key on reload and must see the update instantly, with no refetch.
         cache.set(cacheKeys.garden(gardenId), updated);
@@ -255,16 +260,22 @@ export const GardensStore = signalStore(
         persistView(store.query(), sort);
       },
 
-      /** SWR load: cached list renders instantly; stale data revalidates behind it. */
+      /**
+       * SWR load: cached list renders instantly; stale data revalidates behind it.
+       *
+       * The list is the signed-in profile's (ADR-009), cached under a key of
+       * its own. A response that arrives after another profile signed in
+       * answers the previous profile's question and is discarded, whatever
+       * the cache did with it.
+       */
       async load(): Promise<void> {
         const owner = profileId();
         if (owner !== store.listOwner()) {
-          // Another profile signed in: its list is a different list. Drop the
-          // cached one rather than flash the previous profile's gardens.
-          cache.invalidate(cacheKeys.gardens);
+          // Another profile signed in: its list is a different list. Show
+          // nothing rather than flash the previous profile's gardens.
           patchState(store, { gardens: [], listOwner: owner });
         }
-        const { cached, revalidate } = cache.swr(cacheKeys.gardens, () =>
+        const { cached, revalidate } = cache.swr(cacheKeys.gardens(owner), () =>
           api.getAll(owner ?? undefined),
         );
 
@@ -278,8 +289,15 @@ export const GardensStore = signalStore(
           return;
         }
         try {
-          applyList(await revalidate);
+          const gardens = await revalidate;
+          if (owner !== store.listOwner()) {
+            return; // another profile's list is on screen now
+          }
+          applyList(gardens);
         } catch (err) {
+          if (owner !== store.listOwner()) {
+            return;
+          }
           if (cached) {
             // Stale data on screen beats an error screen; note it quietly.
             toasts.info($localize`Showing cached gardens — refresh failed.`);
@@ -329,9 +347,11 @@ export const GardensStore = signalStore(
           patchState(store, {
             gardens: store.gardens().filter((g) => g.gardenId !== garden.gardenId),
           });
-          cache.set(cacheKeys.gardens, store.gardens());
+          cache.set(listKey(), store.gardens());
           cache.invalidate(cacheKeys.garden(garden.gardenId));
           cache.invalidate(cacheKeys.plantsOfGarden(garden.gardenId));
+          // Its plants went with it: the index must not keep them either.
+          plantsIndex.forget(garden.gardenId);
           layout.reset(garden.gardenId);
           toasts.success(
             $localize`Garden “${garden.gardenName}:name:” deleted.`,

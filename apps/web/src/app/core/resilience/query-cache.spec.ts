@@ -113,16 +113,52 @@ describe('QueryCache (stale-while-revalidate, ADR-004)', () => {
     await expect(cache.swr('gardens', fetcher).revalidate).resolves.toEqual(['recovered']);
   });
 
-  it('invalidate drops keys by prefix', async () => {
-    cache.set(cacheKeys.plantsOfGarden(1), ['a']);
-    cache.set(cacheKeys.plantsOfGarden(2), ['b']);
-    cache.set(cacheKeys.gardens, ['g']);
+  it('invalidate drops exactly one key — garden 3 leaves garden 30 alone', () => {
+    cache.set(cacheKeys.garden(3), { gardenId: 3 });
+    cache.set(cacheKeys.garden(30), { gardenId: 30 });
+    cache.set(cacheKeys.plantsOfGarden(3), ['a']);
 
-    cache.invalidate('plants:');
+    cache.invalidate(cacheKeys.garden(3));
 
-    expect(cache.read(cacheKeys.plantsOfGarden(1))).toBeUndefined();
-    expect(cache.read(cacheKeys.plantsOfGarden(2))).toBeUndefined();
-    expect(cache.read(cacheKeys.gardens)).toEqual(['g']);
+    expect(cache.read(cacheKeys.garden(3))).toBeUndefined();
+    expect(cache.read(cacheKeys.garden(30))).toEqual({ gardenId: 30 });
+    expect(cache.read(cacheKeys.plantsOfGarden(3))).toEqual(['a']);
+  });
+
+  it('an invalidated fetch is not stored, and the next swr starts its own request', async () => {
+    let answerOld = (value: string[]): void => void value;
+    const oldFetcher = vi.fn(() => new Promise<string[]>((r) => (answerOld = r)));
+    const newFetcher = vi.fn().mockResolvedValue(['new']);
+
+    const stale = cache.swr('gardens', oldFetcher).revalidate;
+    cache.invalidate('gardens');
+    const fresh = cache.swr('gardens', newFetcher).revalidate;
+
+    expect(fresh).not.toBe(stale); // not de-duplicated onto the old question
+    expect(newFetcher).toHaveBeenCalledTimes(1);
+    await fresh;
+    answerOld(['old']);
+    await stale;
+
+    expect(cache.read('gardens')).toEqual(['new']);
+  });
+
+  it('clear forgets the in-flight fetches too', async () => {
+    let answer = (value: string[]): void => void value;
+    const fetcher = vi.fn(() => new Promise<string[]>((r) => (answer = r)));
+
+    const pending = cache.swr('gardens', fetcher).revalidate;
+    cache.clear();
+    answer(['from before']);
+    await pending;
+
+    expect(cache.read('gardens')).toBeUndefined();
+  });
+
+  it('the gardens key is one per profile', () => {
+    expect(cacheKeys.gardens(7)).not.toBe(cacheKeys.gardens(8));
+    expect(cacheKeys.gardens(null)).not.toBe(cacheKeys.gardens(7));
+    expect(cacheKeys.gardens(3)).not.toBe(cacheKeys.garden(3));
   });
 
   it('a write-through during an in-flight fetch wins over the stale response', async () => {
@@ -143,9 +179,9 @@ describe('QueryCache (stale-while-revalidate, ADR-004)', () => {
 
   it('write-through set makes a value fresh (mutations skip refetching)', async () => {
     const fetcher = vi.fn();
-    cache.set(cacheKeys.gardens, ['written']);
+    cache.set(cacheKeys.gardens(null), ['written']);
 
-    const result = cache.swr(cacheKeys.gardens, fetcher);
+    const result = cache.swr(cacheKeys.gardens(null), fetcher);
 
     expect(result.cached).toEqual(['written']);
     expect(result.revalidate).toBeNull();

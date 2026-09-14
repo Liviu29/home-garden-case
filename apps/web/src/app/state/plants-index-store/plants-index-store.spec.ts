@@ -56,6 +56,24 @@ describe('PlantsIndexStore (loading ownership + loop regression guard)', () => {
     expect(store.byGarden()[5]).toHaveLength(1);
   });
 
+  it('forget drops a garden’s entry and its failure mark, and nothing else', async () => {
+    store.setPlants(5, [plant(1, 5)]);
+    store.setPlants(6, [plant(2, 6)]);
+    api.getByGarden.mockRejectedValue(new Error('boom'));
+    store.ensureForGardens([7]);
+    await vi.waitFor(() => expect(store.failed()[7]).toBe(true));
+
+    store.forget(5);
+    store.forget(7);
+    const after = store.byGarden();
+    store.forget(5); // already gone: nothing rewritten
+
+    expect(after[5]).toBeUndefined();
+    expect(after[6]).toHaveLength(1);
+    expect(store.failed()[7]).toBeUndefined();
+    expect(store.byGarden()).toBe(after);
+  });
+
   it('identical warm-cache data is not re-patched (no useless renders)', () => {
     const plants = [plant(1, 5)];
     cache.set(cacheKeys.plantsOfGarden(5), plants);

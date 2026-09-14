@@ -191,8 +191,9 @@ export class Dashboard {
   protected readonly mostUrgent = computed<GardenInsight | null>(() => this.attention()[0] ?? null);
 
   /**
-   * The plants of the gardens on screen. The index can also hold gardens from
-   * an earlier profile (it is keyed by garden), so totals never read it whole.
+   * The plants of the gardens on screen. The index is keyed by garden and
+   * can hold gardens this list does not show (shared ones a previous profile
+   * loaded), so totals never read it whole.
    */
   private readonly visiblePlants = computed(() =>
     this.gardens.gardens().map((g) => this.plantsIndex.byGarden()[g.gardenId] ?? []),

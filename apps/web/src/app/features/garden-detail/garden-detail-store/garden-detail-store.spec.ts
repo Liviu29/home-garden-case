@@ -241,6 +241,38 @@ describe('GardenDetailStore — concurrency and edge cases', () => {
     expect(store.plants()).toBe(index.byGarden()[3]); // same reference, one owner
   });
 
+  it('a plant created after navigating to another garden lands in its own garden', async () => {
+    // Garden 3's plants are known; garden 2's never arrive (its GET stays open).
+    plantsApi.getByGarden.mockImplementation((id: number) =>
+      id === 3 ? Promise.resolve([plant(1, 5), plant(2, 3)]) : new Promise(() => undefined),
+    );
+    store.load(3);
+    await vi.waitFor(() => expect(store.plants()).toHaveLength(2));
+    let release = (): void => undefined;
+    plantsApi.create.mockImplementation(
+      () => new Promise((r) => (release = () => r({ ...plant(9, 1), plantName: 'Late' }))),
+    );
+
+    const creating = store.createPlant({
+      plantName: 'Late',
+      species: 's',
+      plantType: 'vegetable',
+      plantationDate: '2026-04-01T00:00:00.000Z',
+      surfaceAreaRequired: 1,
+      idealHumidityLevel: 50,
+      gardenId: 3,
+    });
+    store.load(2); // the user moved on before the POST answered
+    release();
+    await creating;
+
+    const index = TestBed.inject(PlantsIndexStore).byGarden();
+    expect(index[3]?.map((p) => p.plantId)).toEqual([1, 2, 9]); // garden 3 got its plant
+    expect(index[2]).toBeUndefined(); // garden 2 was not written by garden 3's POST
+    expect(store.plants()).toEqual([]); // the screen shows garden 2, still loading
+    expect(store.arePlantsLoading()).toBe(true); // …and a write elsewhere did not call it ready
+  });
+
   it('re-entrant removePlant for the same plant issues exactly one DELETE', async () => {
     store.load(3);
     await vi.waitFor(() => expect(store.plants()).toHaveLength(2));

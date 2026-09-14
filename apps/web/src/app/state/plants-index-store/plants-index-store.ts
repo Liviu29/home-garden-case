@@ -149,6 +149,18 @@ export const PlantsIndexStore = signalStore(
         apply(gardenId, plants);
         cache.set(cacheKeys.plantsOfGarden(gardenId), plants);
       },
+
+      /** The garden is gone (deleted, its plants with it): so is its entry. */
+      forget(gardenId: number): void {
+        if (!(gardenId in store.byGarden()) && !(gardenId in store.failed())) {
+          return;
+        }
+        const byGarden = { ...store.byGarden() };
+        const failed = { ...store.failed() };
+        delete byGarden[gardenId];
+        delete failed[gardenId];
+        patchState(store, { byGarden, failed });
+      },
     };
   }),
 );

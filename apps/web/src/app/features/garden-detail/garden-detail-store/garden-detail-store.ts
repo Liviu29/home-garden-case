@@ -126,13 +126,25 @@ export const GardenDetailStore = signalStore(
     const plantsIndex = inject(PlantsIndexStore);
     const layout = inject(GardenLayoutRepository);
 
-    /** All plant writes go through the single owner. */
+    /**
+     * All plant writes go through the single owner. The status is the
+     * route's: a write for a garden the user has left says nothing about
+     * the plants now on screen.
+     */
     const writePlants = (gardenId: number, plants: readonly Plant[]): void => {
       plantsIndex.setPlants(gardenId, plants);
-      patchState(store, { plantsStatus: 'ready' });
+      if (gardenId === store.gardenId()) {
+        patchState(store, { plantsStatus: 'ready' });
+      }
     };
 
-    const currentPlants = (): readonly Plant[] => store.plants();
+    /**
+     * A mutation reads the plants of the garden it writes — by that garden's
+     * id, never through `store.plants()`, which follows the route: a POST
+     * finishing after /gardens/1 → /gardens/2 would otherwise file garden 2's
+     * list, plus the new plant, under garden 1.
+     */
+    const plantsOf = (gardenId: number): readonly Plant[] => plantsIndex.byGarden()[gardenId] ?? [];
 
     /**
      * Single flight per mutation: a second call while the same one is in
@@ -228,10 +240,8 @@ export const GardenDetailStore = signalStore(
       }
       try {
         const restored = await plantsApi.create(plantInputOf(plant));
-        // The removal wrote this garden's entry, so the index knows it.
-        const known = plantsIndex.byGarden()[plant.gardenId] ?? [];
         plantsIndex.setPlants(plant.gardenId, [
-          ...known.filter((p) => p.plantId !== restored.plantId),
+          ...plantsOf(plant.gardenId).filter((p) => p.plantId !== restored.plantId),
           restored,
         ]);
         if (spot) {
@@ -268,7 +278,7 @@ export const GardenDetailStore = signalStore(
         // Idempotent append — same slow-API revalidation race as
         // GardensStore.create: the plant may already be in the index.
         writePlants(input.gardenId, [
-          ...currentPlants().filter((p) => p.plantId !== created.plantId),
+          ...plantsOf(input.gardenId).filter((p) => p.plantId !== created.plantId),
           created,
         ]);
         patchState(store, { lastCreatedPlantId: created.plantId });
@@ -290,7 +300,7 @@ export const GardenDetailStore = signalStore(
         const updated = await plantsApi.update(plantId, input);
         writePlants(
           input.gardenId,
-          currentPlants().map((p) => (p.plantId === plantId ? updated : p)),
+          plantsOf(input.gardenId).map((p) => (p.plantId === plantId ? updated : p)),
         );
         toasts.success($localize`“${updated.plantName}:plantName:” updated.`);
         return { ok: true };
@@ -362,7 +372,7 @@ export const GardenDetailStore = signalStore(
           await plantsApi.delete(plant.plantId);
           writePlants(
             plant.gardenId,
-            currentPlants().filter((p) => p.plantId !== plant.plantId),
+            plantsOf(plant.gardenId).filter((p) => p.plantId !== plant.plantId),
           );
           toasts.success($localize`“${plant.plantName}:plantName:” removed.`, {
             label: $localize`Undo`,
