@@ -39,3 +39,11 @@ its own tests:
 `apps/api` now has Vitest tests (`nx test api`) that boot the real app — every route, plugin,
 schema and migration — against an in-memory database through Fastify's `inject()`: CRUD for all
 three resources, validation errors, 404s, the cascade, and the capacity rule in both directions.
+
+## Addendum (2026-09-14): idempotent POSTs
+
+4. **`Idempotency-Key` on `POST`** (`plugins/idempotency.ts`). A completed `POST` is remembered by
+   the key it carried, scoped to its URL, for ten minutes; repeating it returns the first response
+   (`Idempotency-Replayed: true`) instead of a second row. This is what lets the frontend retry a
+   `POST` whose answer never arrived ([ADR-004](./ADR-004-resilience-layer.md)). Without the header
+   the API behaves exactly as before. Tested in `plugins/idempotency.spec.ts`.
