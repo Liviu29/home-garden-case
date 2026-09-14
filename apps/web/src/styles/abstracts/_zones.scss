@@ -1,0 +1,29 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Watering zones — one rule for the three colours (docs/design/DESIGN-SYSTEM.md §9)
+// A plant's zone is carried in the markup as `data-zone="dry|balanced|humid"`;
+// whatever draws it tints one property from the --zone-* tokens. Six places
+// used to spell the same three selectors out by hand.
+// ─────────────────────────────────────────────────────────────────────────────
+
+$zones: dry, balanced, humid;
+
+/// Tint `$property` by watering zone.
+/// `$from`: where the `data-zone` attribute sits — `self` (this element),
+/// `parent` (its parent) or `ancestor` (anything above it).
+@mixin tint($property: background, $from: self) {
+  @each $zone in $zones {
+    @if $from == parent {
+      [data-zone='#{$zone}'] > & {
+        #{$property}: var(--zone-#{$zone});
+      }
+    } @else if $from == ancestor {
+      [data-zone='#{$zone}'] & {
+        #{$property}: var(--zone-#{$zone});
+      }
+    } @else {
+      &[data-zone='#{$zone}'] {
+        #{$property}: var(--zone-#{$zone});
+      }
+    }
+  }
+}

@@ -1,4 +1,5 @@
 @use '../map-controls' as controls;
+@use 'abstracts/zones';
 
 // Drops down under the toolbar.
 :host {
@@ -33,7 +34,7 @@
   padding: var(--sp-2) 0 0;
   border-top: 1px solid var(--border);
   list-style: none;
-  font-size: 0.6875rem;
+  font-size: var(--fs-micro);
   color: var(--text-1);
   max-width: 12rem;
 
@@ -55,13 +56,7 @@
   background: var(--zone-balanced);
   flex: none;
 
-  &[data-zone='dry'] {
-    background: var(--zone-dry);
-  }
-
-  &[data-zone='humid'] {
-    background: var(--zone-humid);
-  }
+  @include zones.tint(background);
 }
 
 .clash-swatch {
@@ -74,7 +69,7 @@
 
 .layers-note {
   margin: 0;
-  font-size: 0.6563rem;
+  font-size: var(--fs-nano);
   color: var(--text-3);
   max-width: 11rem;
 }

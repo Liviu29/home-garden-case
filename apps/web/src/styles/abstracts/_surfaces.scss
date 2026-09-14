@@ -1,0 +1,15 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Surfaces (docs/design/DESIGN-SYSTEM.md §9)
+// The app's cards and panels share one recipe — the raised surface, a
+// hairline border, the soft shadow — and differ only in padding and radius.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A card surface. Set an accent (`border-left`), a layout or a hover after
+/// the include; the recipe never decides those.
+@mixin card($padding: var(--sp-4), $radius: var(--radius-m)) {
+  padding: $padding;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: $radius;
+  box-shadow: var(--shadow-1);
+}

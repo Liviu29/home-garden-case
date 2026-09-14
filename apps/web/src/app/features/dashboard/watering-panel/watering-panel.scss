@@ -1,3 +1,6 @@
+@use 'abstracts/zones';
+@use 'abstracts/surfaces';
+
 :host {
   display: block;
 }
@@ -13,12 +16,8 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-2);
-  padding: var(--sp-4);
-  background: var(--surface-1);
-  border: 1px solid var(--border);
+  @include surfaces.card(var(--sp-4), var(--radius-m));
   border-left: 3px solid var(--zone-humid);
-  border-radius: var(--radius-m);
-  box-shadow: var(--shadow-1);
   color: inherit;
   text-decoration: none;
 
@@ -80,13 +79,7 @@
   border-radius: 50%;
   background: var(--zone-balanced);
 
-  [data-zone='dry'] > & {
-    background: var(--zone-dry);
-  }
-
-  [data-zone='humid'] > & {
-    background: var(--zone-humid);
-  }
+  @include zones.tint(background, parent);
 }
 
 .note,

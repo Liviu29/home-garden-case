@@ -1,3 +1,5 @@
+@use 'abstracts/breakpoints' as bp;
+
 // Welcome / profile selection — the entrance to the product.
 // Layered dark botanical atmosphere + split composition; panel and cards use
 // the shared tokens/motion/skeleton systems (no local duplicates).
@@ -66,7 +68,7 @@ $ring-room: 5px;
     opacity: 0.85;
   }
 
-  @media (max-width: 880px) {
+  @include bp.down(tablet) {
     object-position: center 70%;
     mask-image: linear-gradient(to bottom, transparent 30%, #000 100%);
   }
@@ -114,7 +116,7 @@ $ring-room: 5px;
   gap: clamp(var(--sp-8), 6vw, 7rem);
   width: min(72rem, 100%);
 
-  @media (max-width: 880px) {
+  @include bp.down(tablet) {
     grid-template-columns: minmax(0, 1fr);
     justify-items: center;
     gap: var(--sp-6);
@@ -126,7 +128,7 @@ $ring-room: 5px;
   gap: var(--sp-8);
   color: var(--text-on-dark);
 
-  @media (max-width: 880px) {
+  @include bp.down(tablet) {
     justify-items: center;
     text-align: center;
     gap: var(--sp-3);
@@ -138,7 +140,7 @@ $ring-room: 5px;
   gap: var(--sp-2);
   justify-items: start;
 
-  @media (max-width: 880px) {
+  @include bp.down(tablet) {
     justify-items: center;
   }
 }
@@ -186,7 +188,7 @@ $ring-room: 5px;
     --pv-c: #c8a24e;
   }
 
-  @media (max-width: 880px) {
+  @include bp.down(tablet) {
     display: none; // mobile keeps the entrance compact
   }
 }
@@ -419,7 +421,7 @@ $ring-room: 5px;
   grid-template-columns: 1fr 1fr;
   gap: var(--sp-3);
 
-  @media (max-width: 480px) {
+  @include bp.down(phone) {
     grid-template-columns: 1fr;
   }
 }

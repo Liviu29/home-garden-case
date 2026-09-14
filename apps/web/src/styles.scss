@@ -1,10 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Global styles — ItpHomeGarden web
 // Order: fonts → tokens → material theme → motion → skeleton engine → base
+// Architecture: docs/design/DESIGN-SYSTEM.md §9
 // ─────────────────────────────────────────────────────────────────────────────
+@use 'sass:meta';
 @use '@angular/material' as mat;
 
-@use 'styles/tokens';
 @use 'styles/motion';
 @use 'styles/skeleton';
 
@@ -12,116 +13,134 @@
 @use '@fontsource-variable/inter';
 @use '@fontsource-variable/sora';
 
-// ── Angular Material M3 theme, tuned to the Verdant palette ──────────────────
-html {
-  color-scheme: light;
+// ── Cascade layers ───────────────────────────────────────────────────────────
+// The foundations are layered, lowest first: a token, a base element style or
+// Material's theme can never outrank a component's own rule or a utility,
+// whatever its specificity. The motion and skeleton engines and the utilities
+// below stay UNLAYERED on purpose: they must win over component styles by
+// source order, and their reduced-motion pairs rely on the plain rule that the
+// later `!important` wins — inside layers that order would invert.
+@layer tokens, base, material;
 
-  &[data-theme='dark'] {
-    color-scheme: dark;
+@layer tokens {
+  @include meta.load-css('styles/tokens');
+}
+
+// ── Angular Material M3 theme, tuned to the Verdant palette ──────────────────
+@layer material {
+  html {
+    color-scheme: light;
+
+    &[data-theme='dark'] {
+      color-scheme: dark;
+    }
+
+    @include mat.theme(
+      (
+        color: (
+          primary: mat.$green-palette,
+          tertiary: mat.$chartreuse-palette,
+        ),
+        typography: (
+          plain-family: 'Inter Variable',
+          brand-family: 'Sora Variable',
+        ),
+        density: 0,
+      )
+    );
+
+    // Surface alignment: Material system tokens follow our neutral ramp
+    --mat-sys-surface: var(--surface-1);
+    --mat-sys-surface-container: var(--surface-1);
+    --mat-sys-surface-container-low: var(--surface-1);
+    --mat-sys-surface-container-high: var(--surface-1);
+    --mat-sys-background: var(--surface-0);
+    --mat-sys-outline-variant: var(--border);
+    --mat-sys-corner-medium: var(--radius-m);
+    --mat-sys-corner-large: var(--radius-l);
   }
 
-  @include mat.theme(
-    (
-      color: (
-        primary: mat.$green-palette,
-        tertiary: mat.$chartreuse-palette,
-      ),
-      typography: (
-        plain-family: 'Inter Variable',
-        brand-family: 'Sora Variable',
-      ),
-      density: 0,
-    )
-  );
-
-  // Surface alignment: Material system tokens follow our neutral ramp
-  --mat-sys-surface: var(--surface-1);
-  --mat-sys-surface-container: var(--surface-1);
-  --mat-sys-surface-container-low: var(--surface-1);
-  --mat-sys-surface-container-high: var(--surface-1);
-  --mat-sys-background: var(--surface-0);
-  --mat-sys-outline-variant: var(--border);
-  --mat-sys-corner-medium: var(--radius-m);
-  --mat-sys-corner-large: var(--radius-l);
+  // Material dialog radius. (No extra entrance: Material already scales the
+  // surface and fades the container in over 150ms — a second `dialog-pop` on
+  // the same surface animated one open twice.)
+  .mat-mdc-dialog-surface {
+    border-radius: var(--radius-l) !important;
+  }
 }
 
 // ── Base ─────────────────────────────────────────────────────────────────────
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
 
-html {
-  height: 100%;
-}
+  html {
+    height: 100%;
+  }
 
-body {
-  margin: 0;
-  min-height: 100%;
-  font-family: var(--font-ui);
-  font-size: var(--fs-body);
-  line-height: 1.5;
-  color: var(--text-1);
-  background:
-    var(--gradient-page) fixed,
-    var(--surface-0);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
+  body {
+    margin: 0;
+    min-height: 100%;
+    font-family: var(--font-ui);
+    font-size: var(--fs-body);
+    line-height: 1.5;
+    color: var(--text-1);
+    background:
+      var(--gradient-page) fixed,
+      var(--surface-0);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
 
-h1,
-h2,
-h3,
-h4 {
-  margin: 0;
-  color: var(--text-1);
-  font-weight: 650;
-  letter-spacing: -0.01em;
-}
+  h1,
+  h2,
+  h3,
+  h4 {
+    margin: 0;
+    color: var(--text-1);
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
 
-h1 {
-  font-size: var(--fs-h1);
-}
+  h1 {
+    font-size: var(--fs-h1);
+  }
 
-h2 {
-  font-size: var(--fs-h2);
-}
+  h2 {
+    font-size: var(--fs-h2);
+  }
 
-h3 {
-  font-size: var(--fs-h3);
-}
+  h3 {
+    font-size: var(--fs-h3);
+  }
 
-p {
-  margin: 0;
-}
+  p {
+    margin: 0;
+  }
 
-a {
-  color: var(--brand-600);
-  text-decoration: none;
+  a {
+    color: var(--brand-600);
+    text-decoration: none;
 
-  &:hover {
-    text-decoration: underline;
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  // Visible focus for every interactive element (DESIGN-SYSTEM §7)
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+    border-radius: var(--radius-s);
   }
 }
 
-// Visible focus for every interactive element (DESIGN-SYSTEM §7)
-:where(a, button, input, select, textarea, [tabindex]):focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-  border-radius: var(--radius-s);
-}
-
+// ── Utilities (unlayered: they apply on top of anything) ─────────────────────
 // Numbers align in stats and tables
 .tabular {
   font-variant-numeric: tabular-nums;
-}
-
-// Material dialog radius. (No extra entrance: Material already scales the
-// surface and fades the container in over 150ms — a second `dialog-pop` on
-// the same surface animated one open twice.)
-.mat-mdc-dialog-surface {
-  border-radius: var(--radius-l) !important;
 }
 
 // Visually hidden (a11y)

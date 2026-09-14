@@ -100,6 +100,7 @@ import { ToastStore } from '../../core/errors/toast-store';
     </mat-dialog-actions>
   `,
   styles: `
+    @use 'abstracts/breakpoints' as bp;
     .form {
       display: grid;
       gap: var(--sp-3);
@@ -112,7 +113,7 @@ import { ToastStore } from '../../core/errors/toast-store';
       grid-template-columns: 1fr 1fr;
       gap: var(--sp-3);
 
-      @media (max-width: 480px) {
+      @include bp.down(phone) {
         grid-template-columns: 1fr;
       }
     }

@@ -63,7 +63,9 @@ The visual and motion language for `apps/web`. Goal: a calm, premium, editorial 
 ### Typography
 
 - UI: **Inter** (self-hosted, `font-display: swap`), display headings: **Sora** for the dashboard hero numbers.
-- Scale in `rem`: 12/13 caption · 14 body · 16 emphasis · 20 h3 · 24 h2 · 32 h1 · 44 stat-display.
+- Scale in `rem`: 12/13 caption · 14 body · 16 emphasis · 20 h3 · 24 h2 · 32 h1 · 44 stat-display;
+  below the caption, `--fs-micro` (11) for chips, badges and labels inside controls and
+  `--fs-nano` (10.5) for the smallest marks on the map and the gauge — never for running text.
 - Numbers in stats use `font-variant-numeric: tabular-nums`.
 
 ## 3. Material theming
@@ -190,3 +192,49 @@ is direct manipulation (no easing between hand and bed). Deliberately
 rejected: minimap, multiple view modes (3D deferred with rationale in
 ADR-007) — one clear view beats three shallow ones. Drag-to-place follows the
 planner's visual-only guardrail (ADR-007).
+
+## 9. CSS architecture (`src/styles/`)
+
+The stylesheet has four kinds of file, and each kind has one job:
+
+| Layer                     | Files                                                      | Output                                                                                                    |
+| ------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **Tokens**                | `_tokens.scss`                                             | custom properties on `:root` — colour, type, spacing, motion, stacking; the dark theme is a remap of them |
+| **Abstracts**             | `abstracts/` (`_breakpoints`, `_zones`, `_surfaces`)       | none — mixins and functions components `@use` by name (`stylePreprocessorOptions.includePaths`)           |
+| **Engines and utilities** | `_motion.scss`, `_skeleton.scss`, the end of `styles.scss` | the animation presets, the one skeleton engine, `.tabular`, `.visually-hidden`                            |
+| **Components**            | `*.scss` beside each component, or inline                  | scoped styles, tokens only                                                                                |
+
+**Cascade layers.** `styles.scss` declares `@layer tokens, base, material;` and puts the tokens, the
+base element styles and Material's theme in them, lowest first. A layered rule loses to any
+unlayered one whatever its specificity, so a token, a `body` rule or Material's theme can never
+outrank a component's own style or a utility. The motion and skeleton engines and the utilities
+stay unlayered on purpose: they must win over component styles by source order, and their
+reduced-motion pairs (`_motion` stops everything with `!important`, `_skeleton` re-enables its slow
+pulse with `!important`) rely on the plain rule that the later important declaration wins — inside
+layers that order would invert.
+
+**Breakpoints** (`abstracts/_breakpoints.scss`). Five widths, named by the device they stand for;
+every media query goes through `bp.down()` / `bp.up()`, so a breakpoint is decided in one place
+and reads as intent:
+
+| Name       | Width     | What turns                                                   |
+| ---------- | --------- | ------------------------------------------------------------ |
+| `phone`    | ≤ 480 px  | the smallest phones — every grid is a single column          |
+| `phone-l`  | ≤ 640 px  | large phones — hints and secondary text give way, names hide |
+| `tablet-s` | ≤ 720 px  | small tablets, phones in landscape — side panels stack       |
+| `tablet`   | ≤ 880 px  | tablets — two-column layouts become one                      |
+| `laptop`   | ≤ 1024 px | small laptops — four-column grids become two                 |
+
+Before the map there were 21 queries at ten widths (480, 560, 640, 40rem, 720, 880, 900, 960,
+1024…); the odd ones (560, 900, 960) were folded into their neighbours, and the responsive suite
+still passes at 375, 768, 1024, 1440 and 1920.
+
+**Stacking** (`_tokens.scss`). The layers that cross components, bottom to top: `--z-topbar`
+100, `--z-skip-link` 200, `--z-fullscreen` 300 (the planner over the sticky topbar), `--z-toast`
+1000 (over Material's overlays). Stacking _inside_ a component uses small numbers of its own.
+
+**Mixins.** `zones.tint($property, $from)` colours one property by watering zone from the
+`data-zone` attribute on the element, its parent or an ancestor — six places used to spell the
+three selectors out by hand. `surfaces.card($padding, $radius)` is the one card recipe (raised
+surface, hairline border, soft shadow); an accent border, a layout or a hover is set after the
+include.

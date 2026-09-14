@@ -1,3 +1,7 @@
+@use 'abstracts/breakpoints' as bp;
+@use 'abstracts/zones';
+@use 'abstracts/surfaces';
+
 .breadcrumb {
   display: flex;
   gap: var(--sp-2);
@@ -55,13 +59,13 @@
   align-items: center;
   min-height: calc(var(--fs-caption) * 1.5);
 
-  @media (max-width: 560px) {
+  @include bp.down(phone-l) {
     min-height: calc(var(--fs-caption) * 3);
   }
 }
 
 .ghost-hint {
-  @media (max-width: 640px) {
+  @include bp.down(phone-l) {
     display: none; // as .panel-hint
   }
 }
@@ -105,7 +109,7 @@
   justify-self: end;
 }
 
-@media (max-width: 480px) {
+@include bp.down(phone) {
   // phones: the real table scrolls sideways and its rows wrap taller
   .table-ghost-head,
   .table-ghost-row {
@@ -127,13 +131,9 @@
   align-items: stretch;
   gap: var(--sp-8);
   margin-block: var(--sp-4) var(--sp-6);
-  padding: var(--sp-6);
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-l);
-  box-shadow: var(--shadow-1);
+  @include surfaces.card(var(--sp-6), var(--radius-l));
 
-  @media (max-width: 720px) {
+  @include bp.down(tablet-s) {
     flex-direction: column;
   }
 }
@@ -200,7 +200,7 @@
   padding-inline: var(--sp-4);
   border-left: 1px solid var(--border);
 
-  @media (max-width: 720px) {
+  @include bp.down(tablet-s) {
     border-left: 0;
     border-top: 1px solid var(--border);
     padding-top: var(--sp-4);
@@ -226,11 +226,7 @@
 
 .panel {
   margin-bottom: var(--sp-6);
-  padding: var(--sp-6);
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-l);
-  box-shadow: var(--shadow-1);
+  @include surfaces.card(var(--sp-6), var(--radius-l));
 }
 
 .panel-head {
@@ -331,7 +327,7 @@
   padding: 0.35rem 0;
 }
 
-@media (max-width: 640px) {
+@include bp.down(phone-l) {
   .map-panel .panel-hint {
     display: none; // touch devices: pinch/tap, the hint text would mislead
   }
@@ -466,13 +462,7 @@
   background: var(--zone-balanced);
   vertical-align: 0.05em;
 
-  &[data-zone='dry'] {
-    background: var(--zone-dry);
-  }
-
-  &[data-zone='humid'] {
-    background: var(--zone-humid);
-  }
+  @include zones.tint(background);
 }
 
 .humidity-cell {
@@ -495,7 +485,7 @@
 .map-panel.planner-fullscreen {
   position: fixed;
   inset: 0;
-  z-index: 300; // above the sticky topbar
+  z-index: var(--z-fullscreen); // above the sticky topbar
   margin: 0;
   border-radius: 0;
   display: flex;
@@ -572,7 +562,7 @@
     height: 100%;
   }
 
-  @media (max-width: 560px) {
+  @include bp.down(phone-l) {
     height: 17rem;
   }
 }

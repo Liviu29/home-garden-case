@@ -99,7 +99,7 @@ export interface ValuePresetOption {
     }
 
     .preset-desc {
-      font-size: 0.6875rem;
+      font-size: var(--fs-micro);
       color: var(--text-3);
     }
   `,

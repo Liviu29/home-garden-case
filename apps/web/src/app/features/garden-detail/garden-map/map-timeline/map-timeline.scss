@@ -28,7 +28,7 @@
 
 .timeline-readout {
   display: grid;
-  font-size: 0.6875rem;
+  font-size: var(--fs-micro);
   color: var(--text-2);
   white-space: nowrap;
 

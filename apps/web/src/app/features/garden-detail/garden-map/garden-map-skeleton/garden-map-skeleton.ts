@@ -50,6 +50,7 @@ import { Skeleton } from '../../../../shared/ui/skeleton/skeleton';
     </div>
   `,
   styles: `
+    @use 'abstracts/breakpoints' as bp;
     :host {
       display: block;
     }
@@ -62,7 +63,7 @@ import { Skeleton } from '../../../../shared/ui/skeleton/skeleton';
       align-items: stretch;
     }
 
-    @media (max-width: 900px) {
+    @include bp.down(tablet) {
       .ghost-shell {
         grid-template-columns: minmax(0, 1fr);
       }

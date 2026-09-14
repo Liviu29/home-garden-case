@@ -1,0 +1,11 @@
+// The abstracts: mixins and functions only, no CSS output. Components reach
+// them by name through `stylePreprocessorOptions.includePaths` (src/styles):
+//
+//   @use 'abstracts/breakpoints' as bp;   @include bp.down(phone) { … }
+//   @use 'abstracts/zones';               @include zones.tint(fill);
+//   @use 'abstracts/surfaces';            @include surfaces.card(var(--sp-6), var(--radius-l));
+//
+// or all at once: @use 'abstracts';       @include abstracts.down(phone) { … }
+@forward 'breakpoints';
+@forward 'zones';
+@forward 'surfaces';

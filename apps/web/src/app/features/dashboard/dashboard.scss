@@ -1,3 +1,6 @@
+@use 'abstracts/breakpoints' as bp;
+@use 'abstracts/surfaces';
+
 // Smart Garden Control Center (DESIGN-SYSTEM §6). Desktop uses the full
 // 80rem shell width: 4 KPI columns, then Attention (2fr) beside Garden
 // Health (3fr), collapsing intelligently at tablet/mobile widths.
@@ -30,7 +33,7 @@
     pointer-events: none;
   }
 
-  @media (max-width: 720px) {
+  @include bp.down(tablet-s) {
     flex-direction: column;
     align-items: flex-start;
   }
@@ -117,7 +120,7 @@
   align-items: flex-end;
   gap: var(--sp-2);
 
-  @media (max-width: 720px) {
+  @include bp.down(tablet-s) {
     flex-direction: row;
     align-items: center;
     flex-wrap: wrap;
@@ -159,7 +162,7 @@
 .hero-sub {
   min-height: 1lh;
 
-  @media (max-width: 40rem) {
+  @include bp.down(phone-l) {
     min-height: 2lh;
   }
 }
@@ -171,11 +174,11 @@
   gap: var(--sp-4);
   margin-bottom: var(--sp-6);
 
-  @media (max-width: 1024px) {
+  @include bp.down(laptop) {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  @media (max-width: 480px) {
+  @include bp.down(phone) {
     grid-template-columns: 1fr;
   }
 }
@@ -187,7 +190,7 @@
   gap: var(--sp-6);
   align-items: start;
 
-  @media (max-width: 960px) {
+  @include bp.down(laptop) {
     grid-template-columns: 1fr;
   }
 }
@@ -215,12 +218,8 @@
   display: flex;
   align-items: flex-start;
   gap: var(--sp-3);
-  padding: var(--sp-4);
-  background: var(--surface-1);
-  border: 1px solid var(--border);
+  @include surfaces.card(var(--sp-4), var(--radius-m));
   border-left: 3px solid var(--accent-amber);
-  border-radius: var(--radius-m);
-  box-shadow: var(--shadow-1);
   color: inherit;
   text-decoration: none;
 
@@ -411,11 +410,7 @@
   // card past the card's own edge (and past the viewport at 375px).
   grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-2);
-  padding: var(--sp-4);
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-m);
-  box-shadow: var(--shadow-1);
+  @include surfaces.card(var(--sp-4), var(--radius-m));
   color: inherit;
   text-decoration: none;
 
@@ -667,18 +662,14 @@
 
 .chart-card {
   height: 24rem;
-  padding: var(--sp-3);
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-l);
-  box-shadow: var(--shadow-1);
+  @include surfaces.card(var(--sp-3), var(--radius-l));
 
   > * {
     display: block;
     height: 100%;
   }
 
-  @media (max-width: 560px) {
+  @include bp.down(phone-l) {
     height: 20rem;
   }
 }

@@ -1,0 +1,42 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Breakpoints (docs/design/DESIGN-SYSTEM.md §9)
+// The five widths the layouts turn at, named by the device they stand for.
+// Every media query in the app goes through `down()` or `up()`, so a
+// breakpoint is decided in one place and reads as intent, not as a number.
+// ─────────────────────────────────────────────────────────────────────────────
+@use 'sass:map';
+
+$breakpoints: (
+  // 360–480: the smallest phones — every grid is a single column
+  phone: 480px,
+  // large phones — hints and secondary text give way, names hide
+  phone-l: 640px,
+  // small tablets, phones in landscape — side panels stack under content
+  tablet-s: 720px,
+  // tablets — two-column layouts become one
+  tablet: 880px,
+  // small laptops — four-column grids become two, the overview stacks
+  laptop: 1024px
+);
+
+@function width($name) {
+  $width: map.get($breakpoints, $name);
+  @if not $width {
+    @error 'Unknown breakpoint `#{$name}`; one of #{map.keys($breakpoints)}.';
+  }
+  @return $width;
+}
+
+/// At this width and below.
+@mixin down($name) {
+  @media (max-width: width($name)) {
+    @content;
+  }
+}
+
+/// Above this width.
+@mixin up($name) {
+  @media (min-width: (width($name) + 1px)) {
+    @content;
+  }
+}

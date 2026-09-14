@@ -1,3 +1,5 @@
+@use 'abstracts/zones';
+
 // Planner inspector — plain DOM beside the plan. The host is a grid so the
 // aside fills the cell the map shell gives it (the stage's height on desktop).
 :host {
@@ -85,7 +87,7 @@
   padding: 0.125rem var(--sp-2);
   border-radius: var(--radius-pill);
   background: var(--surface-2);
-  font-size: 0.6875rem;
+  font-size: var(--fs-micro);
   font-weight: 600;
   color: var(--text-2);
 }
@@ -98,14 +100,9 @@
   flex: none;
 }
 
-[data-zone='dry'] .zone-dot,
-.zone-dot[data-zone='dry'] {
-  background: var(--zone-dry);
-}
-
-[data-zone='humid'] .zone-dot,
-.zone-dot[data-zone='humid'] {
-  background: var(--zone-humid);
+.zone-dot {
+  @include zones.tint(background); // the zone on the dot itself…
+  @include zones.tint(background, ancestor); // …or on the row it sits in
 }
 
 .chip-action {
@@ -146,7 +143,7 @@
     background: var(--surface-2);
 
     dt {
-      font-size: 0.6563rem;
+      font-size: var(--fs-nano);
       font-weight: 650;
       text-transform: uppercase;
       letter-spacing: 0.04em;
@@ -162,7 +159,7 @@
 
     .fact-sub {
       display: block;
-      font-size: 0.6875rem;
+      font-size: var(--fs-micro);
       font-weight: 500;
       color: var(--text-3);
 
@@ -188,7 +185,7 @@
   gap: var(--sp-2);
 
   .contribution-label {
-    font-size: 0.6875rem;
+    font-size: var(--fs-micro);
     color: var(--text-3);
   }
 
@@ -232,7 +229,7 @@
 
   p {
     margin: 0;
-    font-size: 0.6875rem;
+    font-size: var(--fs-micro);
   }
 
   .clash-title {
@@ -242,7 +239,7 @@
 
 .drag-hint {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: var(--fs-micro);
   color: var(--text-3);
 }
 
@@ -285,7 +282,7 @@
 
 .zones-title {
   margin: 0;
-  font-size: 0.6563rem;
+  font-size: var(--fs-nano);
   font-weight: 650;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -305,13 +302,7 @@
   flex-basis: 0;
   background: var(--zone-balanced);
 
-  &[data-zone='dry'] {
-    background: var(--zone-dry);
-  }
-
-  &[data-zone='humid'] {
-    background: var(--zone-humid);
-  }
+  @include zones.tint(background);
 }
 
 .zones-legend {
@@ -321,7 +312,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 0.6875rem;
+  font-size: var(--fs-micro);
   color: var(--text-2);
 
   li {
@@ -338,7 +329,7 @@
 
 .zones-clashes {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: var(--fs-micro);
   font-weight: 600;
   color: var(--accent-amber);
 
@@ -354,7 +345,7 @@
 
 .arrange-note {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: var(--fs-micro);
   color: var(--accent-amber);
 }
 

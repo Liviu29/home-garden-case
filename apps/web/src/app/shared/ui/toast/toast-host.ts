@@ -60,7 +60,7 @@ import { ToastStore } from '../../../core/errors/toast-store';
       transform: translateX(-50%);
       display: grid;
       gap: var(--sp-2);
-      z-index: 1000;
+      z-index: var(--z-toast);
       width: min(92vw, 26rem);
     }
 

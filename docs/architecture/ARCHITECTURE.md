@@ -297,14 +297,15 @@ selection, layers); business state stays in the stores. Rationale and trade-offs
   SWR list with idempotent appends; a detail store with per-entity mutation ghosts; a per-garden
   fan-out index). A shared feature would flatten those semantics or grow configuration until the
   state stops being domain-readable.
-- **A card mixin or global card class** — every card value is already a token, so "change the card
-  look in one place" is true at the token layer; a mixin would add a build path for four lines of
-  declarative wiring.
-- **A generic card or dialog framework, a route-constants helper, a breakpoint mixin system** —
-  semantic components stay local and legible; the few media queries are container-specific
-  collapse points, not one inconsistent grid.
+- **A generic card or dialog framework, a route-constants helper** — semantic components stay
+  local and legible.
 - **Formatting pipes** — `DecimalPipe` with explicit digits covers every case, including summed
   areas that would otherwise show float noise.
+
+Two entries left this list. A card mixin and a breakpoint system were declined while "the few
+media queries are container-specific collapse points"; a survey found 21 queries at ten different
+widths and the same five-line card recipe in seven places — an inconsistent grid after all. Both
+now live in `styles/abstracts/` ([DESIGN-SYSTEM.md §9](../design/DESIGN-SYSTEM.md)).
 
 ## 9. Conventions
 
@@ -317,6 +318,10 @@ selection, layers); business state stays in the stores. Rationale and trade-offs
   control flow with `track` on every `@for`; non-trivial template logic moves into `computed()`.
   Components never call HTTP; `shared/ui` components are presentational (inputs in, outputs
   out; no feature, `state` or API-service imports).
+- **Styles:** tokens only, never a literal colour, size or z-index; media queries through the
+  breakpoint map, zone colours and card surfaces through their mixins (`styles/abstracts/`);
+  the foundations sit in cascade layers under every component ([DESIGN-SYSTEM.md
+  §9](../design/DESIGN-SYSTEM.md)).
 - **State:** immutable `patchState` updates with new references — zoneless rendering depends on
   them.
 - **HTTP:** features call the typed API services only; retry lives in the one interceptor and

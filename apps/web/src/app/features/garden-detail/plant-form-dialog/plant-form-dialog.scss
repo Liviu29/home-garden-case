@@ -1,3 +1,5 @@
+@use 'abstracts/breakpoints' as bp;
+
 // Add/Edit Plant — one-screen picker + form.
 // Desktop acceptance: no internal vertical scroll at 1440×900; only the
 // catalog card strip scrolls, horizontally, on its own.
@@ -86,7 +88,7 @@ mat-dialog-content.picker-content {
   }
 
   .card-sci {
-    font-size: 0.6563rem;
+    font-size: var(--fs-nano);
     font-style: italic;
     color: var(--text-3);
     max-width: 100%;
@@ -96,12 +98,12 @@ mat-dialog-content.picker-content {
   }
 
   .card-meta {
-    font-size: 0.6875rem;
+    font-size: var(--fs-micro);
     color: var(--text-2);
   }
 
   .card-fit {
-    font-size: 0.6563rem;
+    font-size: var(--fs-nano);
     font-weight: 650;
     color: var(--text-3);
     border-radius: var(--radius-pill);
@@ -144,7 +146,7 @@ mat-dialog-content.picker-content {
     align-items: start;
   }
 
-  @media (max-width: 640px) {
+  @include bp.down(phone-l) {
     grid-template-columns: 1fr;
   }
 }
@@ -252,7 +254,7 @@ mat-dialog-content.picker-content {
   }
 
   .preview-note {
-    font-size: 0.6875rem;
+    font-size: var(--fs-micro);
     color: var(--text-3);
   }
 }

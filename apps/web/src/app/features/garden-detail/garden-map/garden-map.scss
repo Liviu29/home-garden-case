@@ -1,3 +1,6 @@
+@use 'abstracts/breakpoints' as bp;
+@use 'abstracts/zones';
+
 // Garden Map — digital twin scene (ADR-007 + visual layer).
 // Token-only colors; motion gated by prefers-reduced-motion.
 // Layers: lawn → fence → open soil (mask) → grid → beds (frame, soil, art) →
@@ -13,7 +16,7 @@
   align-items: stretch;
 }
 
-@media (max-width: 900px) {
+@include bp.down(tablet) {
   .map-shell {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -417,13 +420,7 @@
   fill: var(--zone-balanced);
   opacity: 0.42;
 
-  &[data-zone='dry'] {
-    fill: var(--zone-dry);
-  }
-
-  &[data-zone='humid'] {
-    fill: var(--zone-humid);
-  }
+  @include zones.tint(fill);
 }
 
 .clash {
@@ -629,7 +626,7 @@
 
   .tip-meta,
   .tip-hint {
-    font-size: 0.6875rem;
+    font-size: var(--fs-micro);
     color: var(--text-2);
   }
 
