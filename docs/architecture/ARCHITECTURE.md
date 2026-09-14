@@ -40,7 +40,8 @@ handled.
 apps/web/src/
 ├── app/
 │   ├── core/                  # singletons, used from the root
-│   │   ├── api/               # DTOs, domain models, mappers, one typed service per resource
+│   │   ├── api/               # DTOs (types inferred from the API's zod schemas), models, mappers,
+│   │   │                      # one typed service per resource
 │   │   ├── auth/              # SessionStore (active profile) + route guard
 │   │   ├── catalog/           # PlantCatalogFacade: the provider seam over the domain's catalog
 │   │   ├── config/            # APP_CONFIG (API base URL, cache TTL, retry policy), ThemeStore

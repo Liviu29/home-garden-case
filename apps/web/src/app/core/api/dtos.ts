@@ -1,47 +1,20 @@
 /**
- * API DTOs — hand-written mirrors of the backend zod contracts (ADR-006).
- * Source of truth: apps/api/src/app/schemas/*.schema.ts
- * Any contract change updates both sides in the same commit.
+ * API DTOs — the API's own contract, imported as types (ADR-006).
+ *
+ * `@itp-home-garden/api-contract` is a tsconfig path into the API's contract
+ * barrel: the types are inferred from the zod schemas the routes validate
+ * with, so a contract change fails the client's build instead of drifting
+ * quietly. Type-only: nothing of the API reaches the browser.
  */
-
-import type { PlantType } from './models';
-
-/** Mirrors `gardenResponseSchema` (garden.schema.ts) */
-export interface GardenDto {
-  gardenId: number;
-  gardenName: string;
-  totalSurfaceArea: number;
-  targetHumidityLevel: number;
-  locationDescription?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-  /** Owning profile; null = shared with every profile (ADR-009). */
-  userId?: number | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-/** Mirrors `plantResponseSchema` (plant.schema.ts) */
-export interface PlantDto {
-  plantId: number;
-  plantName: string;
-  species: string;
-  plantType: PlantType;
-  plantationDate: string;
-  surfaceAreaRequired: number;
-  idealHumidityLevel: number;
-  gardenId: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-/** Mirrors `userResponseSchema` (user.schema.ts) */
-export interface UserDto {
-  userId: number;
-  emailAddress: string;
-  firstName?: string | null;
-  lastName?: string | null;
-  age?: number | null;
-  createdAt: string;
-  updatedAt: string;
-}
+export type {
+  CreateGardenBody,
+  CreatePlantBody,
+  CreateUserBody,
+  ErrorResponseDto,
+  GardenDto,
+  PlantDto,
+  UpdateGardenBody,
+  UpdatePlantBody,
+  UpdateUserBody,
+  UserDto,
+} from '@itp-home-garden/api-contract';

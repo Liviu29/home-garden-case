@@ -280,7 +280,7 @@
               <mat-label i18n>Age</mat-label>
               <input matInput type="number" formControlName="age" min="1" step="1" />
               <mat-hint i18n>Optional</mat-hint>
-              @if (form.controls.age.hasError('min')) {
+              @if (form.controls.age.hasError('min') || form.controls.age.hasError('wholeNumber')) {
                 <mat-error i18n>Age must be a positive whole number</mat-error>
               }
             </mat-form-field>

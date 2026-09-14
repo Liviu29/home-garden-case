@@ -119,6 +119,25 @@ export default tseslint.config(
   },
 
   // ── Layer boundaries (ARCHITECTURE.md §3) ───────────────────────────────
+  {
+    // The API's contract enters the app in one place, as types: core/api
+    // turns its DTOs into the app's models. Nothing else reads it.
+    files: ['src/**/*.ts'],
+    ignores: [`${APP}/core/api/**`],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@itp-home-garden/api-contract'],
+              message: 'Only core/api reads the API contract; everything else uses the models.',
+            },
+          ],
+        },
+      ],
+    },
+  },
   mayNotImport(
     [`${APP}/domain/**/*.ts`],
     [

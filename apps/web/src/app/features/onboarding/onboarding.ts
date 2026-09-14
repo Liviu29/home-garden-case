@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { wholeNumber } from '../../core/forms/whole-number';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -67,7 +68,7 @@ export class Onboarding {
     firstName: this.fb.control(''),
     lastName: this.fb.control(''),
     emailAddress: this.fb.control('', [Validators.required, Validators.email]),
-    age: this.fb.control<number | null>(null, [Validators.min(1)]),
+    age: this.fb.control<number | null>(null, [Validators.min(1), wholeNumber]),
   });
 
   constructor() {

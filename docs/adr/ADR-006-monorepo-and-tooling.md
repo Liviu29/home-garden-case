@@ -14,6 +14,19 @@ The provided repo is an Nx 22 workspace and the README invites adding the fronte
 
 Options: openapi-generator from `/docs` JSON vs hand-written DTO types + mappers. The contract is 3 small resources whose zod schemas we read directly; a generator adds a build step and generated-code noise disproportionate to ~15 endpoints. **Decision:** hand-written `*.dto.ts` mirroring the zod schemas (each type annotated with its source schema), pure mapper functions, and a comment discipline that any contract change updates both sides. On a larger contract we would flip to `openapi-typescript` generation — the seam (mappers) is already in place.
 
+**Amended (2026-09-14): the DTOs are inferred from the API's schemas.** The comment discipline
+had drifted in five places (a `.int()` the client's `age` validator did not mirror, the
+coordinates pair, an optional `gardenId`, a `.default(50)`, an unvalidated session parse).
+`apps/api/src/contract/index.ts` now exports the zod schemas and their `z.infer` / `z.input`
+types, and the web app's `core/api/dtos.ts` re-exports those types through a tsconfig path
+(`@itp-home-garden/api-contract`). The import is type-only, so it is erased at build time and
+nothing of the API — zod included — reaches the browser; a schema change is a compile error on
+the client. A spec parses the client's fixtures with the schemas, so what the client sends is what
+the API accepts. The mappers stay, as the DTO → domain seam. A workspace package (`libs/contract`)
+was considered and declined for now: the API's `bundle: false` build plus its file-system route
+loader would turn one runtime dependency into a lib build, a prune step and a copy step, for a
+195-line contract that has exactly one consumer besides its owner.
+
 ## One TypeScript version
 
 The workspace is on **one** TypeScript version, 6.0.x, at the root and in

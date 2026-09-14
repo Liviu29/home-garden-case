@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { wholeNumber } from '../../core/forms/whole-number';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -59,7 +60,7 @@ import { ToastStore } from '../../core/errors/toast-store';
           <mat-label i18n>Age</mat-label>
           <input matInput type="number" formControlName="age" min="1" step="1" />
           <mat-hint i18n>Optional</mat-hint>
-          @if (form.controls.age.hasError('min')) {
+          @if (form.controls.age.hasError('min') || form.controls.age.hasError('wholeNumber')) {
             <mat-error i18n>Age must be a positive whole number</mat-error>
           }
         </mat-form-field>
@@ -144,7 +145,10 @@ export class ProfileDialog {
       Validators.required,
       Validators.email,
     ]),
-    age: this.fb.control<number | null>(this.profile?.age ?? null, [Validators.min(1)]),
+    age: this.fb.control<number | null>(this.profile?.age ?? null, [
+      Validators.min(1),
+      wholeNumber,
+    ]),
   });
 
   protected async submit(): Promise<void> {
