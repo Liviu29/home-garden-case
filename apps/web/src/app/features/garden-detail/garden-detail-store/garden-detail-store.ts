@@ -135,6 +135,14 @@ export const GardenDetailStore = signalStore(
     const currentPlants = (): readonly Plant[] => store.plants();
 
     /**
+     * Single flight per mutation: a second call while the same one is in
+     * flight — a double-clicked Save, a form and a toast action racing —
+     * joins it and gets its verdict, instead of sending a second request.
+     */
+    let creating: Promise<MutationResult> | null = null;
+    const updating = new Map<number, Promise<MutationResult>>();
+
+    /**
      * Monotonic request token — the store equivalent of `switchMap`.
      * Navigating /gardens/1 → /gardens/2 while garden 1 is still in flight must
      * never let garden 1's slow response land as garden 2 (audit fix #2).
@@ -253,6 +261,49 @@ export const GardenDetailStore = signalStore(
       }
     };
 
+    const createPlantOnce = async (input: PlantInput): Promise<MutationResult> => {
+      patchState(store, { saving: true, pendingCreateArea: input.surfaceAreaRequired });
+      try {
+        const created = await plantsApi.create(input);
+        // Idempotent append — same slow-API revalidation race as
+        // GardensStore.create: the plant may already be in the index.
+        writePlants(input.gardenId, [
+          ...currentPlants().filter((p) => p.plantId !== created.plantId),
+          created,
+        ]);
+        patchState(store, { lastCreatedPlantId: created.plantId });
+        toasts.success($localize`“${created.plantName}:plantName:” planted.`);
+        return { ok: true };
+      } catch (err) {
+        return failPlantMutation(err, toasts);
+      } finally {
+        patchState(store, { saving: false, pendingCreateArea: null });
+      }
+    };
+
+    const updatePlantOnce = async (plantId: number, input: PlantInput): Promise<MutationResult> => {
+      patchState(store, {
+        saving: true,
+        pendingUpdates: [...store.pendingUpdates(), plantId],
+      });
+      try {
+        const updated = await plantsApi.update(plantId, input);
+        writePlants(
+          input.gardenId,
+          currentPlants().map((p) => (p.plantId === plantId ? updated : p)),
+        );
+        toasts.success($localize`“${updated.plantName}:plantName:” updated.`);
+        return { ok: true };
+      } catch (err) {
+        return failPlantMutation(err, toasts);
+      } finally {
+        patchState(store, {
+          saving: false,
+          pendingUpdates: store.pendingUpdates().filter((id) => id !== plantId),
+        });
+      }
+    };
+
     return {
       /** Garden + plants load in parallel — neither blocks the other's skeleton. */
       load(gardenId: number): void {
@@ -276,47 +327,22 @@ export const GardenDetailStore = signalStore(
         });
       },
 
-      async createPlant(input: PlantInput): Promise<MutationResult> {
-        patchState(store, { saving: true, pendingCreateArea: input.surfaceAreaRequired });
-        try {
-          const created = await plantsApi.create(input);
-          // Idempotent append — same slow-API revalidation race as
-          // GardensStore.create: the plant may already be in the index.
-          writePlants(input.gardenId, [
-            ...currentPlants().filter((p) => p.plantId !== created.plantId),
-            created,
-          ]);
-          patchState(store, { lastCreatedPlantId: created.plantId });
-          toasts.success($localize`“${created.plantName}:plantName:” planted.`);
-          return { ok: true };
-        } catch (err) {
-          return failPlantMutation(err, toasts);
-        } finally {
-          patchState(store, { saving: false, pendingCreateArea: null });
+      createPlant(input: PlantInput): Promise<MutationResult> {
+        if (creating) {
+          return creating;
         }
+        creating = createPlantOnce(input).finally(() => (creating = null));
+        return creating;
       },
 
-      async updatePlant(plantId: number, input: PlantInput): Promise<MutationResult> {
-        patchState(store, {
-          saving: true,
-          pendingUpdates: [...store.pendingUpdates(), plantId],
-        });
-        try {
-          const updated = await plantsApi.update(plantId, input);
-          writePlants(
-            input.gardenId,
-            currentPlants().map((p) => (p.plantId === plantId ? updated : p)),
-          );
-          toasts.success($localize`“${updated.plantName}:plantName:” updated.`);
-          return { ok: true };
-        } catch (err) {
-          return failPlantMutation(err, toasts);
-        } finally {
-          patchState(store, {
-            saving: false,
-            pendingUpdates: store.pendingUpdates().filter((id) => id !== plantId),
-          });
+      updatePlant(plantId: number, input: PlantInput): Promise<MutationResult> {
+        const inFlight = updating.get(plantId);
+        if (inFlight) {
+          return inFlight;
         }
+        const attempt = updatePlantOnce(plantId, input).finally(() => updating.delete(plantId));
+        updating.set(plantId, attempt);
+        return attempt;
       },
 
       /**

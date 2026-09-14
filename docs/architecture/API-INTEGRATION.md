@@ -44,10 +44,16 @@ non-`/docs` route: a uniform **200–2000 ms** delay on every response, reads an
 handler has already run; the delay is pure response latency.
 
 **Failure injection (`plugins/random-errors.ts`)** — an `onRequest` hook, enabled unconditionally:
-every non-`/docs` request has a **10% chance of a 500**. Because it runs **before any handler**, a
-randomly failed write never reached the database — which is exactly why retrying writes is safe
-_on this backend_ ([ADR-004](../adr/ADR-004-resilience-layer.md)); a production API would need
-idempotency keys ([ADR-005](../adr/ADR-005-authentication.md)).
+every non-`/docs` request has a **10% chance of a 500**. It runs **before any handler**, so a
+randomly failed write never reached the database. That is not the only way a write can fail,
+though — the connection can drop while the API holds a finished response for up to two seconds —
+so the frontend does not rely on it: every `POST` carries an `Idempotency-Key`, and the API
+answers a repeated key from memory ([ADR-004](../adr/ADR-004-resilience-layer.md) addendum).
+
+**Idempotent POSTs (`plugins/idempotency.ts`)** — a `preHandler`/`onSend` pair: a `POST` with an
+`Idempotency-Key` header is remembered once it succeeds (scoped to its URL, ten minutes, in
+memory) and a repeat with the same key gets the first response back with
+`Idempotency-Replayed: true`. A `POST` without the header is unchanged.
 
 **Error body shapes (`plugins/error-handler.ts`), verified live:**
 
@@ -163,6 +169,12 @@ the five real plant fields.
    token and discards stale responses (deterministic e2e).
 3. **A transient 500 was reported as "Garden not found".** 404 now means the not-found state;
    5xx/network means an error state with Retry.
+4. **A retried `POST` could create a duplicate.** The retry interceptor repeated every failed
+   request without looking at the method, so a `POST /gardens` whose response was lost on the
+   wire (the API holds every response for up to two seconds) was sent again and created a second
+   garden. Every `POST` now carries an `Idempotency-Key`, the API de-duplicates by it, and a
+   `POST` without a key is never retried ([ADR-004](../adr/ADR-004-resilience-layer.md) addendum).
+   The stores also make create and update single-flight: a second call joins the one in flight.
 
 ## 8. UX state per operation
 

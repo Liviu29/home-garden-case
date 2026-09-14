@@ -10,7 +10,11 @@ import {
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideRouter, withComponentInputBinding, withViewTransitions } from '@angular/router';
 import { routes } from './app.routes';
-import { baseUrlInterceptor, retryInterceptor } from './core/http/api-interceptors';
+import {
+  baseUrlInterceptor,
+  idempotencyKeyInterceptor,
+  retryInterceptor,
+} from './core/http/api-interceptors';
 import { GlobalErrorHandler } from './core/errors/global-error-handler';
 
 /**
@@ -34,8 +38,13 @@ export const appConfig: ApplicationConfig = {
       withViewTransitions({ skipInitialTransition: true }),
       // (Scroll-to-top on navigation lives in the root App component.)
     ),
-    // Interceptor order matters: base-url first, then retry around the network call.
-    provideHttpClient(withFetch(), withInterceptors([baseUrlInterceptor, retryInterceptor])),
+    // Interceptor order matters: base-url first, then the idempotency key —
+    // stamped once, before the retry re-sends the same request — then retry
+    // around the network call.
+    provideHttpClient(
+      withFetch(),
+      withInterceptors([baseUrlInterceptor, idempotencyKeyInterceptor, retryInterceptor]),
+    ),
     provideAnimationsAsync(),
     { provide: ErrorHandler, useClass: GlobalErrorHandler },
     // Core Web Vitals through the Logger seam, loaded in a chunk of their own

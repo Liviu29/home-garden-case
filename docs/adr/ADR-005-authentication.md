@@ -40,9 +40,10 @@ to the retry interceptor.
 session user **in the services** (row-level, not only route guards). Client-side guards and
 `canX` computeds shape the UX, but the server enforces.
 
-**Write safety.** Once real handlers can fail mid-mutation, blanket write retry becomes unsafe:
-**idempotency keys** on POST / PUT / DELETE (a UUID per logical attempt, de-duplicated by the BFF),
-and the retry interceptor narrows to idempotent requests.
+**Write safety.** Already in place ([ADR-004](./ADR-004-resilience-layer.md) addendum): every
+`POST` carries an `Idempotency-Key`, the API de-duplicates by it, and the retry interceptor repeats
+only idempotent requests and keyed `POST`s. A BFF would keep the same header and move the
+de-duplication table behind it, where it can be shared by every API instance.
 
 **Frontend deltas** (deliberately small): the auth interceptor, `SessionStore` hydration from
 `/auth/me`, the existing guard as-is, and login/registration routes replacing the welcome screen.

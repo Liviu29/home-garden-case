@@ -1,5 +1,6 @@
 import { expect, test } from '../support/fixtures';
 import {
+  awaitDialogSettled,
   expectNoSpinner,
   GARDEN_LIST,
   gardenDto,
@@ -124,6 +125,45 @@ test.describe('404 vs transient 500 (the API fails 10% of requests at random)', 
     // Retry re-issues the request and the garden appears
     await page.getByRole('button', { name: 'Try again' }).click();
     await expect(page.getByRole('heading', { name: 'Slow Garden' })).toBeVisible();
+  });
+});
+
+test.describe('a write is only repeated when that is safe (ADR-004 addendum)', () => {
+  test('a POST whose first attempt fails is re-sent with the SAME Idempotency-Key', async ({
+    page,
+  }) => {
+    await signIn(page);
+    const keys: (string | undefined)[] = [];
+    let gardens: unknown[] = [];
+    await page.route(GARDEN_LIST, async (route) => {
+      if (route.request().method() !== 'POST') {
+        return route.fulfill({ json: gardens });
+      }
+      keys.push(route.request().headers()['idempotency-key']);
+      if (keys.length === 1) {
+        // The first attempt is lost on the API's side, as the random 500 would be.
+        return route.fulfill({
+          status: 500,
+          json: { error: 'Internal server error', details: ['Random error thrown'] },
+        });
+      }
+      const created = gardenDto({ gardenId: 42, gardenName: 'Sent Once' });
+      gardens = [created];
+      return route.fulfill({ status: 201, json: created });
+    });
+    await page.route('**/api/plants/garden/*', (route) => route.fulfill({ json: [] }));
+    await page.goto('/gardens');
+
+    await page.getByRole('button', { name: 'Create your first garden' }).click();
+    await awaitDialogSettled(page, 'Garden name');
+    await page.getByLabel('Garden name').fill('Sent Once');
+    await page.getByRole('dialog').locator('button[type="submit"]').click();
+
+    await expect(page.getByTestId('garden-card').filter({ hasText: 'Sent Once' })).toBeVisible();
+    expect(keys).toHaveLength(2);
+    expect(keys[0]).toMatch(/^[0-9a-f-]{36}$/);
+    // Same key on the re-send: the API can tell it is the same garden, not a second one.
+    expect(keys[1]).toBe(keys[0]);
   });
 });
 

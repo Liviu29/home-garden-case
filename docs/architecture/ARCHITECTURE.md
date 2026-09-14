@@ -212,9 +212,14 @@ construction.
 
 **What happens when…**
 
-- **…the user double-clicks Save?** `saving` is checked on entry; the second submit returns at once
-  (asserted in e2e: one POST for three clicks). Deletes carry per-entity pending guards, so a
-  repeated delete is a no-op.
+- **…the user double-clicks Save?** The dialog ignores the click while `saving`, and the store is
+  single-flight underneath: a second create, or a second update of the same entity, joins the
+  request in flight and gets its verdict, so nothing can send two. Deletes carry per-entity
+  pending guards, so a repeated delete is a no-op.
+- **…a write's answer is lost on the wire?** Every `POST` carries an `Idempotency-Key`; the retry
+  re-sends it with the same key and the API answers from memory instead of writing twice
+  ([ADR-004](../adr/ADR-004-resilience-layer.md) addendum). A `POST` without a key is never
+  retried.
 - **…two identical loads race?** The QueryCache hands both callers the same in-flight promise.
 - **…a slow response arrives for a garden the user already left?** Each `GardenDetailStore.load()`
   takes a monotonic token; a stale response is discarded instead of rendering garden A as garden B.

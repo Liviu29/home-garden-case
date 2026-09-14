@@ -166,10 +166,12 @@ below what is planted in it (a check this project added to the API).
 - **No spinners** — enforced by `npm run check:no-spinners` and asserted in the e2e suite.
 - **Writes are confirmed, not optimistic** — the capacity rule lives on the server; a failed write
   turns the ghost back into real content with _Try again_.
-- **Retries** — transient 5xx and network errors are retried up to three times with exponential
+- **Retries, safely** — transient 5xx and network errors are retried up to three times with exponential
   backoff and full jitter (never a 4xx), taking a three-request screen from about 27% visible
-  failures to under 0.1%. Whatever still fails is classified once, by `toApiError`: inline for
-  validation, a designed page for not-found, an error state or toast with _Try again_ otherwise.
+  failures to under 0.1%. A write is only ever repeated when that is safe: every `POST` carries an
+  `Idempotency-Key` the API de-duplicates by, so a lost response cannot become a duplicate garden.
+  Whatever still fails is classified once, by `toApiError`: inline for validation, a designed page
+  for not-found, an error state or toast with _Try again_ otherwise.
 - **Ordering** — a late response for one garden can never overwrite another (each load carries a
   monotonic token).
 

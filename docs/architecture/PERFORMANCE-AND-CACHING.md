@@ -18,7 +18,7 @@ Read from the source, not from the README ([API-INTEGRATION §2](./API-INTEGRATI
 Two consequences the frontend is built around:
 
 1. The delay is `onSend`, so it is **added to every response including errors** — there is no fast path, and no amount of client work removes it.
-2. The failure is `onRequest`, so an injected 500 happens **before any handler or DB write runs**. That is what makes blind retries safe _on this backend_ (and only on this one — production would need idempotency keys, ADR-005).
+2. The failure is `onRequest`, so an injected 500 happens **before any handler or DB write runs**. A lost response is the other failure, and the two-second hold makes it likely — so writes are not retried blindly: every `POST` carries an `Idempotency-Key` the API de-duplicates by (ADR-004 addendum).
 
 Additionally, the read surface has no shaping primitives at all: `GET /gardens` accepts **no querystring** (verified in `routes/gardens.ts` — `params` only), there is no `?include=plants`, no pagination, no sparse fieldsets, no `ETag`/`Last-Modified`, and no `Cache-Control`. `Garden` carries no plant array and no counts.
 
@@ -54,7 +54,7 @@ Per-GET-key entries (`gardens`, `gardens:3`, `plants:garden:3`). The one-request
 
 ### Retry interceptor — `core/http/api-interceptors.ts`
 
-Exponential backoff with full jitter (250 ms base, ×3, 3 s cap, 3 retries), 5xx and network errors only — never a 4xx verdict. It converts a 27%-per-screen failure rate into <0.1%, at the cost of _adding_ latency on the unlucky path (a recovered request costs its own delay plus the backoff). That trade is correct: a slow success beats a fast error screen.
+Exponential backoff with full jitter (250 ms base, ×3, 3 s cap, 3 retries), 5xx and network errors only — never a 4xx verdict. It converts a 27%-per-screen failure rate into <0.1%, at the cost of _adding_ latency on the unlucky path (a recovered request costs its own delay plus the backoff). That trade is correct: a slow success beats a fast error screen. Only requests that are safe to repeat are retried: reads, `PUT`, `DELETE`, and a `POST` carrying the `Idempotency-Key` every `POST` from this app is stamped with (ADR-004 addendum).
 
 ### Skeleton-first rendering — [ASYNC-UX.md](../design/ASYNC-UX.md)
 
@@ -110,6 +110,6 @@ Ranked by what would actually move the numbers above:
 4. **`ETag` / `If-None-Match` on list and detail reads.** Revalidation becomes a 304 with no body — SWR's background refresh would cost almost nothing.
 5. **`Cache-Control` on stable resources**, plus a CDN/edge cache where deployment allows.
 6. **Sparse fieldsets** (`?fields=`) so the dashboard can ask for occupancy without full plant rows.
-7. **Idempotency keys on mutations**, so retry stays safe once errors can occur _mid-handler_ rather than only in `onRequest` (ADR-005).
-8. **Server-side cache (e.g. Redis) for hot aggregates**, invalidated on write.
-9. **Telemetry**: Web Vitals plus API-latency percentiles, so the budgets in this document stay measured rather than remembered.
+7. **Server-side cache (e.g. Redis) for hot aggregates**, invalidated on write.
+8. **Telemetry**: Web Vitals plus API-latency percentiles, so the budgets in this document stay measured rather than remembered.
+9. **A shared idempotency table.** Keys are de-duplicated in the API process's memory today (ADR-004 addendum); a deployment with several instances would keep them in the database, or behind a BFF.

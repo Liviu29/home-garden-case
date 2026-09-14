@@ -323,6 +323,56 @@ describe('GardensStore — update, view state and toast policy', () => {
     });
   });
 
+  describe('single flight (a double-clicked Save sends one request)', () => {
+    const input = {
+      gardenName: 'Renamed',
+      totalSurfaceArea: 20,
+      targetHumidityLevel: 50,
+      locationDescription: null,
+      latitude: null,
+      longitude: null,
+    };
+
+    it('a second create while one is in flight joins it: one POST, one garden', async () => {
+      await store.load();
+      let release = (): void => undefined;
+      api['create'].mockImplementation(() => new Promise((r) => (release = () => r(garden(9)))));
+
+      const first = store.create(garden(9));
+      const second = store.create(garden(9));
+
+      expect(second).toBe(first);
+      expect(api['create']).toHaveBeenCalledTimes(1);
+      release();
+      await expect(second).resolves.toEqual({ ok: true });
+      expect(store.gardens().filter((g) => g.gardenId === 9)).toHaveLength(1);
+
+      // Once it has settled, the next create is a new request.
+      api['create'].mockResolvedValue(garden(10));
+      await store.create(garden(10));
+      expect(api['create']).toHaveBeenCalledTimes(2);
+    });
+
+    it('a second update of the same garden joins the one in flight; another garden does not', async () => {
+      await store.load();
+      const releases: (() => void)[] = [];
+      api['update'].mockImplementation(
+        (id: number) => new Promise((r) => releases.push(() => r(garden(id, 'Renamed')))),
+      );
+
+      const first = store.update(1, input);
+      const again = store.update(1, input);
+      const other = store.update(2, input);
+
+      expect(again).toBe(first);
+      expect(other).not.toBe(first);
+      expect(api['update']).toHaveBeenCalledTimes(2);
+      releases.forEach((release) => release());
+      await Promise.all([first, other]);
+      expect(store.pendingUpdates()).toEqual([]);
+    });
+  });
+
   describe('view state', () => {
     it('keeps a search query and a sort order', () => {
       store.setQuery('herb');

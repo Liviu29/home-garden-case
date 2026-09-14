@@ -432,6 +432,45 @@ describe('GardenDetailStore — plant create/update paths', () => {
     });
   });
 
+  describe('single flight (a double-clicked Save sends one request)', () => {
+    it('a second createPlant while one is in flight joins it: one POST, one plant', async () => {
+      await loaded();
+      let release = (): void => undefined;
+      plantsApi['create'].mockImplementation(
+        () => new Promise((r) => (release = () => r(mkPlant(2, 'Tomato')))),
+      );
+
+      const first = store.createPlant(INPUT);
+      const second = store.createPlant(INPUT);
+
+      expect(second).toBe(first);
+      expect(plantsApi['create']).toHaveBeenCalledTimes(1);
+      release();
+      await expect(second).resolves.toEqual({ ok: true });
+      expect(store.plants().filter((p) => p.plantId === 2)).toHaveLength(1);
+      expect(store.saving()).toBe(false);
+    });
+
+    it('a second updatePlant of the same plant joins the one in flight; another plant does not', async () => {
+      await loaded();
+      const releases: (() => void)[] = [];
+      plantsApi['update'].mockImplementation(
+        (id: number) => new Promise((r) => releases.push(() => r(mkPlant(id, 'Renamed')))),
+      );
+
+      const first = store.updatePlant(1, INPUT);
+      const again = store.updatePlant(1, INPUT);
+      const other = store.updatePlant(2, INPUT);
+
+      expect(again).toBe(first);
+      expect(other).not.toBe(first);
+      expect(plantsApi['update']).toHaveBeenCalledTimes(2);
+      releases.forEach((release) => release());
+      await Promise.all([first, other]);
+      expect(store.pendingUpdates()).toEqual([]);
+    });
+  });
+
   describe('plants read failures', () => {
     it('shows the plants error state when nothing is cached', async () => {
       plantsApi['getByGarden'].mockRejectedValue(new ApiError('technical', 'boom', 500));

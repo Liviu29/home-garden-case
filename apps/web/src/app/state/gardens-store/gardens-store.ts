@@ -109,6 +109,14 @@ export const GardensStore = signalStore(
     /** The signed-in profile — whose gardens (plus the shared ones) the list shows. */
     const profileId = (): number | null => session.profile()?.userId ?? null;
 
+    /**
+     * Single flight per mutation: a second call while the same one is in
+     * flight — a double-clicked Save, a form and a toast action racing —
+     * joins it and gets its verdict, instead of sending a second request.
+     */
+    let creating: Promise<MutationResult> | null = null;
+    const updating = new Map<number, Promise<MutationResult>>();
+
     /** Idempotent add: a revalidation may already have delivered this garden. */
     const addToList = (garden: Garden): void => {
       patchState(store, {
@@ -185,6 +193,57 @@ export const GardensStore = signalStore(
       }
     };
 
+    const createOnce = async (input: GardenInput): Promise<MutationResult> => {
+      patchState(store, { saving: true, creating: true });
+      try {
+        // The signed-in profile owns what it creates (ADR-009).
+        const owner = profileId();
+        const created = await (owner === null ? api.create(input) : api.create(input, owner));
+        // A garden that was just created has no plants — that is known, not
+        // loading. Seeding its (fresh) plants entry lets the card, the
+        // dashboard and the detail page say "0 plants" at once, instead of
+        // a ghost that waits on a pointless GET.
+        cache.set(cacheKeys.plantsOfGarden(created.gardenId), []);
+        // Idempotent append: a background list revalidation that hit the
+        // server AFTER the insert may already have delivered this garden
+        // (a slow-API race) — a blind append would render
+        // the card twice.
+        addToList(created);
+        toasts.success($localize`Garden “${created.gardenName}:name:” created.`);
+        return { ok: true };
+      } catch (err) {
+        return failMutation(err, toasts);
+      } finally {
+        patchState(store, { saving: false, creating: false });
+      }
+    };
+
+    const updateOnce = async (gardenId: number, input: GardenInput): Promise<MutationResult> => {
+      patchState(store, {
+        saving: true,
+        pendingUpdates: [...store.pendingUpdates(), gardenId],
+      });
+      try {
+        const updated = await api.update(gardenId, input);
+        patchState(store, {
+          gardens: store.gardens().map((g) => (g.gardenId === gardenId ? updated : g)),
+        });
+        cache.set(cacheKeys.gardens, store.gardens());
+        // Write-through (not invalidate): the detail screen re-reads this
+        // key on reload and must see the update instantly, with no refetch.
+        cache.set(cacheKeys.garden(gardenId), updated);
+        toasts.success($localize`Garden “${updated.gardenName}:name:” updated.`);
+        return { ok: true };
+      } catch (err) {
+        return failMutation(err, toasts);
+      } finally {
+        patchState(store, {
+          saving: false,
+          pendingUpdates: store.pendingUpdates().filter((id) => id !== gardenId),
+        });
+      }
+    };
+
     return {
       setQuery(query: string): void {
         patchState(store, { query });
@@ -231,55 +290,22 @@ export const GardensStore = signalStore(
         }
       },
 
-      async create(input: GardenInput): Promise<MutationResult> {
-        patchState(store, { saving: true, creating: true });
-        try {
-          // The signed-in profile owns what it creates (ADR-009).
-          const owner = profileId();
-          const created = await (owner === null ? api.create(input) : api.create(input, owner));
-          // A garden that was just created has no plants — that is known, not
-          // loading. Seeding its (fresh) plants entry lets the card, the
-          // dashboard and the detail page say "0 plants" at once, instead of
-          // a ghost that waits on a pointless GET.
-          cache.set(cacheKeys.plantsOfGarden(created.gardenId), []);
-          // Idempotent append: a background list revalidation that hit the
-          // server AFTER the insert may already have delivered this garden
-          // (a slow-API race) — a blind append would render
-          // the card twice.
-          addToList(created);
-          toasts.success($localize`Garden “${created.gardenName}:name:” created.`);
-          return { ok: true };
-        } catch (err) {
-          return failMutation(err, toasts);
-        } finally {
-          patchState(store, { saving: false, creating: false });
+      create(input: GardenInput): Promise<MutationResult> {
+        if (creating) {
+          return creating;
         }
+        creating = createOnce(input).finally(() => (creating = null));
+        return creating;
       },
 
-      async update(gardenId: number, input: GardenInput): Promise<MutationResult> {
-        patchState(store, {
-          saving: true,
-          pendingUpdates: [...store.pendingUpdates(), gardenId],
-        });
-        try {
-          const updated = await api.update(gardenId, input);
-          patchState(store, {
-            gardens: store.gardens().map((g) => (g.gardenId === gardenId ? updated : g)),
-          });
-          cache.set(cacheKeys.gardens, store.gardens());
-          // Write-through (not invalidate): the detail screen re-reads this
-          // key on reload and must see the update instantly, with no refetch.
-          cache.set(cacheKeys.garden(gardenId), updated);
-          toasts.success($localize`Garden “${updated.gardenName}:name:” updated.`);
-          return { ok: true };
-        } catch (err) {
-          return failMutation(err, toasts);
-        } finally {
-          patchState(store, {
-            saving: false,
-            pendingUpdates: store.pendingUpdates().filter((id) => id !== gardenId),
-          });
+      update(gardenId: number, input: GardenInput): Promise<MutationResult> {
+        const inFlight = updating.get(gardenId);
+        if (inFlight) {
+          return inFlight;
         }
+        const attempt = updateOnce(gardenId, input).finally(() => updating.delete(gardenId));
+        updating.set(gardenId, attempt);
+        return attempt;
       },
 
       /**
