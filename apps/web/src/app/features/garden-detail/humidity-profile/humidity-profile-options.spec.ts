@@ -120,6 +120,7 @@ describe('humidityProfileOptions (the garden humidity profile)', () => {
     );
     expect(describePlant({ ...fern, delta: 0 })).toContain('right on the 35% target');
     expect(describePlant({ ...fern, delta: -10 })).toContain('10 points below the 35% target');
+    expect(describePlant({ ...fern, delta: -1 })).toContain('1 point below the 35% target');
 
     const tooltip = invoke(options.tooltip?.pointFormatter, asPoint(data[2])) as string;
     expect(tooltip).toContain('<b>Fern &lt;b&gt;</b>');

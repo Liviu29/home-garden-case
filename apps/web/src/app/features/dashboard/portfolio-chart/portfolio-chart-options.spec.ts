@@ -190,6 +190,9 @@ describe('portfolioChartOptions (the dashboard portfolio map)', () => {
     expect(describeGarden(garden({ drift: -12.4, average: 37.6 }))).toContain(
       '12 points below the 50% target',
     );
+    expect(describeGarden(garden({ drift: 1, average: 51 }))).toContain(
+      '1 point above the 50% target',
+    );
 
     const tooltip = invoke(options.tooltip?.pointFormatter, asPoint(gardens[1])) as string;
     expect(tooltip).toContain('<b>Balcony &lt;Jungle&gt;</b>');

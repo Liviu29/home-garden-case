@@ -3,6 +3,7 @@ import {
   ATTENTION_HUMIDITY_DRIFT,
   ATTENTION_OCCUPANCY_RATIO,
 } from '../../../domain/garden-insights/garden-insights';
+import { plantedGardensCount, pointsCount } from '../../../core/i18n/plurals';
 import { ChartPalette, escapeLabel, withAlpha } from '../../../shared/ui/chart/chart-palette';
 
 /** Why a garden sits where it does — the same reasons as the Attention Center. */
@@ -69,8 +70,8 @@ export function describeGarden(p: PortfolioPoint): string {
     drift === 0
       ? $localize`right on the ${p.target}:target:% target`
       : drift > 0
-        ? $localize`${Math.abs(drift)}:points: points above the ${p.target}:target:% target`
-        : $localize`${Math.abs(drift)}:points: points below the ${p.target}:target:% target`;
+        ? $localize`${pointsCount(Math.abs(drift))}:points: above the ${p.target}:target:% target`
+        : $localize`${pointsCount(Math.abs(drift))}:points: below the ${p.target}:target:% target`;
   return $localize`${p.name}:name:: ${round(p.occupancyPct)}:occupancy:% full, ${round(p.used, 1)}:used: of ${p.area}:area: m². Plants want ${round(p.average)}:average:% humidity, ${humidity}:humidity:.`;
 }
 
@@ -167,7 +168,7 @@ export function portfolioChartOptions(
     title: { text: undefined },
     credits: { enabled: false },
     accessibility: {
-      description: $localize`Bubble chart of ${points.length}:count: planted gardens. Horizontal: share of the surface in use. Vertical: how far the plants' average ideal humidity is from the garden's target. Bubble size: garden area. Gardens at least ${nearPct}:nearPct:% full, or more than ${tolerance}:tolerance: points from their target, need attention.`,
+      description: $localize`Bubble chart of ${plantedGardensCount(points.length)}:gardens:. Horizontal: share of the surface in use. Vertical: how far the plants' average ideal humidity is from the garden's target. Bubble size: garden area. Gardens at least ${nearPct}:nearPct:% full, or more than ${tolerance}:tolerance: points from their target, need attention.`,
       point: {
         descriptionFormatter: (point) =>
           $localize`${describeGarden(pointOf(point))}:description: Opens the garden.`,

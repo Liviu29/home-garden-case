@@ -613,6 +613,18 @@ describe('GardensStore — Undo for a deleted garden', () => {
     expect(cache.read<Plant[]>(cacheKeys.plantsOfGarden(10))).toHaveLength(1);
   });
 
+  it('says so in the singular when the garden’s only plant could not be replanted', async () => {
+    const undo = await deleteWithPlants(garden(1), [plantOf(1)]);
+    plantsApi['create'].mockRejectedValueOnce(new ApiError('technical', 'boom', 500));
+
+    undo?.action?.();
+    await vi.waitFor(() => expect(store.creating()).toBe(false));
+
+    expect(errorToast()?.message).toBe(
+      'Garden “Garden 1” is back, but its plant could not be replanted.',
+    );
+  });
+
   it('a technical failure offers Try again', async () => {
     const undo = await deleteWithPlants();
     gardensApi['create'].mockRejectedValueOnce(new ApiError('technical', 'boom', 500));

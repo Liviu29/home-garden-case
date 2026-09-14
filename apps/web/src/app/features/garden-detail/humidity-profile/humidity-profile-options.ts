@@ -1,5 +1,6 @@
 import type { Options, Point } from 'highcharts';
 import { Garden, Plant } from '../../../core/api/models';
+import { plantsCount, pointsCount } from '../../../core/i18n/plurals';
 import {
   ATTENTION_HUMIDITY_DRIFT,
   plantHumidityDelta,
@@ -43,8 +44,8 @@ export function describePlant(p: ProfilePlant): string {
     delta === 0
       ? $localize`right on the ${p.target}:target:% target`
       : delta > 0
-        ? $localize`${points}:points: points above the ${p.target}:target:% target`
-        : $localize`${points}:points: points below the ${p.target}:target:% target`;
+        ? $localize`${pointsCount(points)}:points: above the ${p.target}:target:% target`
+        : $localize`${pointsCount(points)}:points: below the ${p.target}:target:% target`;
   return $localize`${p.name}:plantName:: wants ${p.humidity}:humidity:% humidity, ${relation}:relation:; ${p.area}:area: m², ${round(p.share)}:share:% of the garden; ${ZONE_LABEL[p.zone]}:zone: watering zone.`;
 }
 
@@ -113,7 +114,7 @@ export function humidityProfileOptions(
     credits: { enabled: false },
     legend: { enabled: false },
     accessibility: {
-      description: $localize`Variwide column chart of the ${plants.length}:count: plants in ${garden.gardenName}:gardenName:. Column height: the humidity each plant wants. Column width: the surface it takes. A line marks the garden's ${target}:target:% target and a band the ±${tolerance}:tolerance: point tolerance.`,
+      description: $localize`Variwide column chart of ${plantsCount(plants.length)}:plants: in ${garden.gardenName}:gardenName:. Column height: the humidity each plant wants. Column width: the surface it takes. A line marks the garden's ${target}:target:% target and a band the ±${tolerance}:tolerance: point tolerance.`,
       point: {
         descriptionFormatter: (point) =>
           $localize`${describePlant(plantOf(point))}:description: Selecting it finds the plant on the plan.`,

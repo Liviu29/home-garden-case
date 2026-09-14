@@ -163,7 +163,9 @@ export const GardensStore = signalStore(
           toasts.success($localize`Garden “${restored.gardenName}:name:” is back.`);
         } else {
           toasts.error(
-            $localize`Garden “${restored.gardenName}:name:” is back, but ${lost}:lost: of its ${plants.length}:total: plants could not be replanted.`,
+            plants.length === 1
+              ? $localize`Garden “${restored.gardenName}:name:” is back, but its plant could not be replanted.`
+              : $localize`Garden “${restored.gardenName}:name:” is back, but ${lost}:lost: of its ${plants.length}:total: plants could not be replanted.`,
           );
         }
       } catch (err) {

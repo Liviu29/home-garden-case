@@ -15,6 +15,7 @@ import { PlantCatalogFacade } from '../../../domain/catalog/plant-catalog-facade
 import { PLANT_AREA_PRESETS } from '../../../shared/ui/value-presets/product-defaults';
 import { CapacityBar } from '../../../shared/ui/capacity-bar/capacity-bar';
 import { PlantThumb } from '../../../shared/ui/plant-visuals/plant-thumb';
+import { PLANT_TYPE_LABEL } from '../../../shared/ui/plant-visuals/plant-type-label';
 import { ValuePresets } from '../../../shared/ui/value-presets/value-presets';
 import { PlantRecommendation } from '../../../domain/plant-recommendation/plant-recommendation';
 import {
@@ -75,11 +76,7 @@ export class PlantFormDialog {
   protected readonly pendingLabel = this.isEdit ? $localize`Saving plant` : $localize`Planting`;
   protected readonly plantTypes = PLANT_TYPES;
   /** What the type select shows; the value sent stays the API's own. */
-  protected readonly plantTypeLabels: Readonly<Record<Plant['plantType'], string>> = {
-    vegetable: $localize`vegetable`,
-    fruit: $localize`fruit`,
-    flower: $localize`flower`,
-  };
+  protected readonly plantTypeLabels = PLANT_TYPE_LABEL;
   protected readonly serverError = signal<string | null>(null);
 
   // Rules mirror apps/api/src/app/schemas/plant.schema.ts — change together.

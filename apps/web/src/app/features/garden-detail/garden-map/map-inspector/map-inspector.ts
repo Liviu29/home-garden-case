@@ -3,6 +3,7 @@ import { DatePipe, DecimalPipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { Garden, Plant } from '../../../../core/api/models';
 import { PlantThumb } from '../../../../shared/ui/plant-visuals/plant-thumb';
+import { PLANT_TYPE_LABEL } from '../../../../shared/ui/plant-visuals/plant-type-label';
 import { Skeleton } from '../../../../shared/ui/skeleton/skeleton';
 import { plantHumidityDelta } from '../../../../domain/garden-insights/garden-insights';
 import {
@@ -71,6 +72,7 @@ export class MapInspector {
   );
 
   protected readonly clashCount = computed(() => this.conflicts().length);
+  protected readonly typeLabel = PLANT_TYPE_LABEL;
 
   protected readonly share = computed(() => {
     const plant = this.plant();

@@ -16,6 +16,7 @@ import {
 import { DecimalPipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { Garden, Plant } from '../../../core/api/models';
+import { bedsCount, plantsCount } from '../../../core/i18n/plurals';
 import {
   capacityStatus,
   freeSurfaceArea,
@@ -346,7 +347,7 @@ export class GardenMap {
     const { gardenName, totalSurfaceArea, targetHumidityLevel } = this.garden();
     const plantCount = this.plants().length;
     const usedPct = Math.round(this.utilizationPct());
-    return $localize`Map of ${gardenName}:gardenName:: ${plantCount}:plantCount: plants, ${usedPct}:usedPct: percent of ${totalSurfaceArea}:surfaceArea: square meters used, target humidity ${targetHumidityLevel}:targetHumidity: percent. Pan with arrow keys, zoom with plus and minus. Focus a bed to move it with its arrow keys.`;
+    return $localize`Map of ${gardenName}:gardenName:: ${plantsCount(plantCount)}:plants:, ${usedPct}:usedPct: percent of ${totalSurfaceArea}:surfaceArea: square meters used, target humidity ${targetHumidityLevel}:targetHumidity: percent. Pan with arrow keys, zoom with plus and minus. Focus a bed to move it with its arrow keys.`;
   });
 
   // ── Camera ────────────────────────────────────────────────────────────────
@@ -575,7 +576,7 @@ export class GardenMap {
       this.timelineOpen.set(false);
     }
     const bedCount = this.plants().length;
-    this.announce($localize`Showing the plan as a list of ${bedCount}:bedCount: beds.`);
+    this.announce($localize`Showing the plan as a list of ${bedsCount(bedCount)}:beds:.`);
   }
 
   // ── Planting timeline ─────────────────────────────────────────────────────
