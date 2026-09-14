@@ -4,7 +4,7 @@
     class="map-stage"
     [class.is-dragging]="draggingPlant()"
     [class.has-selection]="selectedPlantId() !== null"
-    [class.is-replaying]="timelineOpen()"
+    [class.is-replaying]="timeline.open()"
     [class.layer-no-labels]="!layers().labels"
     [class.layer-no-footprints]="!layers().footprints"
     [class.layer-no-grid]="!layers().grid"
@@ -77,7 +77,7 @@
             fill="#fff"
           />
           @for (plot of plotViews(); track plot.plantId) {
-            @if (!futureIds().has(plot.plantId)) {
+            @if (!timeline.futureIds().has(plot.plantId)) {
               <rect
                 [attr.x]="plot.x"
                 [attr.y]="plot.y"
@@ -245,7 +245,7 @@
           [class.dragging]="plot.plantId === draggingId()"
           [class.mutating]="mutatingIds().has(plot.plantId)"
           [class.overlapping]="overlappingIds().has(plot.plantId)"
-          [class.future]="futureIds().has(plot.plantId)"
+          [class.future]="timeline.futureIds().has(plot.plantId)"
           role="button"
           tabindex="0"
           [attr.aria-label]="plot.aria"
@@ -514,8 +514,8 @@
       [canUndo]="canUndo()"
       [canRedo]="canRedo()"
       [hasCustomLayout]="hasCustomLayout()"
-      [canReplay]="days().length >= 2"
-      [timelineOpen]="timelineOpen()"
+      [canReplay]="timeline.days().length >= 2"
+      [timelineOpen]="timeline.open()"
       [layersOpen]="layersOpen()"
       [listOpen]="listOpen()"
       [isFullscreen]="isFullscreen()"
@@ -536,18 +536,18 @@
       <app-map-layers-panel [layers]="layers()" (toggleLayer)="toggleLayer($event)" />
     }
 
-    @if (timelineOpen()) {
+    @if (timeline.open()) {
       <!-- Planting timeline: replays the garden from its first planting day -->
       <app-map-timeline
-        [dayCount]="days().length"
-        [dayIndex]="dayIndex()"
-        [date]="timelineDate()"
-        [planted]="timelineStats().count"
-        [total]="timelineStats().total"
-        [usedPct]="timelineStats().pct"
-        [playing]="playing()"
-        (togglePlayback)="togglePlayback()"
-        (scrub)="onScrub($event)"
+        [dayCount]="timeline.days().length"
+        [dayIndex]="timeline.dayIndex()"
+        [date]="timeline.date()"
+        [planted]="timeline.stats().count"
+        [total]="timeline.stats().total"
+        [usedPct]="timeline.stats().pct"
+        [playing]="timeline.playing()"
+        (togglePlayback)="timeline.togglePlayback()"
+        (scrub)="timeline.scrub($event)"
         (dismiss)="toggleTimeline()"
       />
     } @else {

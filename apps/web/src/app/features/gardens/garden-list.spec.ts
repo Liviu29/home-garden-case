@@ -231,7 +231,6 @@ describe('GardenList — toolbar and row actions', () => {
     openEdit: (g: (typeof GARDENS)[number]) => void;
     remove: (g: (typeof GARDENS)[number]) => Promise<void>;
     retry: () => void;
-    isCardMutating: (id: number) => boolean;
   };
 
   const mountList = async () => {
@@ -345,16 +344,19 @@ describe('GardenList — toolbar and row actions', () => {
     expect(load).toHaveBeenCalled();
   });
 
-  it('reports only the mutating card as busy', async () => {
-    // Stubbing the store's signal getter does not notify the reactive graph,
-    // so this asserts the predicate the template binds to rather than the
-    // rendered attribute — the rendered ghost is covered end-to-end in
-    // mutation-ghosts.spec.ts, where a real pending mutation drives it.
-    const { vm, store } = await mountList();
-    vi.spyOn(store, 'pendingDeletes').mockReturnValue([1]);
+  it('renders only the mutating card as a ghost', async () => {
+    // A delete that never answers keeps garden 1 pending: its card is the
+    // ghost, its neighbour is not.
+    gardensApi['delete'] = vi.fn(() => new Promise<void>(() => undefined));
+    const { fixture, store, el } = await mountList();
+    void store.remove(GARDENS[0]);
+    await fixture.whenStable();
+    fixture.detectChanges();
 
-    expect(vm.isCardMutating(1)).toBe(true);
-    expect(vm.isCardMutating(2)).toBe(false);
+    const card = (id: number) => el.querySelector(`[data-garden-id="${id}"]`);
+    expect(card(1)?.classList.contains('mutation-ghost')).toBe(true);
+    expect(card(1)?.getAttribute('aria-busy')).toBe('true');
+    expect(card(2)?.classList.contains('mutation-ghost')).toBe(false);
   });
 });
 

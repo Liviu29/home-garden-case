@@ -134,3 +134,84 @@ export function focusOn(
 ): CameraState {
   return clampCamera({ cx: point.x, cy: point.y, zoom: Math.max(state.zoom, minZoom) }, content);
 }
+
+/**
+ * The stage's keyboard: arrows pan a twelfth of the view, `+`/`-` zoom a
+ * step, `0`/`f` fit. `null` for any other key, which the stage leaves alone.
+ */
+export function cameraKey(
+  key: string,
+  state: CameraState,
+  content: ContentSize,
+): CameraState | null {
+  const step = content.width / state.zoom / 12;
+  switch (key) {
+    case 'ArrowLeft':
+      return panBy(state, content, -step, 0);
+    case 'ArrowRight':
+      return panBy(state, content, step, 0);
+    case 'ArrowUp':
+      return panBy(state, content, 0, -step);
+    case 'ArrowDown':
+      return panBy(state, content, 0, step);
+    case '+':
+    case '=':
+      return zoomBy(state, content, ZOOM_STEP);
+    case '-':
+      return zoomBy(state, content, 1 / ZOOM_STEP);
+    case '0':
+    case 'f':
+    case 'F':
+      return fitCamera(content);
+    default:
+      return null;
+  }
+}
+
+// ── Screen ↔ map units ──────────────────────────────────────────────────────
+// The SVG keeps the viewBox's aspect ratio (`preserveAspectRatio: meet`), so
+// the scale is the tighter axis, and the other axis is letterboxed.
+
+/** The stage's size on screen, in px. */
+export interface StageRect {
+  readonly width: number;
+  readonly height: number;
+}
+
+/** Where the stage is on screen, in px (a `getBoundingClientRect`). */
+export interface ScreenRect extends StageRect {
+  readonly left: number;
+  readonly top: number;
+}
+
+/** Screen px per map unit at this view; 0 before the stage has a size. */
+export function pxPerUnit(stage: StageRect, content: ContentSize, state: CameraState): number {
+  const vbW = content.width / state.zoom;
+  const vbH = content.height / state.zoom;
+  if (stage.width === 0 || vbW === 0) {
+    return 0;
+  }
+  return Math.min(stage.width / vbW, stage.height / vbH);
+}
+
+/** A screen point in map units — the view's centre when the stage has no size yet. */
+export function screenToMap(
+  rect: ScreenRect,
+  content: ContentSize,
+  state: CameraState,
+  clientX: number,
+  clientY: number,
+): { readonly x: number; readonly y: number } {
+  const vbW = content.width / state.zoom;
+  const vbH = content.height / state.zoom;
+  const scale = pxPerUnit(rect, content, state);
+  if (scale === 0) {
+    return { x: state.cx, y: state.cy };
+  }
+  const offX = (rect.width - vbW * scale) / 2;
+  const offY = (rect.height - vbH * scale) / 2;
+  return {
+    x: state.cx - vbW / 2 + (clientX - rect.left - offX) / scale,
+    y: state.cy - vbH / 2 + (clientY - rect.top - offY) / scale,
+  };
+}

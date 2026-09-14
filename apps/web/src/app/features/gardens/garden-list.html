@@ -84,15 +84,16 @@
     </app-empty-state>
   } @else {
     <div class="grid stagger-children">
-      @for (garden of visibleGardens(); track garden.gardenId) {
+      @for (card of cards(); track card.garden.gardenId) {
+        @let garden = card.garden;
         <article
           class="card lift-hover"
           data-testid="garden-card"
-          [class.is-new]="garden.gardenId === newGardenId()"
+          [class.is-new]="card.isNew"
           [attr.data-garden-id]="garden.gardenId"
-          [class.mutation-ghost]="isCardMutating(garden.gardenId)"
-          [attr.aria-busy]="isCardMutating(garden.gardenId) ? true : null"
-          [attr.inert]="isCardMutating(garden.gardenId) ? '' : null"
+          [class.mutation-ghost]="card.mutating"
+          [attr.aria-busy]="card.mutating ? true : null"
+          [attr.inert]="card.mutating ? '' : null"
           [appPrefetchGarden]="garden.gardenId"
         >
           <a class="card-link" [routerLink]="['/gardens', garden.gardenId]">
@@ -111,8 +112,8 @@
               <p class="location">{{ garden.locationDescription }}</p>
             }
 
-            @if (plantsOf(garden); as plants) {
-              <app-capacity-bar [used]="usedArea(plants)" [total]="garden.totalSurfaceArea" />
+            @if (card.plants; as plants) {
+              <app-capacity-bar [used]="card.used" [total]="garden.totalSurfaceArea" />
               <p class="meta">
                 <app-capacity-status [garden]="garden" [plants]="plants" />
                 <span i18n>
@@ -120,7 +121,7 @@
                   {{ garden.totalSurfaceArea }} m² total
                 </span>
               </p>
-            } @else if (plantsFailed(garden)) {
+            } @else if (card.plantsFailed) {
               <p class="meta" i18n>
                 Plant details unavailable · {{ garden.totalSurfaceArea }} m² total
               </p>

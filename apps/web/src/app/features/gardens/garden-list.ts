@@ -35,6 +35,20 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 
+/** One card of the grid: the garden and everything the template needs to draw it. */
+export interface GardenCard {
+  readonly garden: Garden;
+  /** Undefined while the plants load, or when they could not. */
+  readonly plants: readonly Plant[] | undefined;
+  /** The plants could not load — the card says so instead of a forever ghost. */
+  readonly plantsFailed: boolean;
+  readonly used: number;
+  /** A PUT/DELETE is in flight: the card renders as a mutation ghost. */
+  readonly mutating: boolean;
+  /** Created while this screen is open: it glows and scrolls into view. */
+  readonly isNew: boolean;
+}
+
 /**
  * Gardens overview: card grid with skeleton-first rendering, staggered entry,
  * designed empty/error states, and optimistic delete.
@@ -119,26 +133,28 @@ export class GardenList {
     () => this.store.gardens().length > 0 && this.visibleGardens().length === 0,
   );
 
-  protected plantsOf(garden: Garden): readonly Plant[] | undefined {
-    return this.plantsIndex.byGarden()[garden.gardenId];
-  }
-
-  /** Plants could not load for this card — it says so instead of a forever ghost. */
-  protected plantsFailed(garden: Garden): boolean {
-    return this.plantsIndex.failed()[garden.gardenId] === true;
-  }
-
-  protected usedArea(plants: readonly Plant[]): number {
-    return usedSurfaceArea(plants);
-  }
-
-  /** Card renders as a mutation ghost while its PUT/DELETE is in flight. */
-  protected isCardMutating(gardenId: number): boolean {
-    return (
-      this.store.pendingDeletes().includes(gardenId) ||
-      this.store.pendingUpdates().includes(gardenId)
-    );
-  }
+  /**
+   * The cards, computed once per change — the template reads fields, it does
+   * not call methods per card per check.
+   */
+  protected readonly cards = computed<readonly GardenCard[]>(() => {
+    const plantsByGarden = this.plantsIndex.byGarden();
+    const failed = this.plantsIndex.failed();
+    const deleting = this.store.pendingDeletes();
+    const updating = this.store.pendingUpdates();
+    const newId = this.newGardenId();
+    return this.visibleGardens().map((garden) => {
+      const plants = plantsByGarden[garden.gardenId];
+      return {
+        garden,
+        plants,
+        plantsFailed: failed[garden.gardenId] === true,
+        used: plants ? usedSurfaceArea(plants) : 0,
+        mutating: deleting.includes(garden.gardenId) || updating.includes(garden.gardenId),
+        isNew: garden.gardenId === newId,
+      };
+    });
+  });
 
   protected openCreate(): void {
     this.dialog.open(GardenFormDialog, { data: { garden: null } });

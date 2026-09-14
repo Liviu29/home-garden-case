@@ -1,11 +1,15 @@
 import {
   MAX_ZOOM,
   MIN_ZOOM,
+  ZOOM_STEP,
+  cameraKey,
   clampCamera,
   fitCamera,
   focusOn,
   isFitted,
   panBy,
+  pxPerUnit,
+  screenToMap,
   viewBoxOf,
   zoomBy,
 } from './map-camera';
@@ -117,5 +121,49 @@ describe('MapCamera (pure pan/zoom math)', () => {
       cy: 7.5,
       zoom: 2,
     });
+  });
+});
+
+describe('MapCamera — the stage keyboard', () => {
+  const zoomed = zoomBy(fitCamera(content), content, 2);
+
+  it('arrows pan a twelfth of the view, + and - zoom a step, 0 and f fit', () => {
+    expect(cameraKey('ArrowRight', zoomed, content)?.cx).toBeCloseTo(8 + 16 / 2 / 12);
+    expect(cameraKey('ArrowDown', zoomed, content)?.cy).toBeCloseTo(5 + 16 / 2 / 12);
+    expect(cameraKey('+', zoomed, content)?.zoom).toBeCloseTo(2 * ZOOM_STEP);
+    expect(cameraKey('=', zoomed, content)?.zoom).toBeCloseTo(2 * ZOOM_STEP);
+    expect(cameraKey('-', zoomed, content)?.zoom).toBeCloseTo(2 / ZOOM_STEP);
+    expect(cameraKey('0', zoomed, content)).toEqual(fitCamera(content));
+    expect(cameraKey('f', zoomed, content)).toEqual(fitCamera(content));
+  });
+
+  it('leaves every other key to the page', () => {
+    expect(cameraKey('Tab', zoomed, content)).toBeNull();
+    expect(cameraKey('Escape', zoomed, content)).toBeNull();
+  });
+});
+
+describe('MapCamera — screen ↔ map units', () => {
+  const fit = fitCamera(content);
+
+  it('the scale is the tighter axis: a taller stage letterboxes above and below', () => {
+    expect(pxPerUnit({ width: 800, height: 500 }, content, fit)).toBe(50);
+    expect(pxPerUnit({ width: 800, height: 1000 }, content, fit)).toBe(50);
+    expect(pxPerUnit({ width: 800, height: 500 }, content, { ...fit, zoom: 2 })).toBe(100);
+    expect(pxPerUnit({ width: 0, height: 0 }, content, fit)).toBe(0);
+  });
+
+  it('maps a screen point through the letterbox offset', () => {
+    const rect = { left: 10, top: 20, width: 800, height: 500 };
+    expect(screenToMap(rect, content, fit, 410, 270)).toEqual({ x: 8, y: 5 });
+    expect(screenToMap(rect, content, fit, 10, 20)).toEqual({ x: 0, y: 0 });
+    // Taller stage: 250px of letterbox above the garden.
+    const tall = { left: 0, top: 0, width: 800, height: 1000 };
+    expect(screenToMap(tall, content, fit, 0, 250)).toEqual({ x: 0, y: 0 });
+  });
+
+  it('with no stage size yet, a screen point is the view\u2019s centre', () => {
+    const none = { left: 0, top: 0, width: 0, height: 0 };
+    expect(screenToMap(none, content, fit, 123, 456)).toEqual({ x: 8, y: 5 });
   });
 });

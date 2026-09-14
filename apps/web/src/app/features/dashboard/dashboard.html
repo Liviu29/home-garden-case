@@ -461,7 +461,7 @@
               />
               <span class="health-top">
                 <span class="health-name">{{ insight.garden.gardenName }}</span>
-                @if (insight.plants === undefined && !plantsFailedFor(insight.garden.gardenId)) {
+                @if (insight.plants === undefined && !insight.plantsFailed) {
                   <!-- status is computed from plants: a badge-sized ghost, never "…" -->
                   <app-skeleton
                     class="health-status skeleton-appear"
@@ -507,7 +507,7 @@
                   }
                 </span>
                 <span class="health-cta" i18n>View garden →</span>
-              } @else if (plantsFailedFor(insight.garden.gardenId)) {
+              } @else if (insight.plantsFailed) {
                 <span class="health-meta" i18n>Plant details unavailable</span>
               } @else {
                 <!-- Plants loading: the four data rows' exact line boxes -->

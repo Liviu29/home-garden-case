@@ -78,8 +78,11 @@ apps/web/src/
 │   │   │   ├── plant-form-dialog/
 │   │   │   └── garden-map/            # the planner: SVG scene and toolbar
 │   │   │       ├── garden-map-skeleton/
-│   │   │       ├── map-camera/        # pan and zoom maths
-│   │   │       └── map-inspector/
+│   │   │       ├── map-camera/        # pan and zoom maths, keyboard, screen ↔ map units
+│   │   │       ├── map-gestures/      # the pointer machine: tap, pan, pinch, bed drag
+│   │   │       ├── map-timeline/      # the strip, and the replay's state and playback
+│   │   │       ├── map-plan-list/     # the plan as text, and its row builder
+│   │   │       └── map-inspector/     # (+ map-hud, map-toolbar, map-layers-panel)
 │   │   ├── profile/           # edit-profile dialog (loaded on demand)
 │   │   └── not-found/
 │   └── shared/ui/             # presentational kit, one folder per component: skeletons, empty

@@ -16,7 +16,7 @@ import { usedSurfaceArea } from '../garden-insights/garden-insights';
  * garden never rearranges it, and input order does not matter.
  */
 
-interface PlantPlot {
+export interface PlantPlot {
   readonly plantId: number;
   readonly label: string;
   readonly plantType: Plant['plantType'];
@@ -36,7 +36,7 @@ interface FreeBand {
   readonly h: number;
 }
 
-interface GardenMapLayout {
+export interface GardenMapLayout {
   /** Garden surface size in map units (width × height ≈ totalSurfaceArea). */
   readonly width: number;
   readonly height: number;

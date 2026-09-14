@@ -45,7 +45,11 @@ GardenDetailStore (signals: garden, plants, usedArea, freeArea…)
 GardenMap component (feature)
         ↓  computed
 garden-map-layout.ts   — pure: view model + deterministic squarified-treemap layout
-map-camera.ts          — pure: pan/zoom camera math (clamped viewBox)
+map-camera.ts          — pure: pan/zoom camera math (clamped viewBox), the stage
+                         keyboard, screen ↔ map units
+map-gestures.ts        — pure: the pointer machine (tap, pan, pinch, bed drag)
+timeline-replay.ts     — the planting timeline's state and playback (signals)
+plan-rows.ts           — pure: the plan as rows of text
         ↓  immutable rects in map units
 <svg [viewBox]> template — the only place that knows it's SVG
 ```
@@ -85,8 +89,16 @@ clamped viewBox arithmetic.
   `MapLayersPanel`, `MapTimeline`, `MapPlanList`, next to the existing
   `MapInspector` — sharing one glass/button partial (`_map-controls.scss`), and
   the pure view builders live in `garden-map-view.ts`. Every stylesheet is under
-  the warning again, and `GardenMap` keeps only the scene, the camera, the
-  gestures and the planner state.
+  the warning again.
+- **One component, one job**: `GardenMap` keeps the scene, the camera and the
+  planner state, and is the only unit that touches the DOM. What does not need
+  the DOM is its own unit with its own spec: the pointer machine
+  (`MapGestures` turns pointer samples into pan/pinch/drag intents), the
+  timeline replay (`TimelineReplay`: days, the day in view, playback), the
+  plan rows (`buildPlanRows`), the stage keyboard and the screen ↔ map maths
+  (`map-camera.ts`). The component went from 1,060 lines to ~840, and every
+  planner behaviour is still asserted through the DOM, as a gardener would
+  drive it.
 
 ## Layout: a squarified treemap
 

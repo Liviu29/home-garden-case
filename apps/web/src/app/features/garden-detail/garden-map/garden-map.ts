@@ -21,7 +21,6 @@ import {
   capacityStatus,
   freeSurfaceArea,
   occupancyRatio,
-  usedSurfaceArea,
 } from '../../../domain/garden-insights/garden-insights';
 import {
   PLANNER_SNAP,
@@ -33,12 +32,8 @@ import {
 } from '../../../domain/garden-map-layout/garden-map-layout';
 import {
   arrangeByWateringZone,
-  findNeighbours,
   findWateringConflicts,
   largestFreeRect,
-  plantedBy,
-  plantingDays,
-  wateringZone,
   zoneBreakdown,
 } from '../../../domain/garden-planner/garden-planner';
 import type { LayoutPositions } from '../../../state/garden-layout/garden-layout-repository';
@@ -60,14 +55,18 @@ import {
 import {
   type CameraState,
   ZOOM_STEP,
+  cameraKey,
   clampCamera,
   fitCamera,
   focusOn,
   isFitted,
   panBy,
+  pxPerUnit,
+  screenToMap,
   viewBoxOf,
   zoomBy,
 } from './map-camera/map-camera';
+import { MapGestures } from './map-gestures/map-gestures';
 import { MapHud } from './map-hud/map-hud';
 import { MapInspector } from './map-inspector/map-inspector';
 import {
@@ -76,7 +75,9 @@ import {
   MapLayersPanel,
 } from './map-layers-panel/map-layers-panel';
 import { MapPlanList, type PlanRow } from './map-plan-list/map-plan-list';
+import { buildPlanRows } from './map-plan-list/plan-rows';
 import { MapTimeline } from './map-timeline/map-timeline';
+import { TimelineReplay } from './map-timeline/timeline-replay';
 import { MapToolbar } from './map-toolbar/map-toolbar';
 
 interface TooltipView {
@@ -97,11 +98,6 @@ const ARROW_STEPS: Readonly<Record<string, { readonly x: number; readonly y: num
   ArrowUp: { x: 0, y: -1 },
   ArrowDown: { x: 0, y: 1 },
 };
-
-/** One planting day per beat when the timeline replays the garden. */
-const TIMELINE_STEP_MS = 900;
-
-const NO_IDS: ReadonlySet<number> = new Set();
 
 const snapToGrid = (value: number): number => Math.round(value / PLANNER_SNAP) * PLANNER_SNAP;
 
@@ -125,10 +121,14 @@ const prefersReducedMotion = (): boolean =>
  * zones, neighbour clashes, "Group by water needs", a planting timeline and a
  * text version of the plan are all derived from the plants' real data.
  *
- * This component owns the scene, the camera, the gestures and the planner
- * state. The controls around it are presentational children — toolbar, HUD,
- * layers panel, timeline, plan list and inspector — and the geometry they
- * draw comes from the pure builders in `garden-map-view.ts`.
+ * This component owns the scene, the camera and the planner state, and it
+ * is the only place that touches the DOM. Around it: the pointer machine
+ * (`MapGestures`) turns pointer samples into pan/pinch/drag intents, the
+ * timeline (`TimelineReplay`) owns the replay's state and playback, the
+ * camera and the screen↔map maths are pure (`map-camera.ts`), and the
+ * geometry the scene draws comes from the pure builders in
+ * `garden-map-view.ts`. The controls are presentational children — toolbar,
+ * HUD, layers panel, timeline strip, plan list and inspector.
  *
  * Interaction state (camera, selection, hover, timeline) is component-local
  * signals; renderer-only animation is pure CSS gated by
@@ -190,6 +190,13 @@ export class GardenMap {
   protected readonly layersOpen = signal(false);
   /** The plan as a list — the same beds as text, over the stage. */
   protected readonly listOpen = signal(false);
+  /** The garden replayed day by day (state and playback; the map draws it). */
+  protected readonly timeline = new TimelineReplay({
+    plants: this.plants,
+    garden: this.garden,
+    announce: (message) => this.announce(message),
+    prefersStillness: prefersReducedMotion,
+  });
 
   protected toggleLayer(key: LayerKey): void {
     this.layers.set({ ...this.layers(), [key]: !this.layers()[key] });
@@ -237,7 +244,7 @@ export class GardenMap {
   protected readonly conflicts = computed(() => {
     const humidity = this.humidityById();
     // On the timeline, a bed not planted yet has no neighbours to clash with.
-    const future = this.futureIds();
+    const future = this.timeline.futureIds();
     const planted = this.layout().plots.filter((p) => !future.has(p.plantId));
     return findWateringConflicts(planted, (id) => humidity.get(id));
   });
@@ -270,7 +277,7 @@ export class GardenMap {
     });
     this.destroyRef.onDestroy(() => {
       clearTimeout(this.wheelHintTimer);
-      clearInterval(this.playTimer);
+      this.timeline.destroy();
     });
   }
 
@@ -323,7 +330,7 @@ export class GardenMap {
    */
   protected readonly freeHint = computed<FreeHint | null>(() => {
     const spot = this.freeSpot();
-    if (!spot || this.plants().length === 0 || this.draggingPlant() || this.timelineOpen()) {
+    if (!spot || this.plants().length === 0 || this.draggingPlant() || this.timeline.open()) {
       return null; // an empty garden keeps its dedicated "planting zone" hints
     }
     return freeHintFor(this.layout(), spot);
@@ -369,12 +376,7 @@ export class GardenMap {
   /** Screen px per map unit at the current view — null until the stage is measured. */
   private readonly unitPx = computed(() => {
     const stage = this.stageSize();
-    if (!stage) {
-      return null;
-    }
-    const { width, height } = this.content();
-    const zoom = this.camera().zoom;
-    return Math.min((stage.width * zoom) / width, (stage.height * zoom) / height);
+    return stage ? pxPerUnit(stage, this.content(), this.camera()) : null;
   });
 
   // ── Mutation ghosts (ASYNC-UX.md): ids whose visuals render as gray ghosts
@@ -530,36 +532,15 @@ export class GardenMap {
   }
 
   // ── The plan as a list ────────────────────────────────────────────────────
-  /**
-   * Every bed of the current arrangement in words — position, size, watering
-   * zone and the beds next to it (the same distance the clash check uses) —
-   * in reading order, top to bottom, then left to right.
-   */
+  /** Every bed of the current arrangement in words, in reading order. */
   protected readonly planRows = computed<readonly PlanRow[]>(() => {
-    const plots = this.layout().plots;
-    const neighbours = findNeighbours(plots);
-    const names = new Map(plots.map((p) => [p.plantId, p.label]));
     const humidity = this.humidityById();
-    const positions = this.positions();
-    // Compared to the centimetre: layout maths leaves float noise that would
-    // otherwise list a bed at "0 m down" after one at "0 m down" further right.
-    const cm = (value: number): number => Math.round(value * 100);
-    return [...plots]
-      .sort((a, b) => cm(a.y) - cm(b.y) || cm(a.x) - cm(b.x))
-      .map((p) => ({
-        plantId: p.plantId,
-        name: p.label,
-        x: p.x,
-        y: p.y,
-        width: p.w,
-        depth: p.h,
-        area: p.requiredArea,
-        zone: WATERING_ZONE_LABEL[
-          wateringZone(humidity.get(p.plantId) ?? this.garden().targetHumidityLevel)
-        ],
-        placed: positions[p.plantId] !== undefined,
-        neighbours: (neighbours.get(p.plantId) ?? []).map((id) => names.get(id) as string),
-      }));
+    return buildPlanRows(
+      this.layout().plots,
+      (id) => humidity.get(id),
+      this.garden().targetHumidityLevel,
+      this.positions(),
+    );
   });
 
   protected toggleList(): void {
@@ -570,133 +551,26 @@ export class GardenMap {
       return;
     }
     this.layersOpen.set(false);
-    if (this.timelineOpen()) {
-      this.stopPlayback();
-      this.timelineOpen.set(false);
-    }
+    this.timeline.hide(); // the list covers the plan the replay is drawn on
     const bedCount = this.plants().length;
     this.announce($localize`Showing the plan as a list of ${bedsCount(bedCount)}:beds:.`);
   }
 
   // ── Planting timeline ─────────────────────────────────────────────────────
-  protected readonly timelineOpen = signal(false);
-  protected readonly days = computed(() => plantingDays(this.plants()));
-  /** Index into `days`; follows the plant set so it never points past the end. */
-  protected readonly dayIndex = linkedSignal<readonly string[], number>({
-    source: this.days,
-    computation: (days, previous) =>
-      Math.min(previous?.value ?? days.length - 1, Math.max(0, days.length - 1)),
-  });
-  protected readonly timelineDay = computed(() =>
-    this.timelineOpen() ? (this.days()[this.dayIndex()] ?? null) : null,
-  );
-  /**
-   * The day as a UTC instant, for the date pipe. A bare 'YYYY-MM-DD' is read
-   * as LOCAL midnight, which the UTC-formatted label then showed as the day
-   * before anywhere east of Greenwich.
-   */
-  protected readonly timelineDate = computed(() => {
-    const day = this.timelineDay();
-    return day ? `${day}T00:00:00.000Z` : null;
-  });
-  /** Beds not yet planted on the timeline's day — drawn as outlines of the future. */
-  protected readonly futureIds = computed<ReadonlySet<number>>(() => {
-    const day = this.timelineDay();
-    if (!day) {
-      return NO_IDS;
-    }
-    const planted = plantedBy(this.plants(), day);
-    return new Set(
-      this.plants()
-        .filter((p) => !planted.has(p.plantId))
-        .map((p) => p.plantId),
-    );
-  });
-  protected readonly timelineStats = computed(() => {
-    const future = this.futureIds();
-    const planted = this.plants().filter((p) => !future.has(p.plantId));
-    const total = this.garden().totalSurfaceArea;
-    return {
-      count: planted.length,
-      total: this.plants().length,
-      pct: total > 0 ? Math.min(100, (usedSurfaceArea(planted) / total) * 100) : 0,
-    };
-  });
-  protected readonly playing = signal(false);
-  private playTimer: ReturnType<typeof setInterval> | undefined;
-
   protected toggleTimeline(): void {
-    if (this.timelineOpen()) {
-      this.closeTimeline();
+    if (this.timeline.open()) {
+      this.timeline.close();
       return;
     }
-    this.timelineOpen.set(true);
     this.layersOpen.set(false);
     this.listOpen.set(false); // the replay is drawn on the plan the list would cover
-    this.dayIndex.set(0);
-    const dayCount = this.days().length;
-    const firstDay = this.days()[0];
-    this.announce(
-      $localize`Planting timeline: ${dayCount}:dayCount: planting days. Showing the first, ${firstDay}:firstDay:.`,
-    );
-    // The replay is the point of opening it — unless the gardener asked for
-    // stillness, in which case they scrub at their own pace.
-    if (!prefersReducedMotion()) {
-      this.startPlayback();
-    }
+    this.timeline.start();
   }
 
-  private closeTimeline(): void {
-    this.stopPlayback();
-    this.timelineOpen.set(false);
-    this.announce($localize`Timeline closed. Showing the garden today.`);
-  }
-
-  protected togglePlayback(): void {
-    if (this.playing()) {
-      this.stopPlayback();
-    } else {
-      this.startPlayback();
-    }
-  }
-
-  private startPlayback(): void {
-    const last = this.days().length - 1;
-    if (this.dayIndex() >= last) {
-      this.dayIndex.set(0);
-    }
-    this.playing.set(true);
-    clearInterval(this.playTimer);
-    this.playTimer = setInterval(() => {
-      const next = Math.min(this.dayIndex() + 1, this.days().length - 1);
-      this.dayIndex.set(next);
-      if (next >= this.days().length - 1) {
-        this.stopPlayback();
-      }
-    }, TIMELINE_STEP_MS);
-  }
-
-  private stopPlayback(): void {
-    clearInterval(this.playTimer);
-    this.playTimer = undefined;
-    this.playing.set(false);
-  }
-
-  protected onScrub(dayIndex: number): void {
-    this.stopPlayback();
-    this.dayIndex.set(dayIndex);
-  }
-
-  // ── Gestures (renderer-local plain fields — not application state) ───────
-  // Pointer mode machine: pointerdown on a plot arms a DRAG_PLANT
-  // candidate; past the threshold it drags the plant, otherwise the click
-  // selects. Pointerdown on open ground pans. Modes never fight.
-  private readonly activePointers = new Map<number, { x: number; y: number }>();
-  private pinchDistance = 0;
-  private dragDistance = 0;
-  private lastX = 0;
-  private lastY = 0;
-  private plantCandidate: { plantId: number; plotX: number; plotY: number } | null = null;
+  // ── Gestures ──────────────────────────────────────────────────────────────
+  // The pointer machine (renderer-local, not application state) says what a
+  // gesture means — pinch, pan or a bed drag; this component applies it.
+  private readonly gestures = new MapGestures();
 
   protected zoomIn(): void {
     this.camera.set(zoomBy(this.camera(), this.content(), ZOOM_STEP));
@@ -727,16 +601,15 @@ export class GardenMap {
   }
 
   protected onPlotClick(plantId: number): void {
-    if (this.dragDistance < 5) {
+    if (this.gestures.wasTap) {
       this.selectPlant(plantId);
     }
   }
 
-  /** Arms a plant-drag candidate; the svg pointerdown still runs after this. */
+  /** Arms a bed drag; the svg pointerdown still runs after this. */
   protected onPlotPointerDown(plantId: number): void {
-    const plot = this.layout().plots.find((p) => p.plantId === plantId);
-    if (plot && !this.mutatingIds().has(plantId)) {
-      this.plantCandidate = { plantId, plotX: plot.x, plotY: plot.y };
+    if (!this.mutatingIds().has(plantId)) {
+      this.gestures.armBed(plantId);
     }
   }
 
@@ -797,13 +670,7 @@ export class GardenMap {
     // NOTE: no setPointerCapture here — capturing on pointerdown retargets the
     // compatibility `click` to the svg, which would swallow plot selection.
     // Capture starts lazily, once movement crosses the drag threshold.
-    this.activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    this.dragDistance = 0;
-    this.lastX = event.clientX;
-    this.lastY = event.clientY;
-    if (this.activePointers.size === 2) {
-      this.pinchDistance = this.pointerGapPx();
-      this.plantCandidate = null; // a second finger turns a bed drag into a pinch
+    if (this.gestures.down(event)) {
       this.dragOverride.set(null);
       this.capture(event); // a second finger is never a click — pinch mode
     }
@@ -817,67 +684,44 @@ export class GardenMap {
   }
 
   protected onPointerMove(event: PointerEvent): void {
-    if (!this.activePointers.has(event.pointerId)) {
+    const intent = this.gestures.move(event);
+    if (!intent) {
       return;
     }
-    this.activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-
-    if (this.activePointers.size === 2) {
-      const gap = this.pointerGapPx();
-      if (this.pinchDistance > 0 && gap > 0) {
-        const mid = this.pointerMidpoint();
-        this.camera.set(
-          zoomBy(
-            this.camera(),
-            this.content(),
-            gap / this.pinchDistance,
-            this.screenToMap(mid.x, mid.y),
-          ),
-        );
-      }
-      this.pinchDistance = gap;
-      return;
-    }
-
-    const dxPx = event.clientX - this.lastX;
-    const dyPx = event.clientY - this.lastY;
-    this.dragDistance += Math.abs(dxPx) + Math.abs(dyPx);
-    this.lastX = event.clientX;
-    this.lastY = event.clientY;
-    if (this.dragDistance < 5) {
+    if (intent.kind === 'pinch') {
+      const { x, y } = intent.midpoint;
+      this.camera.set(zoomBy(this.camera(), this.content(), intent.factor, this.toMap(x, y)));
       return;
     }
     this.capture(event); // keep the gesture even off-element
     this.tooltip.set(null);
-    const scale = this.pxPerUnit();
+    const scale = this.scale();
     if (scale === 0) {
       return;
     }
-
-    const candidate = this.plantCandidate;
-    if (candidate) {
-      // DRAG_PLANT: move the bed, not the camera (visual placement only —
-      // the honest footprint area never changes). The override tracks the
-      // raw pointer; rendering clamps it inside the garden, and the bed stays
-      // under the same point of the cursor it was grabbed by.
-      const current = this.dragOverride() ?? {
-        plantId: candidate.plantId,
-        x: candidate.plotX,
-        y: candidate.plotY,
-      };
-      this.dragOverride.set({
-        plantId: candidate.plantId,
-        x: current.x + dxPx / scale,
-        y: current.y + dyPx / scale,
-      });
+    if (intent.kind === 'drag') {
+      // Move the bed, not the camera (visual placement only — the honest
+      // footprint area never changes). The override tracks the raw pointer;
+      // rendering clamps it inside the garden, and the bed stays under the
+      // same point of the cursor it was grabbed by.
+      const current =
+        this.dragOverride() ?? this.layout().plots.find((p) => p.plantId === intent.plantId);
+      if (current) {
+        this.dragOverride.set({
+          plantId: intent.plantId,
+          x: current.x + intent.dxPx / scale,
+          y: current.y + intent.dyPx / scale,
+        });
+      }
       return;
     }
-    this.camera.set(panBy(this.camera(), this.content(), -dxPx / scale, -dyPx / scale));
+    this.camera.set(
+      panBy(this.camera(), this.content(), -intent.dxPx / scale, -intent.dyPx / scale),
+    );
   }
 
   protected onPointerUp(event: PointerEvent): void {
-    this.activePointers.delete(event.pointerId);
-    this.pinchDistance = 0;
+    this.gestures.up(event);
 
     // Drop: commit exactly the previewed spot (home, magnetised or snapped,
     // always inside the garden) — applyPositions re-clamps on render, so it
@@ -894,15 +738,6 @@ export class GardenMap {
       this.selectedPlantId.set(target.plantId);
     }
     this.dragOverride.set(null);
-    this.plantCandidate = null;
-    // Pinch → one finger lifted: re-anchor the pan to the remaining pointer,
-    // otherwise the next move would compute a delta from the lifted finger's
-    // stale position and the camera would jump.
-    if (this.activePointers.size === 1) {
-      const [remaining] = this.activePointers.values();
-      this.lastX = remaining.x;
-      this.lastY = remaining.y;
-    }
   }
 
   protected onWheel(event: WheelEvent): void {
@@ -917,7 +752,7 @@ export class GardenMap {
     event.preventDefault();
     const factor = event.deltaY < 0 ? 1.12 : 1 / 1.12;
     this.camera.set(
-      zoomBy(this.camera(), this.content(), factor, this.screenToMap(event.clientX, event.clientY)),
+      zoomBy(this.camera(), this.content(), factor, this.toMap(event.clientX, event.clientY)),
     );
   }
 
@@ -928,37 +763,11 @@ export class GardenMap {
   }
 
   protected onKeydown(event: KeyboardEvent): void {
-    const view = this.content();
-    const panStep = view.width / this.camera().zoom / 12;
-    switch (event.key) {
-      case 'ArrowLeft':
-        this.camera.set(panBy(this.camera(), view, -panStep, 0));
-        break;
-      case 'ArrowRight':
-        this.camera.set(panBy(this.camera(), view, panStep, 0));
-        break;
-      case 'ArrowUp':
-        this.camera.set(panBy(this.camera(), view, 0, -panStep));
-        break;
-      case 'ArrowDown':
-        this.camera.set(panBy(this.camera(), view, 0, panStep));
-        break;
-      case '+':
-      case '=':
-        this.zoomIn();
-        break;
-      case '-':
-        this.zoomOut();
-        break;
-      case '0':
-      case 'f':
-      case 'F':
-        this.fit();
-        break;
-      default:
-        return;
+    const next = cameraKey(event.key, this.camera(), this.content());
+    if (next) {
+      this.camera.set(next);
+      event.preventDefault();
     }
-    event.preventDefault();
   }
 
   /**
@@ -973,8 +782,8 @@ export class GardenMap {
       // Focus was likely inside the popover, which just left the DOM — hand it
       // to the stage so the next Escape (and arrows/zoom keys) keep working.
       this.mapSvg().nativeElement.focus();
-    } else if (this.timelineOpen()) {
-      this.closeTimeline();
+    } else if (this.timeline.open()) {
+      this.timeline.close();
       this.mapSvg().nativeElement.focus();
     } else if (this.listOpen()) {
       this.toggleList();
@@ -992,7 +801,7 @@ export class GardenMap {
   }
 
   protected onPlotHoverMove(plot: PlotView, event: PointerEvent): void {
-    if (this.activePointers.size === 0) {
+    if (this.gestures.idle) {
       this.moveTooltip(plot, event);
     }
   }
@@ -1016,43 +825,16 @@ export class GardenMap {
     });
   }
 
-  // ── Screen ↔ map-unit conversion (accounts for `meet` letterboxing) ──────
-  private pxPerUnit(): number {
-    const rect = this.mapSvg().nativeElement.getBoundingClientRect();
-    const view = this.content();
-    const vbW = view.width / this.camera().zoom;
-    const vbH = view.height / this.camera().zoom;
-    if (rect.width === 0 || vbW === 0) {
-      return 0;
-    }
-    return Math.min(rect.width / vbW, rect.height / vbH);
+  // ── Screen ↔ map units (pure maths in map-camera, fed the live stage rect) ─
+  private stageRect(): DOMRect {
+    return this.mapSvg().nativeElement.getBoundingClientRect();
   }
 
-  private screenToMap(clientX: number, clientY: number): { x: number; y: number } {
-    const rect = this.mapSvg().nativeElement.getBoundingClientRect();
-    const view = this.content();
-    const cam = this.camera();
-    const vbW = view.width / cam.zoom;
-    const vbH = view.height / cam.zoom;
-    const scale = this.pxPerUnit();
-    if (scale === 0) {
-      return { x: cam.cx, y: cam.cy };
-    }
-    const offX = (rect.width - vbW * scale) / 2;
-    const offY = (rect.height - vbH * scale) / 2;
-    return {
-      x: cam.cx - vbW / 2 + (clientX - rect.left - offX) / scale,
-      y: cam.cy - vbH / 2 + (clientY - rect.top - offY) / scale,
-    };
+  private scale(): number {
+    return pxPerUnit(this.stageRect(), this.content(), this.camera());
   }
 
-  private pointerGapPx(): number {
-    const [a, b] = [...this.activePointers.values()];
-    return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
-  }
-
-  private pointerMidpoint(): { x: number; y: number } {
-    const [a, b] = [...this.activePointers.values()];
-    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  private toMap(clientX: number, clientY: number): { x: number; y: number } {
+    return screenToMap(this.stageRect(), this.content(), this.camera(), clientX, clientY);
   }
 }

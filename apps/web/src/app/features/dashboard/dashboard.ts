@@ -50,6 +50,8 @@ type AttentionKind = 'capacity' | 'humidity';
 interface GardenInsight {
   readonly garden: Garden;
   readonly plants: readonly Plant[] | undefined;
+  /** The plants could not load — the card says so instead of a forever ghost. */
+  readonly plantsFailed: boolean;
   readonly delta: number | null;
   readonly avgHumidity: number | null;
   readonly occupancy: number;
@@ -130,6 +132,7 @@ export class Dashboard {
   protected readonly insights = computed<GardenInsight[]>(() =>
     this.gardens.gardens().map((garden) => {
       const plants = this.plantsIndex.byGarden()[garden.gardenId];
+      const plantsFailed = this.plantsIndex.failed()[garden.gardenId] === true;
       const known = plants ?? [];
       const attention = gardenAttention(garden, known);
       const needsAttention =
@@ -141,6 +144,7 @@ export class Dashboard {
       return {
         garden,
         plants,
+        plantsFailed,
         delta,
         avgHumidity: plants ? averageHumidity(plants) : null,
         occupancy,
@@ -148,7 +152,7 @@ export class Dashboard {
         status,
         statusLabel:
           plants === undefined
-            ? this.plantsIndex.failed()[garden.gardenId]
+            ? plantsFailed
               ? $localize`Unavailable`
               : '' // still loading: the template shows a badge-sized ghost
             : known.length === 0
@@ -305,8 +309,4 @@ export class Dashboard {
   protected readonly plantsFailed = computed(() =>
     this.gardens.gardens().some((g) => this.plantsIndex.failed()[g.gardenId] === true),
   );
-
-  protected plantsFailedFor(gardenId: number): boolean {
-    return this.plantsIndex.failed()[gardenId] === true;
-  }
 }
