@@ -33,3 +33,14 @@ compiles with it.
 
 **Revisit when** Angular widens its range to TypeScript 6.1: both pins move
 together.
+
+## Approved install scripts
+
+npm 11 asks a project to approve the install scripts its dependencies run
+(`allowScripts` in the root `package.json`) and warns about the rest. Eight
+are approved: better-sqlite3, which fetches or builds its native SQLite
+binary in that step, and seven tools that fetch a platform binary or set up
+their CLI (esbuild, @swc/core, lmdb, msgpackr-extract, @parcel/watcher,
+unrs-resolver, nx). They are approved by name, not version, so an upgrade
+keeps its approval. A new dependency with an install script shows up in
+`npm install-scripts ls`, to be approved on purpose or not at all.

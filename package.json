@@ -66,5 +66,15 @@
   },
   "workspaces": [
     "apps/*"
-  ]
+  ],
+  "allowScripts": {
+    "@parcel/watcher": true,
+    "@swc/core": true,
+    "better-sqlite3": true,
+    "esbuild": true,
+    "lmdb": true,
+    "msgpackr-extract": true,
+    "nx": true,
+    "unrs-resolver": true
+  }
 }
