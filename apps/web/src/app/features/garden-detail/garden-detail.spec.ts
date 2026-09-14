@@ -1,6 +1,6 @@
 import { Title } from '@angular/platform-browser';
 import {
-  ComponentFixture,
+  type ComponentFixture,
   DeferBlockBehavior,
   DeferBlockState,
   TestBed,
@@ -9,10 +9,10 @@ import { provideRouter } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { MatDialog } from '@angular/material/dialog';
 import { of } from 'rxjs';
-import { Garden, Plant } from '../../core/api/models';
+import type { Garden, Plant } from '../../core/api/models';
 import { GardensApi } from '../../core/api/gardens-api';
 import { PlantsApi } from '../../core/api/plants-api';
-import { APP_CONFIG, AppConfig } from '../../core/config/app-config';
+import { APP_CONFIG, type AppConfig } from '../../core/config/app-config';
 import { ApiError } from '../../core/errors/api-error';
 import { ConfirmService } from '../../shared/ui/confirm-dialog/confirm-dialog';
 import { GardenDetail } from './garden-detail';

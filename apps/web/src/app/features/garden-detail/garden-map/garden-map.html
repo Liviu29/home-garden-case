@@ -1,3 +1,4 @@
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -- Escape bubbles up from the focusable stage and panels inside; the shell is a listener, not a stop -->
 <div class="map-shell" (keydown.escape)="onEscape()">
   <div
     class="map-stage"
@@ -504,7 +505,7 @@
       <app-map-plan-list
         [rows]="planRows()"
         [selectedPlantId]="selectedPlantId()"
-        (select)="selectPlant($event)"
+        (selectPlant)="selectPlant($event)"
       />
     }
 
@@ -532,7 +533,7 @@
     />
 
     @if (layersOpen()) {
-      <app-map-layers-panel [layers]="layers()" (toggle)="toggleLayer($event)" />
+      <app-map-layers-panel [layers]="layers()" (toggleLayer)="toggleLayer($event)" />
     }
 
     @if (timelineOpen()) {
@@ -547,7 +548,7 @@
         [playing]="playing()"
         (togglePlayback)="togglePlayback()"
         (scrub)="onScrub($event)"
-        (close)="toggleTimeline()"
+        (dismiss)="toggleTimeline()"
       />
     } @else {
       <!-- Capacity HUD: numbers from shared domain math; fades while a bed is dragged -->

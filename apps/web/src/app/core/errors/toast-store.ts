@@ -8,8 +8,8 @@ interface Toast {
   readonly tone: ToastTone;
   readonly message: string;
   /** Optional action ("Try again", "Undo"). */
-  readonly actionLabel?: string;
-  readonly action?: () => void;
+  readonly actionLabel?: string | undefined;
+  readonly action?: (() => void) | undefined;
 }
 
 export interface ToastAction {

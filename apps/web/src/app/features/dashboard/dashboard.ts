@@ -10,7 +10,7 @@ import {
 import { DecimalPipe, formatNumber } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
-import { Garden, Plant } from '../../core/api/models';
+import type { Garden, Plant } from '../../core/api/models';
 import { SessionStore } from '../../core/auth/session-store';
 import { ThemeStore } from '../../core/config/theme-store';
 import { CapacityBar } from '../../shared/ui/capacity-bar/capacity-bar';
@@ -19,9 +19,9 @@ import { PlantArtworkDefs } from '../../shared/ui/plant-visuals/plant-artwork-de
 import { Skeleton } from '../../shared/ui/skeleton/skeleton';
 import { SkeletonGroup } from '../../shared/ui/skeleton/skeleton-group';
 import { StatCard } from '../../shared/ui/stat-card/stat-card';
+import { CAPACITY_STATUS_LABEL } from '../../shared/ui/capacity-status/capacity-status';
 import {
-  CAPACITY_STATUS_LABEL,
-  CapacityStatus,
+  type CapacityStatus,
   averageHumidity,
   capacityStatus,
   gardenAttention,
@@ -33,12 +33,15 @@ import { localDay, wateringRound } from '../../domain/watering-plan/watering-pla
 import { GardensStore } from '../../state/gardens-store/gardens-store';
 import { PlantsIndexStore } from '../../state/plants-index-store/plants-index-store';
 import { GardenMiniPreview } from './garden-mini-preview/garden-mini-preview';
-import { StatusBadge, StatusTone } from '../../shared/ui/status-badge/status-badge';
+import { StatusBadge, type StatusTone } from '../../shared/ui/status-badge/status-badge';
 import { CAPACITY_STATUS_TONE } from '../../shared/ui/capacity-status/capacity-status';
 import { Chart } from '../../shared/ui/chart/chart';
 import { readChartPalette } from '../../shared/ui/chart/chart-palette';
 import { HighchartsLoader } from '../../shared/ui/chart/highcharts-loader';
-import { PortfolioPoint, portfolioChartOptions } from './portfolio-chart/portfolio-chart-options';
+import {
+  type PortfolioPoint,
+  portfolioChartOptions,
+} from './portfolio-chart/portfolio-chart-options';
 import { WateringPanel } from './watering-panel/watering-panel';
 import { ExportPngButton } from '../../shared/ui/export/export-png-button';
 

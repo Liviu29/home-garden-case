@@ -7,7 +7,7 @@
  * session check uses it), and only the lazily loaded stores need these.
  */
 
-import { Garden, GardenInput, Plant, PlantInput } from './models';
+import type { Garden, GardenInput, Plant, PlantInput } from './models';
 
 export function gardenInputOf(garden: Garden): GardenInput {
   return {

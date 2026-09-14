@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { GardensApi } from '../../core/api/gardens-api';
 import { PlantsApi } from '../../core/api/plants-api';
 import { SessionStore } from '../../core/auth/session-store';
-import { Garden, Plant, PlantInput } from '../../core/api/models';
+import type { Garden, Plant, PlantInput } from '../../core/api/models';
 import { GardenLayoutRepository } from '../garden-layout/garden-layout-repository';
 import { ApiError } from '../../core/errors/api-error';
 import { ToastStore } from '../../core/errors/toast-store';

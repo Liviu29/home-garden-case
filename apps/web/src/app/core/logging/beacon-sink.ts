@@ -1,4 +1,4 @@
-import { LogEntry, LogSink } from './log-sink';
+import type { LogEntry, LogSink } from './log-sink';
 
 /** A batch this large is sent at once instead of waiting for the page to be hidden. */
 const MAX_BATCH = 20;

@@ -2,8 +2,8 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { ApiError } from '../errors/api-error';
-import { PlantDto } from './dtos';
-import { PlantInput } from './models';
+import type { PlantDto } from './dtos';
+import type { PlantInput } from './models';
 import { PlantsApi } from './plants-api';
 
 const plantDto = (plantId: number, extra: Partial<PlantDto> = {}): PlantDto => ({

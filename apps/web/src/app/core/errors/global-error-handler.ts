@@ -1,4 +1,4 @@
-import { ErrorHandler, Injectable, inject } from '@angular/core';
+import { type ErrorHandler, Injectable, inject } from '@angular/core';
 import { ApiError } from './api-error';
 import { Logger } from '../logging/logger';
 import { ToastStore } from './toast-store';
@@ -34,7 +34,7 @@ export class GlobalErrorHandler implements ErrorHandler {
 
 function unwrapRejection(error: unknown): unknown {
   if (error && typeof error === 'object' && 'rejection' in error) {
-    return (error as { rejection: unknown }).rejection;
+    return error.rejection;
   }
   return error;
 }

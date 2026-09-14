@@ -1,4 +1,4 @@
-import { Garden, Plant } from '../../core/api/models';
+import type { Garden, Plant } from '../../core/api/models';
 import { occupancyRatio } from '../../domain/garden-insights/garden-insights';
 
 /**

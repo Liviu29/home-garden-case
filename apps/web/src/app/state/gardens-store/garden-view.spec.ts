@@ -1,4 +1,4 @@
-import { Garden, Plant } from '../../core/api/models';
+import type { Garden, Plant } from '../../core/api/models';
 import { filterAndSortGardens } from './garden-view';
 
 const garden = (id: number, name: string, area = 20, location: string | null = null): Garden => ({

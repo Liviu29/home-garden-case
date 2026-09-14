@@ -1,4 +1,4 @@
-import { Plant } from '../../core/api/models';
+import type { Plant } from '../../core/api/models';
 
 /**
  * Curated plant catalog — PRESENTATIONAL presets, not

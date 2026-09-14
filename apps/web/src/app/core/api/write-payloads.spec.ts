@@ -1,4 +1,4 @@
-import { Garden, Plant } from './models';
+import type { Garden, Plant } from './models';
 import { gardenInputOf, plantInputOf } from './write-payloads';
 
 /** An undone delete writes the entity back: only what the API accepts, nothing it assigns. */

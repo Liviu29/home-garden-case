@@ -2,9 +2,9 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { ApiError } from '../errors/api-error';
-import { GardenDto } from './dtos';
+import type { GardenDto } from './dtos';
 import { GardensApi } from './gardens-api';
-import { GardenInput } from './models';
+import type { GardenInput } from './models';
 
 const gardenDto = (gardenId: number, extra: Partial<GardenDto> = {}): GardenDto => ({
   gardenId,

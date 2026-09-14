@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
-import { ValuePresets, ValuePresetOption } from './value-presets';
+import { ValuePresets, type ValuePresetOption } from './value-presets';
 
 const OPTIONS: readonly ValuePresetOption[] = [
   { label: 'Dry', value: 40, description: '40%' },

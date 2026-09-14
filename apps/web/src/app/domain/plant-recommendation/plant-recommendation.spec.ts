@@ -1,4 +1,4 @@
-import { Garden, Plant } from '../../core/api/models';
+import type { Garden, Plant } from '../../core/api/models';
 import { PLANT_CATALOG, searchCatalog } from '../catalog/plant-catalog';
 import { calculatePlantRecommendation, rankCatalog } from './plant-recommendation';
 
@@ -37,7 +37,7 @@ describe('calculatePlantRecommendation (deterministic, transparent)', () => {
     expect(rec.fitsAvailableArea).toBe(true);
     expect(rec.alreadyPlanted).toBe(false);
     expect(rec.score).toBe(60 + 30 + 10); // full marks, no magic numbers
-    expect(rec.reasons.join(' ')).toContain('Fits the 10 m² still free');
+    expect(rec.reasons).toContainEqual({ kind: 'fits', available: 10 });
   });
 
   it('is honest when the plant does not fit the remaining area', () => {
@@ -47,7 +47,7 @@ describe('calculatePlantRecommendation (deterministic, transparent)', () => {
       [plant('Big', 'Big', 9.5)], // 0.5 m² left, lavender wants 1
     );
     expect(rec.fitsAvailableArea).toBe(false);
-    expect(rec.reasons.join(' ')).toContain('Needs 1 m² — only 0.5 m² free');
+    expect(rec.reasons).toContainEqual({ kind: 'too-big', area: 1, available: 0.5 });
     expect(rec.score).toBeLessThan(calculatePlantRecommendation(preset, garden(), []).score);
   });
 
@@ -55,7 +55,7 @@ describe('calculatePlantRecommendation (deterministic, transparent)', () => {
     const rec = calculatePlantRecommendation(preset, garden({ targetHumidityLevel: 80 }), []);
     expect(rec.humidityMatch).toBe('off');
     expect(rec.humidityDelta).toBe(35);
-    expect(rec.reasons.join(' ')).toContain('35% off your target');
+    expect(rec.reasons).toContainEqual({ kind: 'humidity-off', humidity: 45, delta: 35 });
   });
 
   it('applies the variety bonus only for species not already planted', () => {

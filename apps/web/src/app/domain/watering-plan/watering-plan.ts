@@ -1,7 +1,7 @@
-import { Garden, Plant } from '../../core/api/models';
+import type { Garden, Plant } from '../../core/api/models';
 import {
-  WATERING_ZONES,
-  WateringZone,
+  WATERING_ZONE_ORDER,
+  type WateringZone,
   plantingDay,
   wateringZone,
 } from '../garden-planner/garden-planner';
@@ -75,7 +75,6 @@ export function daysUntilWatering(plant: WateredPlant, today: string): number {
 
 export interface ZoneWatering {
   readonly zone: WateringZone;
-  readonly label: string;
   readonly plants: number;
   /** m² of beds to water in this zone. */
   readonly area: number;
@@ -102,9 +101,9 @@ export function wateringPlan(
   const areaOf = (list: readonly Pick<Plant, 'surfaceAreaRequired'>[]) =>
     list.reduce((sum, p) => sum + p.surfaceAreaRequired, 0);
 
-  const dueToday = WATERING_ZONES.map(({ zone, label }) => {
+  const dueToday = WATERING_ZONE_ORDER.map((zone) => {
     const members = due.filter((p) => wateringZone(p.idealHumidityLevel) === zone);
-    return { zone, label, plants: members.length, area: areaOf(members) };
+    return { zone, plants: members.length, area: areaOf(members) };
   }).filter((z) => z.plants > 0);
 
   return {

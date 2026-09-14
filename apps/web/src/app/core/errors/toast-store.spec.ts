@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { APP_CONFIG, AppConfig } from '../config/app-config';
+import { APP_CONFIG, type AppConfig } from '../config/app-config';
 import { ToastStore } from './toast-store';
 
 const CONFIG = { toastDurationMs: 5000 } as AppConfig;

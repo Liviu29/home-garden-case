@@ -1,9 +1,13 @@
-import { Garden, Plant } from '../../../core/api/models';
+import type { Garden, Plant } from '../../../core/api/models';
 import { plantHumidityDelta } from '../../../domain/garden-insights/garden-insights';
-import { computeGardenMapLayout } from '../../../domain/garden-map-layout/garden-map-layout';
-import { Box, WateringZone, wateringZone } from '../../../domain/garden-planner/garden-planner';
+import type { computeGardenMapLayout } from '../../../domain/garden-map-layout/garden-map-layout';
 import {
-  PlantVisual,
+  type Box,
+  type WateringZone,
+  wateringZone,
+} from '../../../domain/garden-planner/garden-planner';
+import {
+  type PlantVisual,
   computeVegetation,
   resolvePlantVisual,
 } from '../../../shared/ui/plant-visuals/plant-visual-resolver';

@@ -9,16 +9,16 @@ import {
   numberAttribute,
   signal,
 } from '@angular/core';
-import { OutdoorConditions, OutdoorWeather } from '../../core/weather/weather';
+import { type OutdoorConditions, OutdoorWeather } from '../../core/weather/weather';
 import { DatePipe, DecimalPipe, NgTemplateOutlet } from '@angular/common';
 import { Title } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenuModule } from '@angular/material/menu';
-import { Garden, Plant } from '../../core/api/models';
+import type { Garden, Plant } from '../../core/api/models';
 import { plantHumidityDelta } from '../../domain/garden-insights/garden-insights';
-import { WateringZone, wateringZone } from '../../domain/garden-planner/garden-planner';
+import { type WateringZone, wateringZone } from '../../domain/garden-planner/garden-planner';
 import { CapacityBar } from '../../shared/ui/capacity-bar/capacity-bar';
 import { CapacityStatusChip } from '../../shared/ui/capacity-status/capacity-status';
 import { ConfirmService } from '../../shared/ui/confirm-dialog/confirm-dialog';
@@ -33,7 +33,7 @@ import { GardensStore } from '../../state/gardens-store/gardens-store';
 import { GardenDetailStore } from './garden-detail-store/garden-detail-store';
 import {
   GardenLayoutRepository,
-  LayoutPositions,
+  type LayoutPositions,
 } from '../../state/garden-layout/garden-layout-repository';
 import { GardenMap } from './garden-map/garden-map';
 import { GardenMapSkeleton } from './garden-map/garden-map-skeleton/garden-map-skeleton';
@@ -173,11 +173,6 @@ export class GardenDetail {
   }>({ status: 'idle', reading: null });
   private outdoorPlace = '';
 
-  private readonly outdoorLoader = effect(() => {
-    const garden = this.store.garden();
-    this.loadOutdoor(garden?.latitude ?? null, garden?.longitude ?? null);
-  });
-
   private loadOutdoor(latitude: number | null, longitude: number | null): void {
     if (latitude === null || longitude === null) {
       this.outdoorPlace = '';
@@ -216,6 +211,12 @@ export class GardenDetail {
   }
 
   constructor() {
+    // The outdoor reading follows the garden's coordinates.
+    effect(() => {
+      const garden = this.store.garden();
+      this.loadOutdoor(garden?.latitude ?? null, garden?.longitude ?? null);
+    });
+
     effect(() => {
       const id = this.gardenId();
       if (Number.isFinite(id) && Number.isInteger(id) && id >= 1) {

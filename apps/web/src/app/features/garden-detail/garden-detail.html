@@ -69,7 +69,7 @@
     message="The greenhouse network is acting up. Your garden is still there."
     i18n-message
   >
-    <button matButton="filled" class="press-feedback" (click)="retryGarden()" i18n>
+    <button type="button" matButton="filled" class="press-feedback" (click)="retryGarden()" i18n>
       Try again
     </button>
   </app-empty-state>
@@ -150,7 +150,9 @@
               ⋮
             </button>
             <mat-menu #gardenMenu="matMenu">
-              <button mat-menu-item (click)="openEditGarden(garden)" i18n>Edit garden</button>
+              <button type="button" mat-menu-item (click)="openEditGarden(garden)" i18n>
+                Edit garden
+              </button>
             </mat-menu>
           </div>
           @if (garden.locationDescription) {
@@ -333,7 +335,13 @@
             message="The plan is drawn from this garden's plants, and they didn't arrive."
             i18n-message
           >
-            <button matButton="filled" class="press-feedback" (click)="retryGarden()" i18n>
+            <button
+              type="button"
+              matButton="filled"
+              class="press-feedback"
+              (click)="retryGarden()"
+              i18n
+            >
               Try again
             </button>
           </app-empty-state>
@@ -391,7 +399,13 @@
       <section class="panel anim-fade-up" aria-labelledby="plants-heading">
         <div class="panel-head">
           <h2 id="plants-heading" class="panel-title" i18n>Plants</h2>
-          <button matButton="filled" class="press-feedback" (click)="openPlantForm(null)" i18n>
+          <button
+            type="button"
+            matButton="filled"
+            class="press-feedback"
+            (click)="openPlantForm(null)"
+            i18n
+          >
             ＋ Add plant
           </button>
         </div>
@@ -409,7 +423,13 @@
               message="The greenhouse network is acting up. Your plants are still there."
               i18n-message
             >
-              <button matButton="filled" class="press-feedback" (click)="retryGarden()" i18n>
+              <button
+                type="button"
+                matButton="filled"
+                class="press-feedback"
+                (click)="retryGarden()"
+                i18n
+              >
                 Try again
               </button>
             </app-empty-state>
@@ -420,7 +440,13 @@
               message="Add your first plant and watch the bed layout fill up."
               i18n-message
             >
-              <button matButton="filled" class="press-feedback" (click)="openPlantForm(null)" i18n>
+              <button
+                type="button"
+                matButton="filled"
+                class="press-feedback"
+                (click)="openPlantForm(null)"
+                i18n
+              >
                 Add your first plant
               </button>
             </app-empty-state>
@@ -518,8 +544,12 @@
                             ⋮
                           </button>
                           <mat-menu #rowMenu="matMenu" xPosition="before">
-                            <button mat-menu-item (click)="openPlantForm(plant)" i18n>Edit</button>
-                            <button mat-menu-item (click)="removePlant(plant)" i18n>Remove</button>
+                            <button type="button" mat-menu-item (click)="openPlantForm(plant)" i18n>
+                              Edit
+                            </button>
+                            <button type="button" mat-menu-item (click)="removePlant(plant)" i18n>
+                              Remove
+                            </button>
                           </mat-menu>
                         </td>
                       </tr>

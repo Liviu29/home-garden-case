@@ -7,7 +7,7 @@ import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/materia
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSliderModule } from '@angular/material/slider';
-import { Garden, GardenInput } from '../../../core/api/models';
+import type { Garden, GardenInput } from '../../../core/api/models';
 import {
   GARDEN_SIZE_PRESETS,
   TARGET_HUMIDITY_PRESETS,

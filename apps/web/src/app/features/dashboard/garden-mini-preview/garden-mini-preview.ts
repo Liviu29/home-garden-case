@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { Garden, Plant } from '../../../core/api/models';
+import type { Garden, Plant } from '../../../core/api/models';
 import { resolvePlantVisual } from '../../../shared/ui/plant-visuals/plant-visual-resolver';
 
 interface MiniPlantView {
@@ -40,8 +40,7 @@ interface MiniPlantView {
           [attr.transform]="'rotate(' + p.rotation + ' ' + p.x + ' ' + p.y + ')'"
           [style]="p.paletteStyle"
         />
-      }
-      @if (views().length === 0) {
+      } @empty {
         <g class="empty-rows">
           <line x1="12" y1="12" x2="88" y2="12" />
           <line x1="12" y1="19" x2="88" y2="19" />

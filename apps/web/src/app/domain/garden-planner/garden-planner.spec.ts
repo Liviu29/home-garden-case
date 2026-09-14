@@ -1,4 +1,4 @@
-import { Garden, Plant } from '../../core/api/models';
+import type { Garden, Plant } from '../../core/api/models';
 import { applyPositions, computeGardenMapLayout } from '../garden-map-layout/garden-map-layout';
 import {
   CONFLICT_MIN_DELTA,

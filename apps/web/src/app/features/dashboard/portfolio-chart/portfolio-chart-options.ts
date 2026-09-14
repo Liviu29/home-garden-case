@@ -4,7 +4,7 @@ import {
   ATTENTION_OCCUPANCY_RATIO,
 } from '../../../domain/garden-insights/garden-insights';
 import { plantedGardensCount, pointsCount } from '../../../core/i18n/plurals';
-import { ChartPalette, escapeLabel, withAlpha } from '../../../shared/ui/chart/chart-palette';
+import { type ChartPalette, escapeLabel, withAlpha } from '../../../shared/ui/chart/chart-palette';
 
 /** Why a garden sits where it does — the same reasons as the Attention Center. */
 export type PortfolioKind = 'capacity' | 'humidity' | 'healthy';
@@ -165,7 +165,7 @@ export function portfolioChartOptions(
       spacing: [8, 8, 8, 8],
       style: { fontFamily: 'inherit' },
     },
-    title: { text: undefined },
+    title: { text: '' },
     credits: { enabled: false },
     accessibility: {
       description: $localize`Bubble chart of ${plantedGardensCount(points.length)}:gardens:. Horizontal: share of the surface in use. Vertical: how far the plants' average ideal humidity is from the garden's target. Bubble size: garden area. Gardens at least ${nearPct}:nearPct:% full, or more than ${tolerance}:tolerance: points from their target, need attention.`,
@@ -292,10 +292,13 @@ export function portfolioChartOptions(
           condition: { maxWidth: 560 },
           chartOptions: {
             legend: { align: 'center', verticalAlign: 'bottom' },
-            yAxis: { title: { text: undefined } },
+            yAxis: { title: { text: '' } },
             // Series options outrank plotOptions, so the labels are switched
             // off per series (matched by id), not with a plotOptions default.
-            series: series.map((s) => ({ id: s.id, dataLabels: { enabled: false } })),
+            series: (['capacity', 'humidity', 'healthy'] as const).map((id) => ({
+              id,
+              dataLabels: { enabled: false },
+            })),
           },
         },
       ],

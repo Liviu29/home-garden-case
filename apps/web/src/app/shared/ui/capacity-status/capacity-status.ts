@@ -1,11 +1,18 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { Garden, Plant } from '../../../core/api/models';
+import type { Garden, Plant } from '../../../core/api/models';
 import {
-  CAPACITY_STATUS_LABEL,
-  CapacityStatus,
+  type CapacityStatus,
   capacityStatus,
 } from '../../../domain/garden-insights/garden-insights';
-import { StatusBadge, StatusTone } from '../status-badge/status-badge';
+import { StatusBadge, type StatusTone } from '../status-badge/status-badge';
+
+/** What the screens call each capacity status; the status itself is the domain's. */
+export const CAPACITY_STATUS_LABEL: Readonly<Record<CapacityStatus, string>> = {
+  healthy: $localize`Healthy capacity`,
+  approaching: $localize`Approaching capacity`,
+  'almost-full': $localize`Almost full`,
+  full: $localize`Full`,
+};
 
 /** UI-only mapping from the domain capacity status to a presentation tone. */
 export const CAPACITY_STATUS_TONE: Readonly<Record<CapacityStatus, StatusTone>> = {

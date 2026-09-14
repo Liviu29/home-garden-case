@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpErrorResponse } from '@angular/common/http';
-import { UserProfile } from '../api/models';
+import type { UserProfile } from '../api/models';
 import { UsersApi } from '../api/users-api';
 import { QueryCache } from '../resilience/query-cache';
 import { SessionStore } from './session-store';
@@ -130,14 +130,14 @@ describe('SessionStore (ADR-005 profile session)', () => {
   describe('revalidate — deliberately asymmetric against a 10%-failure backend', () => {
     it('returns false without calling the API when there is no session', async () => {
       const getById = vi.fn();
-      const store = makeStore({ getById } as unknown as UsersApi);
+      const store = makeStore({ getById });
       await expect(store.revalidate()).resolves.toBe(false);
       expect(getById).not.toHaveBeenCalled();
     });
 
     it('adopts the server-authoritative profile on success', async () => {
       const fresh = profile({ firstName: 'Renamed', age: 34 });
-      const store = makeStore({ getById: vi.fn().mockResolvedValue(fresh) } as unknown as UsersApi);
+      const store = makeStore({ getById: vi.fn().mockResolvedValue(fresh) });
       store.signIn(profile());
 
       await expect(store.revalidate()).resolves.toBe(true);
@@ -147,7 +147,7 @@ describe('SessionStore (ADR-005 profile session)', () => {
     it('signs out on a 404 — the profile really is gone', async () => {
       const store = makeStore({
         getById: vi.fn().mockRejectedValue(httpError(404)),
-      } as unknown as UsersApi);
+      });
       store.signIn(profile());
 
       await expect(store.revalidate()).resolves.toBe(false);
@@ -157,7 +157,7 @@ describe('SessionStore (ADR-005 profile session)', () => {
     it('KEEPS the session on a 500 — otherwise 10% of visits would sign the user out', async () => {
       const store = makeStore({
         getById: vi.fn().mockRejectedValue(httpError(500)),
-      } as unknown as UsersApi);
+      });
       store.signIn(profile());
 
       await expect(store.revalidate()).resolves.toBe(true);
@@ -167,7 +167,7 @@ describe('SessionStore (ADR-005 profile session)', () => {
     it('keeps the session on a network failure too', async () => {
       const store = makeStore({
         getById: vi.fn().mockRejectedValue(new HttpErrorResponse({ status: 0 })),
-      } as unknown as UsersApi);
+      });
       store.signIn(profile());
 
       await expect(store.revalidate()).resolves.toBe(true);

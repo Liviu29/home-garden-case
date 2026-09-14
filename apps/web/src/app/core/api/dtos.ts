@@ -4,7 +4,7 @@
  * Any contract change updates both sides in the same commit.
  */
 
-import { PlantType } from './models';
+import type { PlantType } from './models';
 
 /** Mirrors `gardenResponseSchema` (garden.schema.ts) */
 export interface GardenDto {

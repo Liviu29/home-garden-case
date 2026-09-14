@@ -1,10 +1,10 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map } from 'rxjs';
-import { PlantDto } from './dtos';
+import type { PlantDto } from './dtos';
 import { visibleToParams } from './gardens-api';
 import { mapToPlant } from './mappers';
-import { Plant, PlantInput } from './models';
+import type { Plant, PlantInput } from './models';
 import { requestAsPromise } from './request';
 
 /**

@@ -2,7 +2,7 @@ import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { GardensApi } from '../../../core/api/gardens-api';
 import { PlantsApi } from '../../../core/api/plants-api';
-import { APP_CONFIG, AppConfig } from '../../../core/config/app-config';
+import { APP_CONFIG, type AppConfig } from '../../../core/config/app-config';
 import { QueryCache, cacheKeys } from '../../../core/resilience/query-cache';
 import { PrefetchGarden } from './prefetch-garden';
 
@@ -15,7 +15,7 @@ const CONFIG = {
 
 @Component({
   imports: [PrefetchGarden],
-  template: `<button [appPrefetchGarden]="gardenId()">card</button>`,
+  template: `<button type="button" [appPrefetchGarden]="gardenId()">card</button>`,
 })
 class Host {
   readonly gardenId = signal(7);

@@ -5,7 +5,7 @@ import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { GardensApi } from '../../../core/api/gardens-api';
 import { PlantsApi } from '../../../core/api/plants-api';
-import { Garden, Plant } from '../../../core/api/models';
+import type { Garden, Plant } from '../../../core/api/models';
 import { PlantsIndexStore } from '../../../state/plants-index-store/plants-index-store';
 import { GardenFormDialog } from './garden-form-dialog';
 

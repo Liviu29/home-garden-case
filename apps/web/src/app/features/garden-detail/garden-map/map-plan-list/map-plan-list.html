@@ -25,7 +25,7 @@
               class="bed-name"
               type="button"
               [attr.aria-pressed]="row.plantId === selectedPlantId()"
-              (click)="select.emit(row.plantId)"
+              (click)="selectPlant.emit(row.plantId)"
             >
               {{ row.name }}
             </button>

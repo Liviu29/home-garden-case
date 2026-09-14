@@ -1,14 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
-import { Garden, Plant } from '../../../../core/api/models';
+import type { Garden, Plant } from '../../../../core/api/models';
 import { PlantThumb } from '../../../../shared/ui/plant-visuals/plant-thumb';
 import { PLANT_TYPE_LABEL } from '../../../../shared/ui/plant-visuals/plant-type-label';
 import { Skeleton } from '../../../../shared/ui/skeleton/skeleton';
+import { WATERING_ZONE_LABEL } from '../../../../shared/ui/watering-zone/watering-zone-labels';
 import { plantHumidityDelta } from '../../../../domain/garden-insights/garden-insights';
 import {
-  WATERING_ZONES,
-  WateringConflict,
+  type WateringConflict,
   wateringZone,
   zoneBreakdown,
 } from '../../../../domain/garden-planner/garden-planner';
@@ -73,6 +73,7 @@ export class MapInspector {
 
   protected readonly clashCount = computed(() => this.conflicts().length);
   protected readonly typeLabel = PLANT_TYPE_LABEL;
+  protected readonly zoneLabel = WATERING_ZONE_LABEL;
 
   protected readonly share = computed(() => {
     const plant = this.plant();
@@ -89,8 +90,11 @@ export class MapInspector {
 
   protected readonly zone = computed(() => {
     const plant = this.plant();
-    const zone = plant ? wateringZone(plant.idealHumidityLevel) : null;
-    return WATERING_ZONES.find((z) => z.zone === zone) ?? null;
+    if (!plant) {
+      return null;
+    }
+    const zone = wateringZone(plant.idealHumidityLevel);
+    return { zone, label: WATERING_ZONE_LABEL[zone] };
   });
 
   protected readonly zones = computed(() => zoneBreakdown(this.plants()));

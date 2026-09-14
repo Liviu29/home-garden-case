@@ -1,9 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
-import {
-  CAPACITY_STATUS_LABEL,
-  CapacityStatus,
-} from '../../../../domain/garden-insights/garden-insights';
+import type { CapacityStatus } from '../../../../domain/garden-insights/garden-insights';
+import { CAPACITY_STATUS_LABEL } from '../../../../shared/ui/capacity-status/capacity-status';
 
 /**
  * The capacity HUD: one glass panel in the stage's bottom band. Every number

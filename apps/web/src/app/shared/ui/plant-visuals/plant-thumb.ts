@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { Plant } from '../../../core/api/models';
+import type { Plant } from '../../../core/api/models';
 import { resolvePlantVisual } from './plant-visual-resolver';
 
 /**

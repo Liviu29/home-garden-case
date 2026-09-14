@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { WateringRound } from '../../../domain/watering-plan/watering-plan';
+import type { WateringRound } from '../../../domain/watering-plan/watering-plan';
 import { Skeleton } from '../../../shared/ui/skeleton/skeleton';
+import { WATERING_ZONE_LABEL } from '../../../shared/ui/watering-zone/watering-zone-labels';
 
 /**
  * "Water today" on the dashboard: the gardens with something to water,
@@ -17,6 +18,7 @@ import { Skeleton } from '../../../shared/ui/skeleton/skeleton';
 })
 export class WateringPanel {
   readonly round = input.required<WateringRound>();
+  protected readonly zoneLabel = WATERING_ZONE_LABEL;
   /** False while plants are still arriving: ghosts, never a partial plan. */
   readonly settled = input.required<boolean>();
 

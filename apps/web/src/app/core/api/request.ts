@@ -1,4 +1,4 @@
-import { Observable, firstValueFrom } from 'rxjs';
+import { type Observable, firstValueFrom } from 'rxjs';
 import { toApiError } from '../errors/api-error';
 
 /**

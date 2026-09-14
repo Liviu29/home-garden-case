@@ -1,6 +1,6 @@
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import {
-  ApplicationConfig,
+  type ApplicationConfig,
   ErrorHandler,
   Injector,
   inject,

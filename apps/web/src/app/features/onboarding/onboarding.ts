@@ -5,7 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { UsersApi } from '../../core/api/users-api';
-import { UserProfile } from '../../core/api/models';
+import type { UserProfile } from '../../core/api/models';
 import { SessionStore } from '../../core/auth/session-store';
 import { toApiError } from '../../core/errors/api-error';
 import { QueryCache, cacheKeys } from '../../core/resilience/query-cache';

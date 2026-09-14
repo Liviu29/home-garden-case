@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
-import { WATERING_ZONES } from '../../../../domain/garden-planner/garden-planner';
+import { WATERING_ZONE_LEGEND } from '../../../../shared/ui/watering-zone/watering-zone-labels';
 
 /** Which of the map's layers are drawn — map-local UI state, never persisted. */
 export interface LayerToggles {
@@ -24,9 +24,9 @@ export type LayerKey = keyof LayerToggles;
 })
 export class MapLayersPanel {
   readonly layers = input.required<LayerToggles>();
-  readonly toggle = output<LayerKey>();
+  readonly toggleLayer = output<LayerKey>();
 
   protected readonly hostLabel = $localize`Map layers`;
 
-  protected readonly zoneLegend = WATERING_ZONES;
+  protected readonly zoneLegend = WATERING_ZONE_LEGEND;
 }

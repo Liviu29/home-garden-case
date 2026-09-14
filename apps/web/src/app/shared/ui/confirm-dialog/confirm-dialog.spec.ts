@@ -28,7 +28,6 @@ describe('ConfirmService', () => {
       confirmLabel: 'Delete garden',
       destructive: true,
     });
-    await TestBed.inject(MatDialog).afterOpened.pipe().toPromise;
     TestBed.tick();
 
     const dialog = document.querySelector('mat-dialog-container') ?? document.body;

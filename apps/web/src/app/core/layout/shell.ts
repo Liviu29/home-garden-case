@@ -120,10 +120,11 @@ import { ToastHost } from '../../shared/ui/toast/toast-host';
           }
         </span>
         <mat-menu #profileMenu="matMenu" xPosition="before">
-          <button mat-menu-item (click)="editProfile()" i18n>Edit profile</button>
-          <button mat-menu-item (click)="switchProfile()" i18n>Switch profile</button>
-          <button mat-menu-item (click)="signOut()" i18n>Sign out</button>
+          <button type="button" mat-menu-item (click)="editProfile()" i18n>Edit profile</button>
+          <button type="button" mat-menu-item (click)="switchProfile()" i18n>Switch profile</button>
+          <button type="button" mat-menu-item (click)="signOut()" i18n>Sign out</button>
           <button
+            type="button"
             mat-menu-item
             class="danger-item"
             [disabled]="deleting()"

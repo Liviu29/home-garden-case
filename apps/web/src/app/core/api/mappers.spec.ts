@@ -1,4 +1,4 @@
-import { GardenDto, PlantDto, UserDto } from './dtos';
+import type { GardenDto, PlantDto, UserDto } from './dtos';
 import { mapToGarden, mapToPlant, mapToUserProfile } from './mappers';
 
 /**
@@ -82,7 +82,7 @@ describe('DTO → domain mappers', () => {
       emailAddress: 'someone@example.com',
       createdAt: '',
       updatedAt: '',
-    } as UserDto;
+    };
 
     expect(mapToUserProfile(dto)).toEqual({
       userId: 9,

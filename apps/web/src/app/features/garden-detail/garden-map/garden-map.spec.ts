@@ -1,7 +1,7 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { Garden, Plant } from '../../../core/api/models';
+import type { Garden, Plant } from '../../../core/api/models';
 import { GardenMap } from './garden-map';
 
 const garden = (over: Partial<Garden> = {}): Garden => ({
@@ -258,7 +258,7 @@ describe('GardenMap — direct manipulation', () => {
       x: 0,
       y: 0,
       toJSON: () => GEOMETRY,
-    } as DOMRect);
+    });
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -1220,7 +1220,7 @@ describe('GardenMap — environment-dependent paths', () => {
       x: 0,
       y: 0,
       toJSON: () => ({}),
-    } as DOMRect);
+    });
 
     const fixture = mountWith();
     const canvas = (fixture.nativeElement as HTMLElement).querySelector('svg.map-svg')!;

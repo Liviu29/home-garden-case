@@ -1,8 +1,8 @@
 import { Component, signal } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { Garden, Plant } from '../../../core/api/models';
-import { LayoutPositions } from '../../../state/garden-layout/garden-layout-repository';
+import type { Garden, Plant } from '../../../core/api/models';
+import type { LayoutPositions } from '../../../state/garden-layout/garden-layout-repository';
 import { GardenMap } from './garden-map';
 
 /**
@@ -148,7 +148,7 @@ describe('GardenMap — planner tools', () => {
       x: 0,
       y: 0,
       toJSON: () => box,
-    } as DOMRect);
+    });
   });
 
   afterEach(() => {
@@ -437,7 +437,7 @@ describe('GardenMap — planner tools', () => {
       expect(button('Show the plan as a list')?.getAttribute('aria-pressed')).toBe('true');
       expect(rows()).toHaveLength(3);
 
-      const tomato = rowOf('Tomato').textContent!.replace(/\s+/g, ' ');
+      const tomato = rowOf('Tomato').textContent.replace(/\s+/g, ' ');
       expect(tomato).toMatch(/m across, [\d.]+ m down/);
       expect(tomato).toContain('8 m²');
       expect(tomato).toContain('Dry');

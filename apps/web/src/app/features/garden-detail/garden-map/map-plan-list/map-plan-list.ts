@@ -35,7 +35,7 @@ export interface PlanRow {
 export class MapPlanList {
   readonly rows = input.required<readonly PlanRow[]>();
   readonly selectedPlantId = input<number | null>(null);
-  readonly select = output<number>();
+  readonly selectPlant = output<number>();
 
   protected readonly hostLabel = $localize`Plan as a list`;
 }

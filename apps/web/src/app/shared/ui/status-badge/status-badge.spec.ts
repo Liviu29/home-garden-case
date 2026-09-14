@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { StatusBadge, StatusTone } from './status-badge';
+import { StatusBadge, type StatusTone } from './status-badge';
 
 @Component({
   imports: [StatusBadge],

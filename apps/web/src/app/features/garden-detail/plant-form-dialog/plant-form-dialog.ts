@@ -10,14 +10,15 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSliderModule } from '@angular/material/slider';
-import { Garden, PLANT_TYPES, Plant, PlantInput } from '../../../core/api/models';
-import { PlantCatalogFacade } from '../../../domain/catalog/plant-catalog-facade';
+import { type Garden, PLANT_TYPES, type Plant, type PlantInput } from '../../../core/api/models';
+import { PlantCatalogFacade } from '../../../core/catalog/plant-catalog-facade';
 import { PLANT_AREA_PRESETS } from '../../../shared/ui/value-presets/product-defaults';
 import { CapacityBar } from '../../../shared/ui/capacity-bar/capacity-bar';
 import { PlantThumb } from '../../../shared/ui/plant-visuals/plant-thumb';
 import { PLANT_TYPE_LABEL } from '../../../shared/ui/plant-visuals/plant-type-label';
 import { ValuePresets } from '../../../shared/ui/value-presets/value-presets';
-import { PlantRecommendation } from '../../../domain/plant-recommendation/plant-recommendation';
+import type { PlantRecommendation } from '../../../domain/plant-recommendation/plant-recommendation';
+import { reasonsText } from './recommendation-reasons';
 import {
   fromPlantationDate,
   toPlantationDate,
@@ -27,7 +28,7 @@ import {
   usedSurfaceArea,
   wouldOvercrowd,
 } from '../../../domain/garden-insights/garden-insights';
-import { GardenDetailStore } from '../garden-detail-store/garden-detail-store';
+import type { GardenDetailStore } from '../garden-detail-store/garden-detail-store';
 
 export interface PlantFormData {
   readonly garden: Garden;
@@ -146,6 +147,9 @@ export class PlantFormDialog {
     });
     this.form.markAsDirty();
   }
+
+  /** The card’s reasons, in words. */
+  protected readonly reasonsOf = reasonsText;
 
   protected fitBadge(rec: PlantRecommendation): string {
     if (!rec.fitsAvailableArea) {

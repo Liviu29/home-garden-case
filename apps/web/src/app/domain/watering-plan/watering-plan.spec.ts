@@ -1,4 +1,4 @@
-import { Garden, Plant } from '../../core/api/models';
+import type { Garden, Plant } from '../../core/api/models';
 import {
   ESTABLISHING_DAYS,
   daysBetween,
@@ -85,9 +85,9 @@ describe('watering plan (a rule of thumb from zone and planting date)', () => {
       );
 
       expect(plan.dueToday).toEqual([
-        { zone: 'dry', label: 'Dry', plants: 1, area: 3 },
-        { zone: 'balanced', label: 'Balanced', plants: 1, area: 0.5 },
-        { zone: 'humid', label: 'Humid', plants: 2, area: 3.5 },
+        { zone: 'dry', plants: 1, area: 3 },
+        { zone: 'balanced', plants: 1, area: 0.5 },
+        { zone: 'humid', plants: 2, area: 3.5 },
       ]);
       expect(plan.plantsDue).toBe(4);
       expect(plan.areaDue).toBe(7);

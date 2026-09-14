@@ -1,7 +1,10 @@
 import { Injectable } from '@angular/core';
-import { Garden, Plant } from '../../core/api/models';
-import { PlantRecommendation, rankCatalog } from '../plant-recommendation/plant-recommendation';
-import { PLANT_CATALOG, PlantPreset, searchCatalog } from './plant-catalog';
+import type { Garden, Plant } from '../api/models';
+import {
+  type PlantRecommendation,
+  rankCatalog,
+} from '../../domain/plant-recommendation/plant-recommendation';
+import { PLANT_CATALOG, type PlantPreset, searchCatalog } from '../../domain/catalog/plant-catalog';
 
 /**
  * Provider seam for plant discovery.

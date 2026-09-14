@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Garden, Plant } from '../../../../core/api/models';
-import { WateringConflict } from '../../../../domain/garden-planner/garden-planner';
+import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import type { Garden, Plant } from '../../../../core/api/models';
+import type { WateringConflict } from '../../../../domain/garden-planner/garden-planner';
 import { MapInspector } from './map-inspector';
 
 const garden = (totalSurfaceArea = 20): Garden => ({

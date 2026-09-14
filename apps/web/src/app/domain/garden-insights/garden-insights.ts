@@ -1,4 +1,4 @@
-import { Garden, Plant } from '../../core/api/models';
+import type { Garden, Plant } from '../../core/api/models';
 
 /**
  * Pure domain math — the primary unit-test target.
@@ -84,13 +84,6 @@ export function wouldShrinkBelowUsed(plants: readonly Plant[], newTotalArea: num
  * rules (the only business rule is the server's strict `>` overcrowding check).
  */
 export type CapacityStatus = 'healthy' | 'approaching' | 'almost-full' | 'full';
-
-export const CAPACITY_STATUS_LABEL: Readonly<Record<CapacityStatus, string>> = {
-  healthy: $localize`Healthy capacity`,
-  approaching: $localize`Approaching capacity`,
-  'almost-full': $localize`Almost full`,
-  full: $localize`Full`,
-};
 
 export function capacityStatus(garden: Garden, plants: readonly Plant[]): CapacityStatus {
   const ratio = occupancyRatio(garden, plants);

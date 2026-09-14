@@ -1,4 +1,4 @@
-import { ValuePresetOption } from './value-presets';
+import type { ValuePresetOption } from './value-presets';
 
 /**
  * Product-level default suggestions for the create/edit forms.

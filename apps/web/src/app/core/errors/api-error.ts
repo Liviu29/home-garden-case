@@ -73,7 +73,7 @@ function extractServerMessage(body: unknown): string | null {
 
   const details = record['details'];
   if (Array.isArray(details) && details.length > 0) {
-    const first = details[0];
+    const first: unknown = details[0];
     if (typeof first === 'string') {
       return first;
     }

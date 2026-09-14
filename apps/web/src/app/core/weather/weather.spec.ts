@@ -3,10 +3,10 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import {
   OpenMeteoProvider,
-  OutdoorConditions,
+  type OutdoorConditions,
   OutdoorWeather,
   WEATHER_PROVIDER,
-  WeatherProvider,
+  type WeatherProvider,
 } from './weather';
 
 const READING: OutdoorConditions = {

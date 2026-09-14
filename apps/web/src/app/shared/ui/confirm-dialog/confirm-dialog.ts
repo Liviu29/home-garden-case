@@ -30,8 +30,9 @@ export interface ConfirmDialogData {
       <p class="message">{{ data.message }}</p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button matButton mat-dialog-close class="press-feedback" i18n>Cancel</button>
+      <button type="button" matButton mat-dialog-close class="press-feedback" i18n>Cancel</button>
       <button
+        type="button"
         matButton="filled"
         class="press-feedback"
         [class.destructive]="data.destructive"
@@ -70,7 +71,7 @@ export class ConfirmService {
     confirmLabel?: string;
     destructive?: boolean;
   }): Promise<boolean> {
-    const ref = this.dialog.open(ConfirmDialog, {
+    const ref = this.dialog.open<ConfirmDialog, ConfirmDialogData, boolean>(ConfirmDialog, {
       data: {
         title: options.title,
         message: options.message,

@@ -1,9 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map } from 'rxjs';
-import { UserDto } from './dtos';
+import type { UserDto } from './dtos';
 import { mapToUserProfile } from './mappers';
-import { UserProfile, UserProfileInput } from './models';
+import type { UserProfile, UserProfileInput } from './models';
 import { requestAsPromise } from './request';
 
 /** Typed access to /users — backs the profile-session flow (ADR-005). */

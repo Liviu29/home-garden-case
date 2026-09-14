@@ -1,5 +1,5 @@
 import { inject } from '@angular/core';
-import { CanMatchFn, Router } from '@angular/router';
+import { type CanMatchFn, Router } from '@angular/router';
 import { SessionStore } from './session-store';
 
 /** Feature routes require an active profile; visitors go to onboarding (ADR-005). */

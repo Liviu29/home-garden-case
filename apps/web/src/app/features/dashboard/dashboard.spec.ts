@@ -4,8 +4,8 @@ import { provideRouter } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { GardensApi } from '../../core/api/gardens-api';
 import { PlantsApi } from '../../core/api/plants-api';
-import { APP_CONFIG, AppConfig } from '../../core/config/app-config';
-import { Garden, Plant } from '../../core/api/models';
+import { APP_CONFIG, type AppConfig } from '../../core/config/app-config';
+import type { Garden, Plant } from '../../core/api/models';
 import { PlantsIndexStore } from '../../state/plants-index-store/plants-index-store';
 import { Dashboard } from './dashboard';
 

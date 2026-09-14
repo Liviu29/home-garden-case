@@ -1,5 +1,5 @@
-import { Garden, Plant } from '../../core/api/models';
-import { PlantPreset } from '../catalog/plant-catalog';
+import type { Garden, Plant } from '../../core/api/models';
+import type { PlantPreset } from '../catalog/plant-catalog';
 import { remainingCapacity } from '../garden-insights/garden-insights';
 
 /**
@@ -27,9 +27,18 @@ export interface PlantRecommendation {
   /** m² still free for this plant right now. */
   readonly availableArea: number;
   readonly alreadyPlanted: boolean;
-  /** Human-readable, truthful reasons shown on the card. */
-  readonly reasons: readonly string[];
+  /** Why it scores as it does — truthful, and the card's to put into words. */
+  readonly reasons: readonly RecommendationReason[];
 }
+
+/** One ingredient of a score, with the numbers a sentence about it needs. */
+export type RecommendationReason =
+  | { readonly kind: 'humidity-close'; readonly humidity: number; readonly target: number }
+  | { readonly kind: 'humidity-near'; readonly delta: number }
+  | { readonly kind: 'humidity-off'; readonly humidity: number; readonly delta: number }
+  | { readonly kind: 'fits'; readonly available: number }
+  | { readonly kind: 'too-big'; readonly area: number; readonly available: number }
+  | { readonly kind: 'already-planted' };
 
 export function calculatePlantRecommendation(
   preset: PlantPreset,
@@ -50,25 +59,29 @@ export function calculatePlantRecommendation(
   const fitScore = fitsAvailableArea ? 30 : 0;
   const varietyScore = alreadyPlanted ? 0 : 10;
 
-  const reasons: string[] = [];
+  const reasons: RecommendationReason[] = [];
   if (humidityMatch === 'excellent') {
-    reasons.push(
-      $localize`Close humidity match (${preset.suggestedHumidity}:humidity:% vs ${garden.targetHumidityLevel}:target:% target)`,
-    );
+    reasons.push({
+      kind: 'humidity-close',
+      humidity: preset.suggestedHumidity,
+      target: garden.targetHumidityLevel,
+    });
   } else if (humidityMatch === 'good') {
-    reasons.push($localize`Reasonable humidity match (±${humidityDelta}:delta:%)`);
+    reasons.push({ kind: 'humidity-near', delta: humidityDelta });
   } else {
-    reasons.push(
-      $localize`Prefers ${preset.suggestedHumidity}:humidity:% humidity — ${humidityDelta}:delta:% off your target`,
-    );
+    reasons.push({
+      kind: 'humidity-off',
+      humidity: preset.suggestedHumidity,
+      delta: humidityDelta,
+    });
   }
   reasons.push(
     fitsAvailableArea
-      ? $localize`Fits the ${round1(availableArea)}:available: m² still free`
-      : $localize`Needs ${preset.suggestedArea}:area: m² — only ${round1(availableArea)}:available: m² free`,
+      ? { kind: 'fits', available: round1(availableArea) }
+      : { kind: 'too-big', area: preset.suggestedArea, available: round1(availableArea) },
   );
   if (alreadyPlanted) {
-    reasons.push($localize`Already growing in this garden`);
+    reasons.push({ kind: 'already-planted' });
   }
 
   return {

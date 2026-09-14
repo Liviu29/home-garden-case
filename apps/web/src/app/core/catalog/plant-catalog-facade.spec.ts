@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { Garden, Plant } from '../../core/api/models';
+import type { Garden, Plant } from '../api/models';
 import { PlantCatalogFacade } from './plant-catalog-facade';
 
 const garden: Garden = {

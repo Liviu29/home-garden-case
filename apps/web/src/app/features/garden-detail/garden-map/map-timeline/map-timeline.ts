@@ -30,7 +30,7 @@ export class MapTimeline {
 
   readonly togglePlayback = output<void>();
   readonly scrub = output<number>();
-  readonly close = output<void>();
+  readonly dismiss = output<void>();
 
   protected readonly playbackLabel = computed(() =>
     this.playing() ? $localize`Pause timeline` : $localize`Play timeline`,

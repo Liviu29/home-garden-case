@@ -4,7 +4,7 @@ import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { distinctUntilChanged, pipe, tap } from 'rxjs';
 import { PlantsApi } from '../../core/api/plants-api';
 import { SessionStore } from '../../core/auth/session-store';
-import { Plant } from '../../core/api/models';
+import type { Plant } from '../../core/api/models';
 import { QueryCache, cacheKeys } from '../../core/resilience/query-cache';
 
 interface PlantsIndexState {

@@ -4,8 +4,8 @@
  * The other direction, domain → write payload, lives in write-payloads.ts.
  */
 
-import { GardenDto, PlantDto, UserDto } from './dtos';
-import { Garden, Plant, UserProfile } from './models';
+import type { GardenDto, PlantDto, UserDto } from './dtos';
+import type { Garden, Plant, UserProfile } from './models';
 
 export function mapToGarden(dto: GardenDto): Garden {
   return {

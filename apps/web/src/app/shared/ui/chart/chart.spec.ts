@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import type { Options } from 'highcharts';
 import { Logger } from '../../../core/logging/logger';
 import { Chart } from './chart';
-import { HighchartsLib, HighchartsLoader } from './highcharts-loader';
+import { type HighchartsLib, HighchartsLoader } from './highcharts-loader';
 
 @Component({
   imports: [Chart],

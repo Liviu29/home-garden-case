@@ -30,9 +30,9 @@
             [class.no-fit]="!rec.fitsAvailableArea"
             [attr.aria-pressed]="selectedPresetId() === rec.preset.id"
             [attr.aria-label]="
-              rec.preset.commonName + ', ' + fitBadge(rec) + '. ' + rec.reasons.join('. ')
+              rec.preset.commonName + ', ' + fitBadge(rec) + '. ' + reasonsOf(rec).join('. ')
             "
-            [title]="rec.reasons.join(' · ')"
+            [title]="reasonsOf(rec).join(' · ')"
             (click)="applyPreset(rec)"
           >
             <app-plant-thumb

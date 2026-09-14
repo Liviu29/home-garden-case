@@ -3,8 +3,8 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { Garden, Plant } from '../../../core/api/models';
-import { PlantFormDialog, PlantFormData } from './plant-form-dialog';
+import type { Garden, Plant } from '../../../core/api/models';
+import { PlantFormDialog, type PlantFormData } from './plant-form-dialog';
 
 const garden: Garden = {
   gardenId: 1,
@@ -167,8 +167,7 @@ describe('PlantFormDialog — catalog search, presets and submit paths', () => {
     submit: () => Promise<void>;
   };
 
-  const api = (fixture: { componentInstance: unknown }) =>
-    fixture.componentInstance as unknown as DialogApi;
+  const api = (fixture: { componentInstance: unknown }) => fixture.componentInstance as DialogApi;
 
   let ref: { close: ReturnType<typeof vi.fn> };
 

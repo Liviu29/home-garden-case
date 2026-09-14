@@ -1,4 +1,4 @@
-import { Garden, Plant } from '../../../core/api/models';
+import type { Garden, Plant } from '../../../core/api/models';
 import { computeGardenMapLayout } from '../../../domain/garden-map-layout/garden-map-layout';
 import {
   buildPlotViews,

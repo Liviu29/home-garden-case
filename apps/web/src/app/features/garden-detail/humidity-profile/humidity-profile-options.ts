@@ -1,12 +1,13 @@
 import type { Options, Point } from 'highcharts';
-import { Garden, Plant } from '../../../core/api/models';
+import type { Garden, Plant } from '../../../core/api/models';
 import { plantsCount, pointsCount } from '../../../core/i18n/plurals';
 import {
   ATTENTION_HUMIDITY_DRIFT,
   plantHumidityDelta,
 } from '../../../domain/garden-insights/garden-insights';
-import { WateringZone, wateringZone } from '../../../domain/garden-planner/garden-planner';
-import { ChartPalette, escapeLabel, withAlpha } from '../../../shared/ui/chart/chart-palette';
+import { type WateringZone, wateringZone } from '../../../domain/garden-planner/garden-planner';
+import { type ChartPalette, escapeLabel, withAlpha } from '../../../shared/ui/chart/chart-palette';
+import { WATERING_ZONE_LABEL } from '../../../shared/ui/watering-zone/watering-zone-labels';
 
 /** What the chart knows about one plant — carried on its point for tooltips and events. */
 export interface ProfilePlant {
@@ -21,12 +22,6 @@ export interface ProfilePlant {
   readonly zone: WateringZone;
   readonly target: number;
 }
-
-const ZONE_LABEL: Readonly<Record<WateringZone, string>> = {
-  dry: $localize`Dry`,
-  balanced: $localize`Balanced`,
-  humid: $localize`Humid`,
-};
 
 const round = (value: number, digits = 0): number => Number(value.toFixed(digits));
 /** Sign of the ROUNDED value, so a 0.3-point drift reads "±0", never "+0". */
@@ -46,7 +41,7 @@ export function describePlant(p: ProfilePlant): string {
       : delta > 0
         ? $localize`${pointsCount(points)}:points: above the ${p.target}:target:% target`
         : $localize`${pointsCount(points)}:points: below the ${p.target}:target:% target`;
-  return $localize`${p.name}:plantName:: wants ${p.humidity}:humidity:% humidity, ${relation}:relation:; ${p.area}:area: m², ${round(p.share)}:share:% of the garden; ${ZONE_LABEL[p.zone]}:zone: watering zone.`;
+  return $localize`${p.name}:plantName:: wants ${p.humidity}:humidity:% humidity, ${relation}:relation:; ${p.area}:area: m², ${round(p.share)}:share:% of the garden; ${WATERING_ZONE_LABEL[p.zone]}:zone: watering zone.`;
 }
 
 /**
@@ -110,7 +105,7 @@ export function humidityProfileOptions(
       spacing: [12, 8, 8, 8],
       style: { fontFamily: 'inherit' },
     },
-    title: { text: undefined },
+    title: { text: '' },
     credits: { enabled: false },
     legend: { enabled: false },
     accessibility: {
@@ -177,7 +172,7 @@ export function humidityProfileOptions(
           '<br/>' +
           $localize`${p.area}:area: m² · ${round(p.share)}:share:% of the garden` +
           '<br/>' +
-          $localize`${ZONE_LABEL[p.zone]}:zone: watering zone`
+          $localize`${WATERING_ZONE_LABEL[p.zone]}:zone: watering zone`
         );
       },
     },

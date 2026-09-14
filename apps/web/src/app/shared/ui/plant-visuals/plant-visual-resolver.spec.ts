@@ -1,4 +1,4 @@
-import { PLANT_TYPES, Plant } from '../../../core/api/models';
+import { PLANT_TYPES, type Plant } from '../../../core/api/models';
 import { computeVegetation, resolvePlantVisual } from './plant-visual-resolver';
 
 const plant = (

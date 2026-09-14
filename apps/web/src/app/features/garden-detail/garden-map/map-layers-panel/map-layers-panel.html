@@ -1,25 +1,29 @@
 <label class="layer-toggle">
-  <input type="checkbox" [checked]="layers().labels" (change)="toggle.emit('labels')" />
+  <input type="checkbox" [checked]="layers().labels" (change)="toggleLayer.emit('labels')" />
   <ng-container i18n>Plant labels</ng-container>
 </label>
 <label class="layer-toggle">
-  <input type="checkbox" [checked]="layers().footprints" (change)="toggle.emit('footprints')" />
+  <input
+    type="checkbox"
+    [checked]="layers().footprints"
+    (change)="toggleLayer.emit('footprints')"
+  />
   <ng-container i18n>Footprints</ng-container>
 </label>
 <label class="layer-toggle">
-  <input type="checkbox" [checked]="layers().grid" (change)="toggle.emit('grid')" />
+  <input type="checkbox" [checked]="layers().grid" (change)="toggleLayer.emit('grid')" />
   <ng-container i18n>Grid</ng-container>
 </label>
 <label class="layer-toggle">
-  <input type="checkbox" [checked]="layers().humidity" (change)="toggle.emit('humidity')" />
+  <input type="checkbox" [checked]="layers().humidity" (change)="toggleLayer.emit('humidity')" />
   <ng-container i18n>Humidity preference</ng-container>
 </label>
 <label class="layer-toggle">
-  <input type="checkbox" [checked]="layers().zones" (change)="toggle.emit('zones')" />
+  <input type="checkbox" [checked]="layers().zones" (change)="toggleLayer.emit('zones')" />
   <ng-container i18n>Watering zones</ng-container>
 </label>
 <label class="layer-toggle">
-  <input type="checkbox" [checked]="layers().freeSpace" (change)="toggle.emit('freeSpace')" />
+  <input type="checkbox" [checked]="layers().freeSpace" (change)="toggleLayer.emit('freeSpace')" />
   <ng-container i18n>Available space</ng-container>
 </label>
 @if (layers().zones) {

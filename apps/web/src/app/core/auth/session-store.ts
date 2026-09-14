@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { UserProfile } from '../api/models';
+import type { UserProfile } from '../api/models';
 import { UsersApi } from '../api/users-api';
 import { toApiError } from '../errors/api-error';
 import { QueryCache } from '../resilience/query-cache';

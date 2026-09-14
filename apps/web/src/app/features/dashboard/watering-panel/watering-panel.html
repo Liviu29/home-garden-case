@@ -32,7 +32,8 @@
         <span class="zones">
           @for (zone of row.plan.dueToday; track zone.zone) {
             <span class="zone" [attr.data-zone]="zone.zone">
-              <span class="dot" aria-hidden="true"></span>{{ zone.label }} · {{ zone.plants }}
+              <span class="dot" aria-hidden="true"></span>{{ zoneLabel[zone.zone] }} ·
+              {{ zone.plants }}
             </span>
           }
         </span>

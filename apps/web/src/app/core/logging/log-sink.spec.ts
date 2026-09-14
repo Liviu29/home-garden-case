@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
-import { APP_CONFIG, AppConfig } from '../config/app-config';
+import { APP_CONFIG, type AppConfig } from '../config/app-config';
 import { BeaconSink } from './beacon-sink';
-import { LOG_SINK, LogEntry } from './log-sink';
+import { LOG_SINK, type LogEntry } from './log-sink';
 
 const setVisibility = (state: 'hidden' | 'visible') => {
   Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });

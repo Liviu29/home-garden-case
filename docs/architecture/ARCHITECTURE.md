@@ -42,6 +42,7 @@ apps/web/src/
 │   ├── core/                  # singletons, used from the root
 │   │   ├── api/               # DTOs, domain models, mappers, one typed service per resource
 │   │   ├── auth/              # SessionStore (active profile) + route guard
+│   │   ├── catalog/           # PlantCatalogFacade: the provider seam over the domain's catalog
 │   │   ├── config/            # APP_CONFIG (API base URL, cache TTL, retry policy), ThemeStore
 │   │   ├── errors/            # ApiError taxonomy, global ErrorHandler, ToastStore
 │   │   ├── http/              # interceptors: base URL, retry with backoff + jitter
@@ -49,6 +50,7 @@ apps/web/src/
 │   │   ├── layout/            # the shell: top bar, navigation, profile menu, page backdrop
 │   │   ├── logging/           # the Logger seam and its optional sink (sendBeacon)
 │   │   ├── telemetry/         # Core Web Vitals, measured with PerformanceObserver
+│   │   ├── weather/           # WeatherProvider seam; Open-Meteo is the shipped implementation
 │   │   └── resilience/        # QueryCache: SWR + in-flight de-duplication
 │   ├── state/                 # app-wide SignalStores, providedIn: 'root'
 │   │   ├── gardens-store/         # GardensStore + the list's search/sort (garden-view.ts)
@@ -61,7 +63,7 @@ apps/web/src/
 │   │   ├── watering-plan/         # what needs water today, from zone and planting date
 │   │   ├── plant-recommendation/  # ranks the catalog for one garden
 │   │   ├── plantation-date/       # UTC calendar-day handling
-│   │   └── catalog/               # the plant catalog and its provider seam
+│   │   └── catalog/               # the plant catalog (content: the one domain module with text)
 │   ├── features/              # one lazy route per folder; the files at its root are the page
 │   │   ├── onboarding/        # profile selection and creation
 │   │   ├── dashboard/         # portfolio KPIs, attention center, garden health, water today
@@ -80,7 +82,8 @@ apps/web/src/
 │   │   ├── profile/           # edit-profile dialog (loaded on demand)
 │   │   └── not-found/
 │   └── shared/ui/             # presentational kit, one folder per component: skeletons, empty
-│                              # state, stat card, capacity bar, humidity gauge, confirm dialog,
+│                              # state, stat card, capacity bar and status, watering-zone labels,
+│                              # humidity gauge, confirm dialog,
 │                              # toasts, value presets, plant artwork and its resolver,
 │                              # <app-chart>: Highcharts, loaded on demand (ADR-008), and the
 │                              # PNG export of any on-screen SVG (drawn in the browser);
@@ -97,11 +100,22 @@ light and dark themes as a toolbar switch, and the a11y add-on.
   other component, directive, store or domain module lives in its own folder, named after it,
   together with its template, styles and spec.
 - **Dependencies point one way:** `features` → `state` → `domain` and `core`. `domain` imports only
-  the model types from `core/api`; `shared/ui` never imports a feature, `state` or an API service.
+  the model types from `core/api` — no Angular, no RxJS, no text (`$localize`): it returns keys
+  and numbers, and the UI turns them into words (`shared/ui/capacity-status`,
+  `shared/ui/watering-zone`, the plant form's recommendation reasons). The one exception is the
+  plant catalog, which is content rather than a rule. `shared/ui` is presentational: it may use
+  domain functions, the models, the Logger and the toast queue, never a feature, a store or an
+  API service. `state` knows no screens. `core` is the foundation and imports nothing above it,
+  except that the shell (`core/layout`) composes `shared/ui`.
 - **Features do not import each other, and `core` does not import features**, with two deliberate
-  exceptions: the shell (`core/layout`) lazy-loads the profile dialog on demand, and garden detail
-  reuses the garden form dialog from `gardens/` to edit the open garden. State that two features
-  need lives in `state/`.
+  exceptions: the shell lazy-loads the profile dialog on demand, and garden detail reuses the
+  garden form dialog from `gardens/` to edit the open garden. State that two features need lives
+  in `state/`.
+- **The lint enforces it** (`apps/web/eslint.config.mjs`): each layer lists the imports it may not
+  have, and a violation fails `npm run lint` with the rule's reason. The same config runs
+  angular-eslint (signal inputs and outputs, `inject()`, OnPush, `host:` metadata, template
+  control flow and accessibility) and typescript-eslint's type-aware rules (no floating promise,
+  exhaustive switches, type-only imports — which are erased and so are not dependencies).
 - Files follow the current schematic naming (`garden-list.ts`, no `.component` suffix); every
   feature is reached only through `loadComponent`.
 

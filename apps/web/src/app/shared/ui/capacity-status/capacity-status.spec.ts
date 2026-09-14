@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { Garden, Plant } from '../../../core/api/models';
+import type { Garden, Plant } from '../../../core/api/models';
 import { CAPACITY_STATUS_TONE, CapacityStatusChip } from './capacity-status';
 
 const garden = (totalSurfaceArea: number): Garden => ({

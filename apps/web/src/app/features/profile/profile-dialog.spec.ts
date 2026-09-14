@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { MatDialogRef } from '@angular/material/dialog';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { UserProfile } from '../../core/api/models';
+import type { UserProfile } from '../../core/api/models';
 import { UsersApi } from '../../core/api/users-api';
 import { SessionStore } from '../../core/auth/session-store';
-import { APP_CONFIG, AppConfig } from '../../core/config/app-config';
+import { APP_CONFIG, type AppConfig } from '../../core/config/app-config';
 import { ApiError } from '../../core/errors/api-error';
 import { ToastStore } from '../../core/errors/toast-store';
 import { QueryCache, cacheKeys } from '../../core/resilience/query-cache';

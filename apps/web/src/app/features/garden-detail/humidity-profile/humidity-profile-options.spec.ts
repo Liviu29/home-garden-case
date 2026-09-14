@@ -1,7 +1,11 @@
 import type { Point, PointOptionsObject, SeriesVariwideOptions, YAxisOptions } from 'highcharts';
-import { Garden, Plant } from '../../../core/api/models';
-import { ChartPalette } from '../../../shared/ui/chart/chart-palette';
-import { ProfilePlant, describePlant, humidityProfileOptions } from './humidity-profile-options';
+import type { Garden, Plant } from '../../../core/api/models';
+import type { ChartPalette } from '../../../shared/ui/chart/chart-palette';
+import {
+  type ProfilePlant,
+  describePlant,
+  humidityProfileOptions,
+} from './humidity-profile-options';
 
 const PALETTE: ChartPalette = {
   text: '#111111',

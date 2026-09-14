@@ -11,7 +11,7 @@ import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenuModule } from '@angular/material/menu';
-import { Garden, Plant } from '../../core/api/models';
+import type { Garden, Plant } from '../../core/api/models';
 import { usedSurfaceArea } from '../../domain/garden-insights/garden-insights';
 import { PlantsIndexStore } from '../../state/plants-index-store/plants-index-store';
 import { CapacityBar } from '../../shared/ui/capacity-bar/capacity-bar';
@@ -26,7 +26,7 @@ import { GardenFormDialog } from './garden-form-dialog/garden-form-dialog';
 import { GardensStore } from '../../state/gardens-store/gardens-store';
 import {
   GARDEN_SORT_LABEL,
-  GardenSort,
+  type GardenSort,
   filterAndSortGardens,
 } from '../../state/gardens-store/garden-view';
 import { PrefetchGarden } from './prefetch-garden/prefetch-garden';

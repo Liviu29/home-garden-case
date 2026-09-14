@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { APP_CONFIG, AppConfig } from '../config/app-config';
+import { APP_CONFIG, type AppConfig } from '../config/app-config';
 import { QueryCache, cacheKeys } from './query-cache';
 
 const FRESH_TTL = 30_000;

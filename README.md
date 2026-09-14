@@ -342,7 +342,7 @@ dated from the day of the seed.
 
 | Command                     | Purpose                                                                                            |
 | --------------------------- | -------------------------------------------------------------------------------------------------- |
-| `npm run lint`              | ESLint and Prettier for api, web and web-e2e                                                       |
+| `npm run lint`              | ESLint and Prettier for api, web and web-e2e — the web rules include the layer boundaries          |
 | `npm run typecheck`         | strict TypeScript with `strictTemplates`                                                           |
 | `npm run test`              | Vitest: API tests, web unit and component tests                                                    |
 | `npm run test:coverage`     | the web suite, enforcing the 95% thresholds                                                        |

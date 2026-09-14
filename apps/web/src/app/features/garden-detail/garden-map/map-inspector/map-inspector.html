@@ -188,7 +188,7 @@
             @for (z of zones(); track z.zone) {
               <li>
                 <span class="zone-dot" [attr.data-zone]="z.zone" aria-hidden="true"></span>
-                {{ z.label }}
+                {{ zoneLabel[z.zone] }}
                 <span class="tabular zones-count">{{ z.plants }}</span>
               </li>
             }

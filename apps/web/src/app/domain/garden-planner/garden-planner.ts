@@ -1,4 +1,4 @@
-import { Plant } from '../../core/api/models';
+import type { Plant } from '../../core/api/models';
 
 /**
  * Pure planner intelligence for the Garden Map (ADR-007 §planner).
@@ -102,17 +102,11 @@ export type WateringZone = 'dry' | 'balanced' | 'humid';
 /**
  * Three bands around the garden form's own presets (Dry 40 % · Balanced 60 %
  * · Humid 80 %): a plant belongs to the preset it is closest to. A reading of
- * the plant's configured PREFERENCE — never a moisture measurement.
+ * the plant's configured PREFERENCE — never a moisture measurement. The
+ * zones' names live with the UI (`shared/ui/watering-zone`); this is their
+ * order, driest first.
  */
-export const WATERING_ZONES: readonly {
-  readonly zone: WateringZone;
-  readonly label: string;
-  readonly range: string;
-}[] = [
-  { zone: 'dry', label: $localize`Dry`, range: $localize`under 50%` },
-  { zone: 'balanced', label: $localize`Balanced`, range: $localize`50–69%` },
-  { zone: 'humid', label: $localize`Humid`, range: $localize`70% and up` },
-];
+export const WATERING_ZONE_ORDER: readonly WateringZone[] = ['dry', 'balanced', 'humid'];
 
 export function wateringZone(idealHumidity: number): WateringZone {
   return idealHumidity < 50 ? 'dry' : idealHumidity < 70 ? 'balanced' : 'humid';
@@ -122,7 +116,6 @@ const ZONE_RANK: Readonly<Record<WateringZone, number>> = { dry: 0, balanced: 1,
 
 interface ZoneShare {
   readonly zone: WateringZone;
-  readonly label: string;
   readonly plants: number;
   /** m² of footprint in this zone. */
   readonly area: number;
@@ -136,10 +129,10 @@ export function zoneBreakdown(
 ): readonly ZoneShare[] {
   const planted = plants.filter((p) => p.surfaceAreaRequired > 0);
   const total = planted.reduce((sum, p) => sum + p.surfaceAreaRequired, 0);
-  return WATERING_ZONES.map(({ zone, label }) => {
+  return WATERING_ZONE_ORDER.map((zone) => {
     const members = planted.filter((p) => wateringZone(p.idealHumidityLevel) === zone);
     const area = members.reduce((sum, p) => sum + p.surfaceAreaRequired, 0);
-    return { zone, label, plants: members.length, area, share: total > 0 ? area / total : 0 };
+    return { zone, plants: members.length, area, share: total > 0 ? area / total : 0 };
   });
 }
 

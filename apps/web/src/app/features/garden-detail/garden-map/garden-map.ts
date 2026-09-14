@@ -2,7 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
-  ElementRef,
+  type ElementRef,
   afterNextRender,
   computed,
   inject,
@@ -15,7 +15,7 @@ import {
 } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
-import { Garden, Plant } from '../../../core/api/models';
+import type { Garden, Plant } from '../../../core/api/models';
 import { bedsCount, plantsCount } from '../../../core/i18n/plurals';
 import {
   capacityStatus,
@@ -32,8 +32,6 @@ import {
   settleDrop,
 } from '../../../domain/garden-map-layout/garden-map-layout';
 import {
-  WATERING_ZONES,
-  WateringZone,
   arrangeByWateringZone,
   findNeighbours,
   findWateringConflicts,
@@ -43,12 +41,13 @@ import {
   wateringZone,
   zoneBreakdown,
 } from '../../../domain/garden-planner/garden-planner';
-import { LayoutPositions } from '../../../state/garden-layout/garden-layout-repository';
+import type { LayoutPositions } from '../../../state/garden-layout/garden-layout-repository';
+import { WATERING_ZONE_LABEL } from '../../../shared/ui/watering-zone/watering-zone-labels';
 import {
-  FreeHint,
-  MapBox,
-  PlotView,
-  StageSize,
+  type FreeHint,
+  type MapBox,
+  type PlotView,
+  type StageSize,
   buildPlotViews,
   dimensionsFor,
   emptyZonesFor,
@@ -59,7 +58,7 @@ import {
   sameSize,
 } from './garden-map-view';
 import {
-  CameraState,
+  type CameraState,
   ZOOM_STEP,
   clampCamera,
   fitCamera,
@@ -71,8 +70,12 @@ import {
 } from './map-camera/map-camera';
 import { MapHud } from './map-hud/map-hud';
 import { MapInspector } from './map-inspector/map-inspector';
-import { LayerKey, LayerToggles, MapLayersPanel } from './map-layers-panel/map-layers-panel';
-import { MapPlanList, PlanRow } from './map-plan-list/map-plan-list';
+import {
+  type LayerKey,
+  type LayerToggles,
+  MapLayersPanel,
+} from './map-layers-panel/map-layers-panel';
+import { MapPlanList, type PlanRow } from './map-plan-list/map-plan-list';
 import { MapTimeline } from './map-timeline/map-timeline';
 import { MapToolbar } from './map-toolbar/map-toolbar';
 
@@ -99,10 +102,6 @@ const ARROW_STEPS: Readonly<Record<string, { readonly x: number; readonly y: num
 const TIMELINE_STEP_MS = 900;
 
 const NO_IDS: ReadonlySet<number> = new Set();
-
-const ZONE_LABEL = Object.fromEntries(WATERING_ZONES.map((z) => [z.zone, z.label])) as Readonly<
-  Record<WateringZone, string>
->;
 
 const snapToGrid = (value: number): number => Math.round(value / PLANNER_SNAP) * PLANNER_SNAP;
 
@@ -517,7 +516,7 @@ export class GardenMap {
     this.showZones(); // the grouping only makes sense with the zones in view
     const summary = zoneBreakdown(this.plants())
       .filter((z) => z.plants > 0)
-      .map((z) => $localize`${z.plants}:count: ${z.label.toLowerCase()}:zone:`)
+      .map((z) => $localize`${z.plants}:count: ${WATERING_ZONE_LABEL[z.zone].toLowerCase()}:zone:`)
       .join(', ');
     this.announce(
       $localize`Beds regrouped by water needs, driest first: ${summary}:summary:. Undo restores your plan.`,
@@ -555,7 +554,7 @@ export class GardenMap {
         width: p.w,
         depth: p.h,
         area: p.requiredArea,
-        zone: ZONE_LABEL[
+        zone: WATERING_ZONE_LABEL[
           wateringZone(humidity.get(p.plantId) ?? this.garden().targetHumidityLevel)
         ],
         placed: positions[p.plantId] !== undefined,

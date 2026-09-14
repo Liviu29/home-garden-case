@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { Garden } from '../../../core/api/models';
+import type { Garden } from '../../../core/api/models';
 import {
-  WateringPlan,
-  WateringRound,
+  type WateringPlan,
+  type WateringRound,
   wateringPlan,
 } from '../../../domain/watering-plan/watering-plan';
 import { WateringPanel } from './watering-panel';

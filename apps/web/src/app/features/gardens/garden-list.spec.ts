@@ -7,8 +7,8 @@ import { provideRouter } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { GardensApi } from '../../core/api/gardens-api';
 import { PlantsApi } from '../../core/api/plants-api';
-import { APP_CONFIG, AppConfig } from '../../core/config/app-config';
-import { Garden } from '../../core/api/models';
+import { APP_CONFIG, type AppConfig } from '../../core/config/app-config';
+import type { Garden } from '../../core/api/models';
 import { ApiError } from '../../core/errors/api-error';
 import { GardenList } from './garden-list';
 
@@ -329,7 +329,7 @@ describe('GardenList — toolbar and row actions', () => {
 
   it('warns that plants go too, then deletes once confirmed', async () => {
     const { vm, store } = await mountList();
-    const remove = vi.spyOn(store, 'remove').mockResolvedValue(undefined as never);
+    const remove = vi.spyOn(store, 'remove').mockResolvedValue(undefined);
     confirm.confirm.mockResolvedValue(true);
 
     await vm.remove(GARDENS[0]);

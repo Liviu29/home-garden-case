@@ -64,7 +64,8 @@ export function withAlpha(color: string, alpha: number): string {
   const value = color.trim();
   const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(value);
   if (hex) {
-    const full = hex[1].length === 3 ? [...hex[1]].map((c) => c + c).join('') : hex[1];
+    const digits = hex[1] ?? '';
+    const full = digits.length === 3 ? [...digits].map((c) => c + c).join('') : digits;
     const [r, g, b] = [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }

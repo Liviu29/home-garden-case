@@ -1,9 +1,9 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map } from 'rxjs';
-import { GardenDto } from './dtos';
+import type { GardenDto } from './dtos';
 import { mapToGarden } from './mappers';
-import { Garden, GardenInput } from './models';
+import type { Garden, GardenInput } from './models';
 import { requestAsPromise } from './request';
 
 /** `?visibleTo=<userId>` when a profile is given; no filter otherwise. */

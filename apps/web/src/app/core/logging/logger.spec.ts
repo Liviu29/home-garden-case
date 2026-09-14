@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { LOG_SINK, LogEntry } from './log-sink';
+import { LOG_SINK, type LogEntry } from './log-sink';
 import { Logger } from './logger';
 
 /**

@@ -4,14 +4,17 @@ import { GardensApi } from '../../core/api/gardens-api';
 import { gardenInputOf, plantInputOf } from '../../core/api/write-payloads';
 import { PlantsApi } from '../../core/api/plants-api';
 import { SessionStore } from '../../core/auth/session-store';
-import { Garden, GardenInput, Plant } from '../../core/api/models';
-import { ApiError, toApiError } from '../../core/errors/api-error';
+import type { Garden, GardenInput, Plant } from '../../core/api/models';
+import { type ApiError, toApiError } from '../../core/errors/api-error';
 import { ToastStore } from '../../core/errors/toast-store';
 import { Logger } from '../../core/logging/logger';
 import { QueryCache, cacheKeys } from '../../core/resilience/query-cache';
-import { GardenLayoutRepository, LayoutPositions } from '../garden-layout/garden-layout-repository';
+import {
+  GardenLayoutRepository,
+  type LayoutPositions,
+} from '../garden-layout/garden-layout-repository';
 import { PlantsIndexStore } from '../plants-index-store/plants-index-store';
-import { GardenSort } from './garden-view';
+import type { GardenSort } from './garden-view';
 
 export type RequestStatus = 'idle' | 'loading' | 'ready' | 'error';
 

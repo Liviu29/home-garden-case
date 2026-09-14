@@ -9,9 +9,9 @@ import {
   ATTENTION_HUMIDITY_DRIFT,
   ATTENTION_OCCUPANCY_RATIO,
 } from '../../../domain/garden-insights/garden-insights';
-import { ChartPalette } from '../../../shared/ui/chart/chart-palette';
+import type { ChartPalette } from '../../../shared/ui/chart/chart-palette';
 import {
-  PortfolioPoint,
+  type PortfolioPoint,
   describeGarden,
   markerRadius,
   portfolioChartOptions,
@@ -235,7 +235,7 @@ describe('portfolioChartOptions (the dashboard portfolio map)', () => {
   });
 
   it('stays quiet about itself: no Highcharts title or credit link', () => {
-    expect(options.title?.text).toBeUndefined();
+    expect(options.title?.text).toBe(''); // an empty title: Highcharts draws nothing for it
     expect(options.credits?.enabled).toBe(false);
   });
 });

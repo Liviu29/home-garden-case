@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import {
   HIGHCHARTS_IMPORT,
-  HighchartsLib,
+  type HighchartsLib,
   HighchartsLoader,
   importHighcharts,
 } from './highcharts-loader';
@@ -69,7 +69,7 @@ describe('HighchartsLoader', () => {
       const idle = vi.fn<(cb: () => void, opts?: IdleRequestOptions) => number>(() => 7);
       vi.stubGlobal('requestIdleCallback', idle);
       vi.stubGlobal('cancelIdleCallback', vi.fn());
-      const importLibrary = vi.fn().mockResolvedValue({} as HighchartsLib);
+      const importLibrary = vi.fn().mockResolvedValue({});
       const loader = loaderWith(importLibrary);
 
       loader.prefetchWhenIdle();
@@ -84,7 +84,7 @@ describe('HighchartsLoader', () => {
     it('falls back to a short timer where requestIdleCallback is missing', () => {
       vi.useFakeTimers();
       vi.stubGlobal('requestIdleCallback', undefined);
-      const importLibrary = vi.fn().mockResolvedValue({} as HighchartsLib);
+      const importLibrary = vi.fn().mockResolvedValue({});
       const loader = loaderWith(importLibrary);
 
       loader.prefetchWhenIdle();
@@ -96,7 +96,7 @@ describe('HighchartsLoader', () => {
     it('does nothing when a chart already started the load', async () => {
       const idle = vi.fn(() => 1);
       vi.stubGlobal('requestIdleCallback', idle);
-      const loader = loaderWith(vi.fn().mockResolvedValue({} as HighchartsLib));
+      const loader = loaderWith(vi.fn().mockResolvedValue({}));
 
       await loader.load();
       loader.prefetchWhenIdle();
@@ -123,7 +123,7 @@ describe('HighchartsLoader', () => {
     it('cancels a pending prefetch when the app is torn down', () => {
       vi.useFakeTimers();
       vi.stubGlobal('requestIdleCallback', undefined);
-      const importLibrary = vi.fn().mockResolvedValue({} as HighchartsLib);
+      const importLibrary = vi.fn().mockResolvedValue({});
       loaderWith(importLibrary).prefetchWhenIdle();
 
       TestBed.resetTestingModule();

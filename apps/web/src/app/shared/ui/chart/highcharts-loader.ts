@@ -1,7 +1,8 @@
 import { DestroyRef, Injectable, InjectionToken, inject } from '@angular/core';
+import type * as Highcharts from 'highcharts';
 
 /** The Highcharts namespace, with the modules below registered on it. */
-export type HighchartsLib = typeof import('highcharts');
+export type HighchartsLib = typeof Highcharts;
 
 /**
  * Highcharts core plus the two modules the app uses, as ES modules. Each

@@ -1,7 +1,7 @@
 import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { PlantsApi } from '../../core/api/plants-api';
-import { Plant } from '../../core/api/models';
+import type { Plant } from '../../core/api/models';
 import { QueryCache, cacheKeys } from '../../core/resilience/query-cache';
 import { PlantsIndexStore } from './plants-index-store';
 

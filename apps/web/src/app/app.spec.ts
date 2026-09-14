@@ -1,5 +1,5 @@
 import { Location } from '@angular/common';
-import { SpyLocation, provideLocationMocks } from '@angular/common/testing';
+import { type SpyLocation, provideLocationMocks } from '@angular/common/testing';
 import { Router, provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
 import { App } from './app';

@@ -3,7 +3,7 @@ import { patchState, signalStore, withComputed, withMethods, withState } from '@
 import { GardensApi } from '../../../core/api/gardens-api';
 import { plantInputOf } from '../../../core/api/write-payloads';
 import { PlantsApi } from '../../../core/api/plants-api';
-import { Garden, Plant, PlantInput } from '../../../core/api/models';
+import type { Garden, Plant, PlantInput } from '../../../core/api/models';
 import { toApiError } from '../../../core/errors/api-error';
 import { ToastStore } from '../../../core/errors/toast-store';
 import { Logger } from '../../../core/logging/logger';
@@ -15,11 +15,11 @@ import {
   occupancyRatio,
   usedSurfaceArea,
 } from '../../../domain/garden-insights/garden-insights';
-import { MutationResult, RequestStatus } from '../../../state/gardens-store/gardens-store';
+import type { MutationResult, RequestStatus } from '../../../state/gardens-store/gardens-store';
 import { PlantsIndexStore } from '../../../state/plants-index-store/plants-index-store';
 import {
   GardenLayoutRepository,
-  LayoutPositions,
+  type LayoutPositions,
 } from '../../../state/garden-layout/garden-layout-repository';
 
 interface GardenDetailState {

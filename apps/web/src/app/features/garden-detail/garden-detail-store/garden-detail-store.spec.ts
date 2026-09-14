@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { GardensApi } from '../../../core/api/gardens-api';
 import { PlantsApi } from '../../../core/api/plants-api';
-import { Garden, Plant } from '../../../core/api/models';
+import type { Garden, Plant } from '../../../core/api/models';
 import { ApiError } from '../../../core/errors/api-error';
 import { ToastStore } from '../../../core/errors/toast-store';
 import { PlantsIndexStore } from '../../../state/plants-index-store/plants-index-store';

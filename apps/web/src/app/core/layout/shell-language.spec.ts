@@ -1,11 +1,11 @@
 import { LOCALE_ID } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { UserProfile } from '../api/models';
+import type { UserProfile } from '../api/models';
 import { UsersApi } from '../api/users-api';
 import { SessionStore } from '../auth/session-store';
-import { APP_CONFIG, AppConfig } from '../config/app-config';
+import { APP_CONFIG, type AppConfig } from '../config/app-config';
 import { LOCALE_BROWSER } from '../i18n/locales';
 import { Shell } from './shell';
 

@@ -1,5 +1,5 @@
 import {
-  ComponentFixture,
+  type ComponentFixture,
   DeferBlockBehavior,
   DeferBlockState,
   TestBed,
@@ -7,12 +7,12 @@ import {
 import { Router, provideRouter } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import type { Options, SeriesScatterOptions } from 'highcharts';
-import { Garden, Plant } from '../../core/api/models';
+import type { Garden, Plant } from '../../core/api/models';
 import { GardensApi } from '../../core/api/gardens-api';
 import { PlantsApi } from '../../core/api/plants-api';
-import { APP_CONFIG, AppConfig } from '../../core/config/app-config';
+import { APP_CONFIG, type AppConfig } from '../../core/config/app-config';
 import { ThemeStore } from '../../core/config/theme-store';
-import { HighchartsLib, HighchartsLoader } from '../../shared/ui/chart/highcharts-loader';
+import { type HighchartsLib, HighchartsLoader } from '../../shared/ui/chart/highcharts-loader';
 import { Dashboard } from './dashboard';
 
 const garden = (id: number, name: string, area = 20, target = 50): Garden => ({

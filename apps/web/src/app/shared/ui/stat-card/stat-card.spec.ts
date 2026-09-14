@@ -42,7 +42,7 @@ describe('StatCard', () => {
     return { fixture, host: fixture.componentInstance, el: fixture.nativeElement as HTMLElement };
   };
 
-  const fill = (el: HTMLElement) => el.querySelector('.strip-fill') as HTMLElement | null;
+  const fill = (el: HTMLElement) => el.querySelector<HTMLElement>('.strip-fill');
 
   it('renders the label', () => {
     const { el } = render();

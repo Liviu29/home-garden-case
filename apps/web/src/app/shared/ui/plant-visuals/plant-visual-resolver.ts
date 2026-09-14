@@ -1,4 +1,4 @@
-import { Plant } from '../../../core/api/models';
+import type { Plant } from '../../../core/api/models';
 
 /**
  * Pure, presentational plant-visual resolution (ADR-007 §visual layer).

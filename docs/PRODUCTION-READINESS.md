@@ -164,18 +164,18 @@ under `LOG_SINK`; call sites do not change.
 
 ## Verification gates
 
-| Gate               | Command                                                                          | What it enforces                                                              |
-| ------------------ | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Backend boots      | `npm run dev:api`                                                                | `/docs` answers 200                                                           |
-| Lint               | `npm run lint`                                                                   | eslint + prettier across api, web and web-e2e                                 |
-| Typecheck          | `npm run typecheck`                                                              | strict TypeScript + `strictTemplates`                                         |
-| Unit / component   | `npm run test`                                                                   | the Vitest suite                                                              |
-| Coverage           | `npm run test:coverage`                                                          | **≥95%** on statements, branches, functions and lines; the run fails below it |
-| E2E deterministic  | `npx playwright test -c apps/web-e2e/playwright.config.ts --project=mocked`      | loading/empty/error states, ghosts, planner, axe scans, 375–1920 px layouts   |
-| E2E real backend   | `npx playwright test -c apps/web-e2e/playwright.config.ts --project=integration` | the core flows against the real slow, flaky API                               |
-| Production build   | `npm run build`                                                                  | bundle budgets                                                                |
-| Spinner ban        | `npm run check:no-spinners`                                                      | no spinner components or classes anywhere in the app                          |
-| Production preview | `node tools/serve-dist.mjs`                                                      | boot, routing, deep-link refresh and the `/api` proxy on the built bundle     |
+| Gate               | Command                                                                          | What it enforces                                                                                                                            |
+| ------------------ | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend boots      | `npm run dev:api`                                                                | `/docs` answers 200                                                                                                                         |
+| Lint               | `npm run lint`                                                                   | eslint + prettier across api, web and web-e2e; the web app adds angular-eslint, type-aware rules and the layer boundaries (ARCHITECTURE §3) |
+| Typecheck          | `npm run typecheck`                                                              | strict TypeScript + `strictTemplates`                                                                                                       |
+| Unit / component   | `npm run test`                                                                   | the Vitest suite                                                                                                                            |
+| Coverage           | `npm run test:coverage`                                                          | **≥95%** on statements, branches, functions and lines; the run fails below it                                                               |
+| E2E deterministic  | `npx playwright test -c apps/web-e2e/playwright.config.ts --project=mocked`      | loading/empty/error states, ghosts, planner, axe scans, 375–1920 px layouts                                                                 |
+| E2E real backend   | `npx playwright test -c apps/web-e2e/playwright.config.ts --project=integration` | the core flows against the real slow, flaky API                                                                                             |
+| Production build   | `npm run build`                                                                  | bundle budgets                                                                                                                              |
+| Spinner ban        | `npm run check:no-spinners`                                                      | no spinner components or classes anywhere in the app                                                                                        |
+| Production preview | `node tools/serve-dist.mjs`                                                      | boot, routing, deep-link refresh and the `/api` proxy on the built bundle                                                                   |
 
 The provided API ships no test suite of its own; its contract is exercised end to end
 by the integration project.

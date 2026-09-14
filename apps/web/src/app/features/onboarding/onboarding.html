@@ -152,7 +152,13 @@
             @if (status() === 'error') {
               <div class="error-state">
                 <p class="error-line" role="alert" i18n>We couldn't load your profiles.</p>
-                <button matButton="filled" class="press-feedback" (click)="load()" i18n>
+                <button
+                  type="button"
+                  matButton="filled"
+                  class="press-feedback"
+                  (click)="load()"
+                  i18n
+                >
                   Try again
                 </button>
               </div>
@@ -186,6 +192,7 @@
                   A profile keeps your gardens, plans and plants together.
                 </p>
                 <button
+                  type="button"
                   matButton="filled"
                   class="press-feedback zero-cta"
                   (click)="showCreate.set(true)"

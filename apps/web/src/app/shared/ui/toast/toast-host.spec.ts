@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { APP_CONFIG, AppConfig } from '../../../core/config/app-config';
+import { APP_CONFIG, type AppConfig } from '../../../core/config/app-config';
 import { ToastStore } from '../../../core/errors/toast-store';
 import { ToastHost } from './toast-host';
 
