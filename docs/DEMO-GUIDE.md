@@ -5,11 +5,13 @@ using the **Demo Account** profile the seed creates.
 
 ## Before the demo
 
-| Run                                      | Open                  | Use it for                                                                                                                                          |
-| ---------------------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run demo`                           | http://localhost:8080 | the main demo: the production build, exactly what the container runs, with a fresh database and the demo data on every start (ready in 1–2 minutes) |
-| `npm run dev`, then `npm run seed:reset` | http://localhost:4200 | the development app, for the Web Vitals in the console (step 9)                                                                                     |
-| `npm run storybook`                      | http://localhost:6006 | step 8                                                                                                                                              |
+| Run                                           | Open                  | Use it for                                                                                                                                          |
+| --------------------------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run demo`                                | http://localhost:8080 | the main demo: the production build, exactly what the container runs, with a fresh database and the demo data on every start (ready in 1–2 minutes) |
+| `npm run dev`, then `npm run seed:reset`      | http://localhost:4200 | the development app, for the Web Vitals in the console (step 9)                                                                                     |
+| `npm run storybook`                           | http://localhost:6006 | step 8                                                                                                                                              |
+| `docs/presentation/home-garden-demo.html`     | the projector         | the slides: Part 1 the engineering, Part 2 the product (→ next, O overview, F fullscreen)                                                           |
+| `docs/presentation/home-garden-prompter.html` | the laptop            | the text to read for every slide; it follows the deck when both are open in the same browser                                                        |
 
 On the welcome screen, choose **Demo Account**. Its gardens:
 

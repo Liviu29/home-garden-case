@@ -3,14 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>HomeGarden — Frontend Architecture &amp; Product Demo</title>
+    <title>HomeGarden — Demo</title>
     <style>
       :root {
         --bg: #0f1311;
         --panel: #171e1a;
         --panel-2: #1c2520;
         --line: rgb(236 242 236 / 0.09);
-        --line-2: rgb(236 242 236 / 0.16);
+        --line-2: rgb(236 242 236 / 0.18);
         --text: #f1efe9;
         --muted: #b1b9b2;
         --dim: #848d86;
@@ -26,11 +26,9 @@
         --display: 'Sora', 'Inter', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
         --mono: 'JetBrains Mono', 'Cascadia Code', 'Consolas', ui-monospace, monospace;
       }
-
       * {
         box-sizing: border-box;
       }
-
       html,
       body {
         margin: 0;
@@ -52,3019 +50,1631 @@
         transform: translate(-50%, -50%) scale(var(--scale, 0.5));
         transform-origin: center;
       }
-
       .slide {
         position: absolute;
         inset: 0;
         display: flex;
         flex-direction: column;
-        padding: 84px 116px 104px;
+        padding: 88px 120px 110px;
         overflow: hidden;
         background:
-          radial-gradient(1100px 620px at 88% -8%, rgb(79 212 131 / 0.07), transparent 62%),
+          radial-gradient(1100px 620px at 88% -8%, rgb(79 212 131 / 0.08), transparent 62%),
           linear-gradient(180deg, #121815 0%, #0d110f 100%);
         opacity: 0;
         visibility: hidden;
-        transform: translateX(26px);
+        transform: translateX(28px);
         transition:
-          opacity 0.42s ease,
-          transform 0.42s ease,
-          visibility 0s linear 0.42s;
+          opacity 0.45s ease,
+          transform 0.45s ease,
+          visibility 0s linear 0.45s;
       }
-
       .slide.is-active {
         opacity: 1;
         visibility: visible;
         transform: none;
         transition:
-          opacity 0.42s ease,
-          transform 0.42s ease;
+          opacity 0.45s ease,
+          transform 0.45s ease;
       }
-
       .slide.is-past {
-        transform: translateX(-26px);
+        transform: translateX(-28px);
       }
-
-      /* First paint: show the opening slide at once instead of fading it in. */
       .deck.no-anim .slide {
         transition: none !important;
       }
 
+      /* ── Reveals: children rise in, one after another, when the slide arrives ── */
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(18px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @keyframes pop {
+        from {
+          opacity: 0;
+          transform: scale(0.94);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @keyframes grow {
+        from {
+          transform: scaleX(0);
+        }
+        to {
+          transform: scaleX(1);
+        }
+      }
+      @keyframes float {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-10px);
+        }
+      }
+      @keyframes pulse-ring {
+        0% {
+          box-shadow: 0 0 0 0 rgb(79 212 131 / 0.45);
+        }
+        100% {
+          box-shadow: 0 0 0 26px rgb(79 212 131 / 0);
+        }
+      }
+      .r {
+        opacity: 0;
+      }
+      .slide.is-active .r {
+        animation: rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        animation-delay: calc(0.15s + var(--i, 0) * 0.11s);
+      }
+      .slide.is-active .r.pop {
+        animation-name: pop;
+      }
+      .slide.is-active .bar-fill {
+        animation: grow 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        animation-delay: calc(0.5s + var(--i, 0) * 0.12s);
+        transform-origin: left center;
+      }
       @media (prefers-reduced-motion: reduce) {
         .slide,
         .slide.is-active {
           transition: opacity 0.15s linear;
           transform: none;
         }
+        .slide.is-active .r,
+        .slide.is-active .bar-fill,
+        .floaty {
+          animation: none !important;
+          opacity: 1;
+        }
       }
 
-      /* ── Slide chrome ───────────────────────────────────────────────────── */
-      .chrome {
-        position: absolute;
-        left: 116px;
-        right: 116px;
-        bottom: 38px;
+      /* ── Slide chrome ─────────────────────────────────────────────────────── */
+      .kicker {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        font-size: 19px;
-        color: var(--dim);
-        pointer-events: none;
-        z-index: 5;
-      }
-
-      .brandmark {
-        display: inline-flex;
-        align-items: center;
-        gap: 12px;
-        letter-spacing: 0.02em;
-      }
-
-      .brandmark svg {
-        width: 26px;
-        height: 26px;
-      }
-
-      .counter {
-        font-feature-settings: 'tnum';
-        letter-spacing: 0.08em;
-      }
-
-      .counter b {
-        color: var(--text);
-        font-weight: 600;
-      }
-
-      .progress {
-        position: absolute;
-        left: 0;
-        bottom: 0;
-        height: 5px;
-        background: linear-gradient(90deg, var(--green-2), var(--green));
-        transition: width 0.4s ease;
-        z-index: 6;
-      }
-
-      /* ── Typography ─────────────────────────────────────────────────────── */
-      .kicker {
-        margin: 0;
-        font: 600 21px/1 var(--font);
-        letter-spacing: 0.16em;
+        gap: 18px;
+        margin-bottom: 26px;
+        font-size: 22px;
+        letter-spacing: 0.14em;
         text-transform: uppercase;
         color: var(--green);
+        font-weight: 600;
       }
-
       .kicker .sid {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 12px;
+        border: 1px solid var(--line-2);
+        border-radius: 999px;
         color: var(--dim);
-        margin-right: 16px;
+        font-family: var(--mono);
+        font-size: 18px;
+        letter-spacing: 0.02em;
+        text-transform: none;
       }
-
-      h1,
-      h2,
-      h3,
-      h4 {
-        font-family: var(--display);
-        margin: 0;
+      .kicker .part {
+        margin-left: auto;
+        color: var(--dim);
+        font-weight: 500;
+        letter-spacing: 0.08em;
       }
-
       h2.title {
-        margin-top: 18px;
-        font-size: 62px;
+        margin: 0 0 18px;
+        font-family: var(--display);
+        font-size: 66px;
         line-height: 1.08;
-        font-weight: 700;
         letter-spacing: -0.02em;
+        font-weight: 700;
       }
-
-      .lead {
-        margin: 20px 0 0;
-        max-width: 1440px;
-        font-size: 29px;
+      p.lede {
+        margin: 0 0 40px;
+        max-width: 1400px;
+        font-size: 30px;
         line-height: 1.45;
         color: var(--muted);
       }
-
       .body {
         flex: 1;
         min-height: 0;
         display: flex;
-        gap: 44px;
-        margin-top: 44px;
-      }
-
-      .col {
-        display: flex;
         flex-direction: column;
-        gap: 24px;
-        min-width: 0;
       }
-
-      .grow {
-        flex: 1;
-      }
-
-      /* Vertical balance for slides with less content: centre the body block. */
-      .body.mid {
+      .foot {
+        position: absolute;
+        left: 120px;
+        right: 120px;
+        bottom: 46px;
+        display: flex;
         align-items: center;
-      }
-
-      .body.mid-col {
-        justify-content: center;
-      }
-
-      .body.mid-col > .grow {
-        flex: 0 0 auto;
-      }
-
-      /* "Roomy" slides have spare height — spend it on larger type. */
-      .roomy ul.ticks {
-        gap: 18px;
-      }
-      .roomy ul.ticks li {
-        font-size: 27px;
-      }
-      .roomy ul.ticks.tight li {
-        font-size: 25px;
-      }
-      .roomy .card {
-        padding: 34px 36px;
-      }
-      .roomy .card p {
-        font-size: 25px;
-      }
-      .roomy .card h3 {
-        font-size: 31px;
-      }
-      .roomy .note {
-        font-size: 23px;
-      }
-      .roomy table.t {
-        font-size: 25px;
-      }
-      .roomy table.t td {
-        padding: 20px 20px;
-      }
-      .roomy .bars {
-        gap: 22px;
-      }
-      .roomy .bar-row {
-        font-size: 24px;
-        grid-template-columns: 270px 1fr 210px;
-      }
-      .roomy .bar-row .track {
-        height: 20px;
-      }
-      .roomy .pill {
-        font-size: 22px;
-        padding: 12px 20px;
-      }
-      .roomy .node h4 {
-        font-size: 26px;
-      }
-      .roomy .node p {
+        justify-content: space-between;
         font-size: 20px;
+        color: var(--dim);
+      }
+      .foot b {
+        color: var(--muted);
+        font-weight: 600;
+      }
+      #progress {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        height: 6px;
+        width: 0;
+        background: linear-gradient(90deg, var(--green-2), var(--green));
+        transition: width 0.4s ease;
       }
 
+      /* ── Building blocks ──────────────────────────────────────────────────── */
       .grid {
         display: grid;
-        gap: 24px;
+        gap: 26px;
       }
-
-      .g2 {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+      .cols-2 {
+        grid-template-columns: 1fr 1fr;
       }
-
-      .g3 {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+      .cols-3 {
+        grid-template-columns: repeat(3, 1fr);
       }
-
-      .g4 {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+      .cols-4 {
+        grid-template-columns: repeat(4, 1fr);
       }
-
       .card {
+        padding: 30px 32px;
         background: var(--panel);
         border: 1px solid var(--line);
         border-radius: 22px;
-        padding: 28px 30px;
+        box-shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset;
       }
-
       .card h3 {
-        font-size: 27px;
+        margin: 0 0 10px;
+        font-family: var(--display);
+        font-size: 30px;
         font-weight: 650;
-        line-height: 1.2;
+        letter-spacing: -0.01em;
       }
-
-      .card p {
-        margin: 10px 0 0;
-        font-size: 22px;
+      .card p,
+      .card li {
+        margin: 0;
+        font-size: 24px;
         line-height: 1.45;
         color: var(--muted);
       }
-
-      .card.soft {
-        background: rgb(255 255 255 / 0.025);
+      .card ul {
+        margin: 0;
+        padding-left: 24px;
       }
-
-      .card.accent {
-        border-color: rgb(79 212 131 / 0.35);
-        background: linear-gradient(180deg, rgb(79 212 131 / 0.07), rgb(79 212 131 / 0.02));
+      .card li + li {
+        margin-top: 8px;
       }
-
-      .label {
-        font: 650 17px/1 var(--font);
-        letter-spacing: 0.14em;
+      .card .tag {
+        display: inline-block;
+        margin-bottom: 14px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
-        color: var(--dim);
-      }
-
-      .label.green {
+        background: var(--green-soft);
         color: var(--green);
       }
-      .label.blue {
+      .card .tag.blue {
+        background: var(--blue-soft);
         color: var(--blue);
       }
-      .label.amber {
+      .card .tag.amber {
+        background: var(--amber-soft);
         color: var(--amber);
       }
-
-      ul.ticks {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        display: grid;
-        gap: 14px;
+      code,
+      .mono {
+        font-family: var(--mono);
+        font-size: 0.92em;
+        color: var(--blue);
       }
-
-      ul.ticks li {
-        position: relative;
-        padding-left: 34px;
-        font-size: 23px;
-        line-height: 1.4;
-        color: var(--muted);
-      }
-
-      ul.ticks li::before {
-        content: '';
-        position: absolute;
-        left: 2px;
-        top: 0.42em;
-        width: 13px;
-        height: 13px;
-        border-radius: 4px;
-        background: var(--green-soft);
-        border: 2px solid var(--green);
-      }
-
-      ul.ticks li b,
-      .card p b,
-      .lead b {
-        color: var(--text);
-        font-weight: 600;
-      }
-
-      ul.ticks.tight {
-        gap: 9px;
-      }
-
-      ul.ticks.tight li {
-        font-size: 21px;
-      }
-
-      .pills {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-      }
-
       .pill {
         display: inline-flex;
         align-items: center;
         gap: 10px;
         padding: 10px 18px;
-        border-radius: 999px;
         border: 1px solid var(--line-2);
-        background: rgb(255 255 255 / 0.03);
-        font-size: 20px;
-        color: var(--text);
-        white-space: nowrap;
-      }
-
-      .pill .dot {
-        width: 9px;
-        height: 9px;
-        border-radius: 50%;
-        background: var(--green);
-      }
-
-      .pill.amber .dot {
-        background: var(--amber);
-      }
-      .pill.blue .dot {
-        background: var(--blue);
-      }
-
-      .mono {
-        font-family: var(--mono);
-      }
-
-      .tnum {
-        font-feature-settings: 'tnum';
-      }
-
-      .note {
-        font-size: 20px;
-        line-height: 1.45;
-        color: var(--dim);
-      }
-
-      .note b {
+        border-radius: 999px;
+        font-size: 22px;
         color: var(--muted);
+        background: rgb(255 255 255 / 0.02);
+      }
+      .pill b {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
       }
 
-      /* ── Screenshots ────────────────────────────────────────────────────── */
+      /* Big numbers */
+      .stat {
+        padding: 34px 36px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+      }
+      .stat .n {
+        font-family: var(--display);
+        font-size: 92px;
+        line-height: 1;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        color: var(--green);
+        font-variant-numeric: tabular-nums;
+      }
+      .stat .n small {
+        font-size: 40px;
+        color: var(--muted);
+        margin-left: 6px;
+        letter-spacing: 0;
+      }
+      .stat .l {
+        margin-top: 10px;
+        font-size: 24px;
+        color: var(--muted);
+        line-height: 1.35;
+      }
+      .stat.blue .n {
+        color: var(--blue);
+      }
+      .stat.amber .n {
+        color: var(--amber);
+      }
+      .bar {
+        margin-top: 18px;
+        height: 12px;
+        border-radius: 999px;
+        background: rgb(255 255 255 / 0.08);
+        overflow: hidden;
+      }
+      .bar-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--green-2), var(--green));
+      }
+      .bar-fill.amber {
+        background: linear-gradient(90deg, #b45309, var(--amber));
+      }
+
+      /* Screenshots */
       .shot {
         position: relative;
-        margin: 0;
-        border-radius: 16px;
+        border-radius: 22px;
         overflow: hidden;
         border: 1px solid var(--line-2);
-        background: #f6f5f1;
-        box-shadow:
-          0 28px 70px rgb(0 0 0 / 0.45),
-          0 2px 0 rgb(255 255 255 / 0.04) inset;
+        background: #000;
+        box-shadow: 0 30px 80px rgb(0 0 0 / 0.5);
       }
-
       .shot img {
         display: block;
         width: 100%;
         height: 100%;
         object-fit: cover;
-        object-position: top left;
+        object-position: top;
       }
-
-      .shot.contain img {
-        object-fit: contain;
-      }
-
-      .shot figcaption {
+      .shot .cap {
         position: absolute;
-        left: 14px;
-        bottom: 14px;
-        padding: 7px 14px;
-        border-radius: 999px;
-        background: rgb(15 19 17 / 0.82);
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 14px 20px;
+        font-size: 20px;
         color: var(--text);
-        font-size: 17px;
-        font-weight: 600;
-        letter-spacing: 0.02em;
-        backdrop-filter: blur(6px);
+        background: linear-gradient(180deg, transparent, rgb(0 0 0 / 0.78));
       }
-
-      .shot figcaption.amber {
-        color: var(--amber);
-      }
-
-      .shot figcaption.green {
-        color: var(--green);
-      }
-
-      /* ── Diagrams ───────────────────────────────────────────────────────── */
-      .tiers {
-        display: flex;
-        flex-direction: column;
-        gap: 0;
-      }
-
-      .tier {
-        display: grid;
-        grid-template-columns: 210px minmax(0, 1fr);
-        align-items: center;
-        gap: 20px;
-        padding: 16px 22px;
-        border-radius: 18px;
-        border: 1px solid var(--line);
-        background: var(--panel);
-      }
-
-      .tier .label {
-        line-height: 1.25;
-      }
-
-      .tier.hi {
-        border-color: rgb(79 212 131 / 0.35);
-        background: linear-gradient(90deg, rgb(79 212 131 / 0.08), var(--panel) 60%);
-      }
-
-      .tier.ext {
-        background: rgb(255 255 255 / 0.02);
-        border-style: dashed;
-      }
-
-      .chips {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-      }
-
-      .chip {
-        padding: 9px 15px;
-        border-radius: 12px;
-        background: var(--panel-2);
-        border: 1px solid var(--line);
-        font-size: 19px;
-        color: var(--text);
-        white-space: nowrap;
-      }
-
-      .chip small {
-        color: var(--dim);
-        font-size: 16px;
-        margin-left: 6px;
-      }
-
-      .chip.g {
-        border-color: rgb(79 212 131 / 0.4);
-      }
-
-      .down {
-        display: grid;
-        place-items: center;
-        height: 26px;
-        color: var(--dim);
-      }
-
-      .down svg {
-        width: 22px;
-        height: 22px;
-      }
-
       .split {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
-      }
-
-      .flow {
-        display: flex;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 40px;
         align-items: stretch;
-        gap: 0;
-      }
-
-      .node {
+        min-height: 0;
         flex: 1;
-        min-width: 0;
-        padding: 20px 20px;
-        border-radius: 18px;
-        border: 1px solid var(--line-2);
-        background: var(--panel);
       }
-
-      .node h4 {
-        font-size: 23px;
-        font-weight: 650;
+      .split .shot {
+        height: 100%;
+        max-height: 700px;
       }
-
-      .node p {
-        margin: 8px 0 0;
-        font-size: 18px;
-        line-height: 1.4;
-        color: var(--muted);
-      }
-
-      .node.hi {
-        border-color: rgb(79 212 131 / 0.45);
-        background: linear-gradient(180deg, rgb(79 212 131 / 0.1), var(--panel));
-      }
-
-      .node.blue {
-        border-color: rgb(140 202 247 / 0.4);
-      }
-
-      .node.amber {
-        border-color: rgb(242 184 75 / 0.45);
-      }
-
-      .arrow {
-        flex: 0 0 44px;
-        display: grid;
-        place-items: center;
-        color: var(--green);
-      }
-
-      .arrow svg {
-        width: 30px;
-        height: 30px;
-      }
-
-      table.t {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-        font-size: 21px;
-      }
-
-      table.t th {
-        text-align: left;
-        font: 650 16px/1 var(--font);
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: var(--dim);
-        padding: 0 18px 14px;
-        border-bottom: 1px solid var(--line-2);
-      }
-
-      table.t td {
-        padding: 15px 18px;
-        border-bottom: 1px solid var(--line);
-        color: var(--muted);
-        vertical-align: top;
-        line-height: 1.35;
-      }
-
-      table.t td:first-child {
-        color: var(--text);
-        font-weight: 600;
-      }
-
-      table.t tr:last-child td {
-        border-bottom: 0;
-      }
-
-      table.t .win {
-        color: var(--green);
-      }
-
-      table.t .num {
-        text-align: right;
-        font-feature-settings: 'tnum';
-      }
-
-      .code {
-        font: 500 30px/1.5 var(--mono);
-        padding: 26px 32px;
-        border-radius: 18px;
-        background: #0a0e0c;
-        border: 1px solid var(--line-2);
-        color: var(--text);
-      }
-
-      .code .k {
-        color: var(--blue);
-      }
-      .code .g {
-        color: var(--green);
-      }
-      .code .a {
-        color: var(--amber);
-      }
-      .code .c {
-        color: var(--dim);
-      }
-
-      .icon {
-        width: 56px;
-        height: 56px;
-        border-radius: 16px;
-        display: grid;
-        place-items: center;
-        background: var(--green-soft);
-        color: var(--green);
-        margin-bottom: 18px;
-      }
-
-      .icon svg {
-        width: 30px;
-        height: 30px;
-      }
-
-      .stat {
-        font: 700 64px/1 var(--display);
-        letter-spacing: -0.02em;
-      }
-
-      .stat.amber {
-        color: var(--amber);
-      }
-
-      .stat.red {
-        color: var(--red);
-      }
-
-      .stat-sub {
-        margin-top: 12px;
-        font-size: 22px;
-        line-height: 1.4;
-        color: var(--muted);
-      }
-
-      /* ── Specific slides ────────────────────────────────────────────────── */
-      .title-slide {
-        padding: 0;
-      }
-
-      .title-slide .bg {
-        position: absolute;
-        inset: 0;
-        background:
-          linear-gradient(
-            90deg,
-            #0d110f 0%,
-            rgb(13 17 15 / 0.96) 38%,
-            rgb(13 17 15 / 0.55) 68%,
-            rgb(13 17 15 / 0.25) 100%
-          ),
-          linear-gradient(0deg, #0d110f 0%, transparent 40%),
-          url('../../apps/web/public/images/garden-backdrop-1600.webp') center 58% / cover no-repeat;
-      }
-
-      .title-slide .inner {
-        position: relative;
-        padding: 170px 140px 0;
+      .points {
         display: flex;
         flex-direction: column;
-        gap: 0;
-        height: 100%;
+        gap: 16px;
       }
-
-      .logo {
-        width: 88px;
-        height: 88px;
-        border-radius: 24px;
+      .point {
         display: grid;
-        place-items: center;
-        background: linear-gradient(145deg, #22c55e, #15803d);
-        color: #fff;
-        box-shadow: 0 18px 50px rgb(22 163 74 / 0.35);
-      }
-
-      .logo svg {
-        width: 48px;
-        height: 48px;
-      }
-
-      .title-slide h1 {
-        margin-top: 44px;
-        font-size: 128px;
-        line-height: 1;
-        letter-spacing: -0.035em;
-      }
-
-      .title-slide .sub {
-        margin-top: 26px;
-        font: 600 40px/1.2 var(--display);
-        color: var(--text);
-      }
-
-      .title-slide .tag {
-        margin-top: 18px;
-        font-size: 28px;
-        color: var(--muted);
-      }
-
-      .title-slide .pills {
-        margin-top: 64px;
-      }
-
-      .pyramid {
-        display: grid;
-        gap: 12px;
-        justify-items: center;
-      }
-
-      .pyramid .lvl {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 24px;
-        padding: 20px 34px;
-        border-radius: 16px;
-        border: 1px solid var(--line-2);
+        grid-template-columns: 54px 1fr;
+        gap: 18px;
+        align-items: start;
+        padding: 18px 22px;
         background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 18px;
       }
-
-      .pyramid .lvl h4 {
-        font-size: 24px;
-      }
-
-      .pyramid .lvl p {
-        margin: 6px 0 0;
-        font-size: 18px;
-        color: var(--muted);
-      }
-
-      .pyramid .lvl .n {
-        font: 700 40px/1 var(--display);
-        color: var(--green);
-        white-space: nowrap;
-      }
-
-      .bars {
-        display: grid;
-        gap: 13px;
-      }
-
-      .bar-row {
-        display: grid;
-        grid-template-columns: 230px 1fr 180px;
-        align-items: center;
-        gap: 16px;
-        font-size: 20px;
-      }
-
-      .bar-row .name {
-        color: var(--text);
-      }
-
-      .bar-row .track {
-        height: 16px;
-        border-radius: 999px;
-        background: rgb(255 255 255 / 0.05);
-        overflow: hidden;
-      }
-
-      .bar-row .fill {
-        height: 100%;
-        border-radius: 999px;
-        background: linear-gradient(90deg, var(--green-2), var(--green));
-      }
-
-      .bar-row .fill.dim {
-        background: linear-gradient(90deg, #3a4a40, #5d7466);
-      }
-
-      .bar-row .v {
-        text-align: right;
-        color: var(--muted);
-        font-feature-settings: 'tnum';
-      }
-
-      .steps {
-        counter-reset: s;
-        display: grid;
-        gap: 12px;
-      }
-
-      .steps li {
-        counter-increment: s;
-        list-style: none;
-        display: grid;
-        grid-template-columns: 48px 1fr;
-        align-items: center;
-        gap: 16px;
-        font-size: 23px;
-        color: var(--muted);
-      }
-
-      .steps li::before {
-        content: counter(s, decimal-leading-zero);
+      .point .ic {
+        width: 54px;
+        height: 54px;
         display: grid;
         place-items: center;
-        width: 48px;
-        height: 48px;
         border-radius: 14px;
         background: var(--green-soft);
         color: var(--green);
-        font: 700 19px/1 var(--display);
+        font-size: 26px;
+        font-weight: 700;
+      }
+      .point b {
+        display: block;
+        font-size: 25px;
+        margin-bottom: 4px;
+      }
+      .point span {
+        font-size: 21px;
+        color: var(--muted);
+        line-height: 1.4;
       }
 
-      .steps li b {
-        color: var(--text);
-        font-weight: 600;
+      /* Architecture layers */
+      .layers {
+        display: grid;
+        gap: 14px;
+        max-width: 1160px;
       }
-
-      .appendix-tag {
-        position: absolute;
-        top: 40px;
-        right: 116px;
-        padding: 8px 16px;
-        border-radius: 999px;
-        border: 1px solid rgb(140 202 247 / 0.4);
-        color: var(--blue);
-        font-size: 17px;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-      }
-
-      /* ── On-screen controls & overlays (outside the canvas) ─────────────── */
-      /* Bottom-centre, clear of the slide counter; fades out while presenting. */
-      .controls {
-        position: fixed;
-        left: 50%;
-        bottom: 14px;
-        transform: translateX(-50%);
-        display: flex;
-        gap: 8px;
-        z-index: 20;
-        opacity: 0.55;
-        transition: opacity 0.25s ease;
-      }
-
-      .controls.idle {
-        opacity: 0;
-      }
-
-      .controls:hover,
-      .controls:focus-within {
-        opacity: 1;
-      }
-
-      .controls button,
-      .overlay button {
-        font: 600 14px/1 var(--font);
-        color: var(--text);
-        background: rgb(23 30 26 / 0.92);
+      .layer {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 24px;
+        align-items: center;
+        padding: 20px 28px;
         border: 1px solid var(--line-2);
-        border-radius: 10px;
-        padding: 9px 12px;
-        cursor: pointer;
+        border-radius: 18px;
+        background: var(--panel);
+      }
+      .layer b {
+        font-family: var(--display);
+        font-size: 28px;
+      }
+      .layer span {
+        font-size: 22px;
+        color: var(--muted);
+      }
+      .layer.hi {
+        border-color: rgb(79 212 131 / 0.45);
+        background: linear-gradient(90deg, var(--green-soft), var(--panel) 60%);
+      }
+      .arrow-down {
+        text-align: center;
+        color: var(--green);
+        font-size: 26px;
+        line-height: 1;
       }
 
-      .controls button:focus-visible,
-      .overlay button:focus-visible,
-      .overview a:focus-visible {
-        outline: 2px solid var(--green);
-        outline-offset: 2px;
+      /* Title + dividers */
+      .title-slide,
+      .divider {
+        justify-content: center;
+        align-items: flex-start;
+      }
+      .title-slide h1,
+      .divider h1 {
+        margin: 0 0 22px;
+        font-family: var(--display);
+        font-size: 128px;
+        line-height: 1;
+        letter-spacing: -0.035em;
+        font-weight: 800;
+      }
+      .title-slide h1 em,
+      .divider h1 em {
+        font-style: normal;
+        color: var(--green);
+      }
+      .title-slide .sub,
+      .divider .sub {
+        font-size: 40px;
+        color: var(--muted);
+        max-width: 1300px;
+        line-height: 1.35;
+      }
+      .title-slide .meta {
+        margin-top: 60px;
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .leaf {
+        position: absolute;
+        right: 140px;
+        top: 160px;
+        width: 420px;
+        height: 420px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(circle at 35% 30%, #1f3d2b, #121815 70%);
+        border: 1px solid var(--line-2);
+        animation: float 6s ease-in-out infinite;
+      }
+      .leaf svg {
+        width: 240px;
+        height: 240px;
+      }
+      .divider .num {
+        font-family: var(--mono);
+        font-size: 26px;
+        color: var(--dim);
+        letter-spacing: 0.2em;
+        margin-bottom: 30px;
       }
 
+      /* Stack cards */
+      .stack {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 22px;
+      }
+      .tech {
+        padding: 24px 26px;
+        border-radius: 20px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+      }
+      .tech b {
+        display: block;
+        font-family: var(--display);
+        font-size: 28px;
+        margin-bottom: 4px;
+      }
+      .tech .v {
+        font-family: var(--mono);
+        font-size: 18px;
+        color: var(--green);
+      }
+      .tech p {
+        margin: 10px 0 0;
+        font-size: 20px;
+        line-height: 1.4;
+        color: var(--muted);
+      }
+
+      /* Overlays */
       .overlay {
         position: fixed;
         inset: 0;
-        z-index: 30;
+        z-index: 50;
         display: grid;
         place-items: center;
-        background: rgb(5 7 6 / 0.78);
-        backdrop-filter: blur(4px);
+        background: rgb(7 9 8 / 0.86);
+        backdrop-filter: blur(8px);
       }
-
       .overlay[hidden] {
         display: none;
       }
-
-      .panel-box {
-        width: min(760px, 92vw);
+      .panel {
+        width: min(1100px, 92vw);
         max-height: 86vh;
         overflow: auto;
-        padding: 30px 34px;
+        padding: 28px 32px;
+        background: var(--panel);
+        border: 1px solid var(--line-2);
         border-radius: 18px;
-        background: #131915;
-        border: 1px solid var(--line-2);
-        box-shadow: 0 30px 80px rgb(0 0 0 / 0.55);
+        font-size: 17px;
       }
-
-      .panel-box h2 {
-        font-size: 26px;
-        margin-bottom: 16px;
+      .panel h3 {
+        margin: 0 0 14px;
+        font-family: var(--display);
       }
-
-      .keys {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        gap: 10px 22px;
-        font-size: 16px;
-        color: var(--muted);
-      }
-
-      kbd {
-        display: inline-block;
-        min-width: 28px;
-        padding: 4px 8px;
-        border-radius: 7px;
-        border: 1px solid var(--line-2);
-        background: #1b231e;
-        color: var(--text);
-        font: 600 13px/1.2 var(--mono);
-        text-align: center;
-      }
-
-      .overview {
-        width: min(1180px, 94vw);
-      }
-
-      .overview ol {
-        list-style: none;
+      .panel ol {
+        columns: 2;
+        column-gap: 40px;
+        padding-left: 24px;
         margin: 0;
-        padding: 0;
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 8px;
       }
-
-      .overview a {
-        display: flex;
-        gap: 12px;
-        padding: 11px 14px;
-        border-radius: 10px;
-        border: 1px solid var(--line);
-        color: var(--muted);
-        text-decoration: none;
-        font-size: 15px;
+      .panel li {
+        padding: 5px 0;
+        break-inside: avoid;
       }
-
-      .overview a b {
-        color: var(--green);
-        min-width: 34px;
-      }
-
-      .overview a.is-current {
-        border-color: var(--green);
+      .panel a {
         color: var(--text);
+        text-decoration: none;
       }
-
-      .overview h3 {
+      .panel a.is-current {
+        color: var(--green);
+        font-weight: 600;
+      }
+      .panel kbd {
+        display: inline-block;
+        min-width: 30px;
+        padding: 2px 8px;
+        border: 1px solid var(--line-2);
+        border-bottom-width: 3px;
+        border-radius: 6px;
+        font-family: var(--mono);
+        font-size: 14px;
+        text-align: center;
+        margin-right: 6px;
+      }
+      .panel button {
+        margin-top: 18px;
+        padding: 8px 16px;
+        border-radius: 999px;
+        border: 1px solid var(--line-2);
+        background: transparent;
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+      }
+      .hud {
+        position: fixed;
+        right: 18px;
+        bottom: 14px;
+        z-index: 40;
+        display: flex;
+        gap: 8px;
+        opacity: 0.35;
+        transition: opacity 0.2s;
+      }
+      .hud:hover {
+        opacity: 1;
+      }
+      .hud button {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        border: 1px solid var(--line-2);
+        background: rgb(23 30 26 / 0.9);
+        color: var(--text);
+        font: inherit;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      #counter {
+        position: fixed;
+        left: 22px;
+        bottom: 18px;
+        z-index: 40;
+        font-family: var(--mono);
         font-size: 15px;
         color: var(--dim);
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        margin: 18px 0 10px;
-        font-family: var(--font);
       }
-
-      /* ── Print / PDF: one slide per page ────────────────────────────────── */
-      @page {
-        size: 1920px 1080px;
-        margin: 0;
-      }
-
-      @media print {
-        html,
-        body {
-          overflow: visible;
-          height: auto;
-          background: #0d110f;
-        }
-
-        .deck {
-          position: static;
-          transform: none;
-          width: 1920px;
-          height: auto;
-        }
-
-        .slide {
-          position: relative;
-          inset: auto;
-          width: 1920px;
-          height: 1080px;
-          opacity: 1;
-          visibility: visible;
-          transform: none;
-          transition: none;
-          break-after: page;
-          page-break-after: always;
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
-        }
-
-        .controls,
-        .overlay,
-        .progress,
-        .deck > .chrome {
-          display: none !important;
-        }
+      #counter b {
+        color: var(--muted);
       }
     </style>
   </head>
   <body>
-    <svg width="0" height="0" style="position: absolute" aria-hidden="true" focusable="false">
-      <defs>
-        <symbol id="i-sprout" viewBox="0 0 24 24">
-          <path
-            d="M12 21V11M12 13c0-5-4-7-8-6.5.3 4.8 3.7 7.1 8 6.5Zm0-2c0-5 3.6-7 8-6.5-.4 4.8-3.7 7-8 6.5Z"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.9"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </symbol>
-        <symbol id="i-user" viewBox="0 0 24 24">
-          <g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
-            <circle cx="12" cy="8" r="4" />
-            <path d="M4 20c.6-3.6 3.8-6 8-6s7.4 2.4 8 6" />
-          </g>
-        </symbol>
-        <symbol id="i-dash" viewBox="0 0 24 24">
-          <g fill="none" stroke="currentColor" stroke-width="1.9">
-            <rect x="3" y="3" width="8" height="8" rx="2" />
-            <rect x="13" y="3" width="8" height="5" rx="2" />
-            <rect x="13" y="10" width="8" height="11" rx="2" />
-            <rect x="3" y="13" width="8" height="8" rx="2" />
-          </g>
-        </symbol>
-        <symbol id="i-garden" viewBox="0 0 24 24">
-          <g fill="none" stroke="currentColor" stroke-width="1.9">
-            <rect x="3" y="5" width="18" height="14" rx="2.5" />
-            <path d="M3 12h18M12 5v14" />
-          </g>
-        </symbol>
-        <symbol id="i-map" viewBox="0 0 24 24">
-          <path
-            d="m9 4-6 2.2v13.6L9 17.6l6 2.2 6-2.2V4.2L15 6.4 9 4Zm0 0v13.6m6-11.2v13.4"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.9"
-            stroke-linejoin="round"
-          />
-        </symbol>
-        <symbol id="i-ghost" viewBox="0 0 24 24">
-          <g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
-            <rect x="3" y="4" width="18" height="5" rx="2.5" />
-            <path d="M4 14h10M4 19h14" />
-          </g>
-        </symbol>
-        <symbol id="i-shield" viewBox="0 0 24 24">
-          <path
-            d="M12 3 20 6v6c0 4.8-3.4 7.9-8 9-4.6-1.1-8-4.2-8-9V6l8-3Zm-3.3 9.2 2.4 2.4 4.4-4.6"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.9"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </symbol>
-        <symbol id="i-access" viewBox="0 0 24 24">
-          <g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
-            <circle cx="12" cy="4.6" r="1.7" />
-            <path d="M5 8.6 12 10l7-1.4M12 10v4.6M8.8 21l3.2-6.4 3.2 6.4" />
-          </g>
-        </symbol>
-        <symbol id="i-down" viewBox="0 0 24 24">
-          <path
-            d="M12 4v15m-6-6 6 6 6-6"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </symbol>
-        <symbol id="i-right" viewBox="0 0 24 24">
-          <path
-            d="M4 12h15m-6-6 6 6-6 6"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </symbol>
-      </defs>
-    </svg>
+    <div class="deck no-anim" id="deck">
+      <!-- ═══════════════════ PART 1 · THE ENGINEERING ═══════════════════ -->
 
-    <main class="deck" id="deck" aria-live="polite">
-      <!-- ═════════════════════════ S01 ═════════════════════════ -->
+      <!-- S01 -->
       <section class="slide title-slide" id="S01" data-title="HomeGarden" data-est="30">
-        <div class="bg" aria-hidden="true"></div>
-        <div class="inner">
-          <div class="logo" aria-hidden="true">
-            <svg><use href="#i-sprout" /></svg>
-          </div>
-          <h1>HomeGarden</h1>
-          <p class="sub">Angular 22 · Frontend Architecture &amp; Product Demo</p>
-          <p class="tag">Lead / Principal Frontend Engineering Case</p>
-          <div class="pills">
-            <span class="pill"><span class="dot"></span>Angular 22.1 · zoneless</span>
-            <span class="pill"><span class="dot"></span>NgRx SignalStore</span>
-            <span class="pill"><span class="dot"></span>Nx monorepo</span>
-            <span class="pill"><span class="dot"></span>Vitest · Playwright</span>
-          </div>
+        <div class="leaf floaty" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#4fd483"
+            stroke-width="1.4"
+            stroke-linecap="round"
+          >
+            <path
+              d="M12 21 V11 M12 13 C12 8 8 6.5 4.5 7 C5 11.5 8.5 13.6 12 13 Z M12 11 C12 6.5 15.5 4.5 19.5 5 C19 10 15.5 12 12 11 Z"
+            />
+          </svg>
+        </div>
+        <div class="kicker r" style="--i: 0">In The Pocket · Home Garden case</div>
+        <h1 class="r" style="--i: 1">Home<em>Garden</em></h1>
+        <p class="sub r" style="--i: 2">
+          An Angular 22 product on a deliberately slow, deliberately flaky API — built like it
+          ships.
+        </p>
+        <div class="meta">
+          <span class="pill r" style="--i: 3"><b>Part 1</b> the engineering</span>
+          <span class="pill r" style="--i: 4"><b>Part 2</b> the product</span>
+          <span class="pill r" style="--i: 5"><b>Live</b> the demo</span>
+        </div>
+        <div class="foot">
+          <span>Liviu Nita</span><span>Frontend architecture &amp; product demo</span>
         </div>
       </section>
 
-      <!-- ═════════════════════════ S02 ═════════════════════════ -->
-      <section class="slide roomy" id="S02" data-title="The Challenge" data-est="40">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">A simple domain on a hostile backend</h2>
-        </header>
-        <div class="body mid">
-          <div class="col" style="flex: 0 0 760px">
-            <div class="card">
-              <span class="label green">The brief</span>
-              <ul class="ticks" style="margin-top: 20px">
-                <li>Users manage their <b>gardens</b> and <b>plants</b> — full CRUD</li>
-                <li>One business rule: <b>Σ plant surface ≤ garden surface</b></li>
-                <li>Humidity targets per garden, ideal humidity per plant</li>
-                <li>Production-quality frontend thinking, not a demo</li>
-              </ul>
-            </div>
-            <p class="note">
-              The provided API is Fastify + SQLite with Swagger docs and a Bruno collection.
-            </p>
-          </div>
-          <div class="col grow">
-            <span class="label amber">The twist — on purpose</span>
-            <div class="grid g3">
-              <div class="card">
-                <div class="stat amber tnum">0.2–2 s</div>
-                <p class="stat-sub">added latency on <b>every</b> request</p>
-              </div>
-              <div class="card">
-                <div class="stat amber tnum">10%</div>
-                <p class="stat-sub">of requests fail with a random <b>500</b></p>
-              </div>
-              <div class="card">
-                <div class="stat red tnum">≈27%</div>
-                <p class="stat-sub">of 3-request screens fail with no strategy</p>
-              </div>
-            </div>
-            <div class="card accent">
-              <h3>The real brief</h3>
-              <p>
-                Make an unreliable backend feel calm and trustworthy —
-                <b>without ever lying about the data</b>.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═════════════════════════ S03 ═════════════════════════ -->
-      <section class="slide roomy" id="S03" data-title="What I Built" data-est="40">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">A complete product, not a CRUD screen</h2>
-        </header>
-        <div class="body mid">
-          <div class="grid g4 grow" style="align-content: start">
-            <div class="card">
-              <div class="icon">
-                <svg><use href="#i-user" /></svg>
-              </div>
-              <h3>Profiles</h3>
-              <p>Select or create; duplicate e-mail recovery; edit, switch, sign out, delete.</p>
-            </div>
-            <div class="card">
-              <div class="icon">
-                <svg><use href="#i-dash" /></svg>
-              </div>
-              <h3>Dashboard</h3>
-              <p>Control center: KPIs, attention list by severity, garden health.</p>
-            </div>
-            <div class="card">
-              <div class="icon">
-                <svg><use href="#i-garden" /></svg>
-              </div>
-              <h3>Gardens</h3>
-              <p>Search, sort, create with presets, edit, delete with confirmation.</p>
-            </div>
-            <div class="card">
-              <div class="icon">
-                <svg><use href="#i-sprout" /></svg>
-              </div>
-              <h3>Plants</h3>
-              <p>27-plant catalog ranked for the garden; live capacity meter; custom plants.</p>
-            </div>
-            <div class="card accent">
-              <div class="icon">
-                <svg><use href="#i-map" /></svg>
-              </div>
-              <h3>Garden Planner</h3>
-              <p>Area-honest visual twin: arrange, inspect, zones, timeline.</p>
-            </div>
-            <div class="card">
-              <div class="icon">
-                <svg><use href="#i-ghost" /></svg>
-              </div>
-              <h3>Async UX</h3>
-              <p>Skeleton-first loading, mutation ghosts, zero spinners.</p>
-            </div>
-            <div class="card">
-              <div class="icon">
-                <svg><use href="#i-shield" /></svg>
-              </div>
-              <h3>Resilience</h3>
-              <p>Jittered retry, SWR cache, request dedup, race guards.</p>
-            </div>
-            <div class="card">
-              <div class="icon">
-                <svg><use href="#i-access" /></svg>
-              </div>
-              <h3>Inclusive</h3>
-              <p>WCAG 2.2 AA target, keyboard planner, 375 px phones, dark theme.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═════════════════════════ S04 ═════════════════════════ -->
-      <section class="slide roomy" id="S04" data-title="Technology Stack" data-est="35">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">Every dependency had to earn its place</h2>
-        </header>
-        <div class="body mid-col" style="flex-direction: column; gap: 28px">
-          <div class="grid g3">
-            <div class="card">
-              <span class="label green">Framework</span>
-              <ul class="ticks tight" style="margin-top: 16px">
-                <li><b>Angular 22.1</b> — standalone, zoneless, OnPush</li>
-                <li><b>TypeScript 6.0</b> app · 5.9 tooling</li>
-              </ul>
-            </div>
-            <div class="card">
-              <span class="label green">State</span>
-              <ul class="ticks tight" style="margin-top: 16px">
-                <li><b>Signals</b> + <b>NgRx SignalStore 22</b></li>
-                <li><b>RxJS 7.8</b> — HTTP retry, one fan-out</li>
-              </ul>
-            </div>
-            <div class="card">
-              <span class="label green">UI</span>
-              <ul class="ticks tight" style="margin-top: 16px">
-                <li><b>Angular Material 22</b> (M3) + CDK</li>
-                <li>SCSS design tokens · self-hosted fonts</li>
-              </ul>
-            </div>
-            <div class="card">
-              <span class="label green">Testing</span>
-              <ul class="ticks tight" style="margin-top: 16px">
-                <li><b>Vitest 4</b> + jsdom (unit &amp; component)</li>
-                <li><b>Playwright 1.63</b> + axe-core</li>
-              </ul>
-            </div>
-            <div class="card">
-              <span class="label green">Tooling</span>
-              <ul class="ticks tight" style="margin-top: 16px">
-                <li><b>Nx 22</b> monorepo · ESLint 9 · Prettier</li>
-                <li>GitHub Actions: lint · typecheck · tests · build · Playwright</li>
-              </ul>
-            </div>
-            <div class="card">
-              <span class="label green">Backend integration</span>
-              <ul class="ticks tight" style="margin-top: 16px">
-                <li>Provided <b>Fastify 5</b> · zod · Kysely/SQLite</li>
-                <li>Swagger / OpenAPI · Bruno (16 requests)</li>
-              </ul>
-            </div>
-          </div>
-          <div class="card soft" style="display: flex; align-items: center; gap: 22px">
-            <span class="label amber" style="white-space: nowrap">Deliberately absent</span>
-            <div class="pills">
-              <span class="pill amber"><span class="dot"></span>no extra state library</span>
-              <span class="pill amber"><span class="dot"></span>no query library</span>
-              <span class="pill amber"><span class="dot"></span>no canvas / WebGL engine</span>
-              <span class="pill amber"><span class="dot"></span>no chart library</span>
-              <span class="pill amber"><span class="dot"></span>no CDN assets</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═════════════════════════ S05 ═════════════════════════ -->
-      <section class="slide" id="S05" data-title="Architecture" data-est="70">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">Dependencies only point down</h2>
-        </header>
-        <div class="body" style="margin-top: 34px; gap: 36px">
-          <div class="tiers grow">
-            <div class="tier">
-              <span class="label">Routes &amp; Shell</span>
-              <div class="chips">
-                <span class="chip">lazy routes</span><span class="chip">canMatch session guard</span
-                ><span class="chip">route params → inputs</span
-                ><span class="chip">Shell layout</span>
-              </div>
-            </div>
-            <div class="down">
-              <svg><use href="#i-down" /></svg>
-            </div>
-            <div class="tier">
-              <span class="label">Features</span>
-              <div class="chips">
-                <span class="chip">Welcome</span><span class="chip">Dashboard</span
-                ><span class="chip">Gardens</span><span class="chip g">Garden Detail + Planner</span
-                ><span class="chip">Profile</span>
-              </div>
-            </div>
-            <div class="down">
-              <svg><use href="#i-down" /></svg>
-            </div>
-            <div class="tier hi">
-              <span class="label green">State<br />SignalStore</span>
-              <div class="chips">
-                <span class="chip">GardensStore</span
-                ><span class="chip g">PlantsIndexStore <small>single plant owner</small></span
-                ><span class="chip">GardenDetailStore <small>per page</small></span
-                ><span class="chip">Session · Theme · Toast</span>
-              </div>
-            </div>
-            <div class="down">
-              <svg><use href="#i-down" /></svg>
-            </div>
-            <div class="split">
-              <div class="tier" style="grid-template-columns: 1fr">
-                <span class="label">Domain · pure TypeScript</span>
-                <div class="chips">
-                  <span class="chip g">capacity rule</span><span class="chip">treemap layout</span
-                  ><span class="chip">planner logic</span><span class="chip">recommendations</span>
-                </div>
-              </div>
-              <div class="tier" style="grid-template-columns: 1fr">
-                <span class="label">Data access</span>
-                <div class="chips">
-                  <span class="chip">Gardens · Plants · Users API</span
-                  ><span class="chip g">QueryCache <small>SWR · dedup</small></span>
-                </div>
-              </div>
-            </div>
-            <div class="down">
-              <svg><use href="#i-down" /></svg>
-            </div>
-            <div class="tier">
-              <span class="label">HTTP</span>
-              <div class="chips">
-                <span class="chip">withFetch</span><span class="chip">base-URL interceptor</span
-                ><span class="chip g">retry · full jitter</span
-                ><span class="chip">ApiError taxonomy</span>
-              </div>
-            </div>
-            <div class="down">
-              <svg><use href="#i-down" /></svg>
-            </div>
-            <div class="tier ext">
-              <span class="label amber">Backend</span>
-              <div class="chips">
-                <span class="chip">Fastify API <small>slow + flaky by design</small></span>
-              </div>
-            </div>
-          </div>
-          <div class="col" style="flex: 0 0 440px">
-            <div class="card">
-              <span class="label">Cross-cutting</span>
-              <ul class="ticks tight" style="margin-top: 16px">
-                <li>Design tokens · light &amp; dark</li>
-                <li>One skeleton engine</li>
-                <li>Shared UI primitives</li>
-                <li>Global error handler + toasts</li>
-              </ul>
-            </div>
-            <div class="card accent">
-              <h3>Three rules</h3>
-              <ul class="ticks tight" style="margin-top: 14px">
-                <li>Components read signals, call intents</li>
-                <li>Domain imports no Angular</li>
-                <li>The renderer never owns business state</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═════════════════════════ S06 ═════════════════════════ -->
-      <section class="slide" id="S06" data-title="Project Structure" data-est="35">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">Boundaries you can see in the tree</h2>
-        </header>
+      <!-- S02 -->
+      <section class="slide" id="S02" data-title="The Brief" data-est="35">
+        <div class="kicker"><span class="part">Part 1 · Engineering</span></div>
+        <h2 class="title r" style="--i: 0">A simple domain on a hostile backend</h2>
+        <p class="lede r" style="--i: 1">
+          Gardens, plants, a target humidity and one rule: the plants in a garden may never need
+          more surface than the garden has. The interesting part is the API.
+        </p>
         <div class="body">
-          <div class="card" style="flex: 0 0 780px; padding: 30px 36px">
-            <pre
-              class="mono"
-              style="margin: 0; font-size: 22px; line-height: 1.55; color: var(--muted)"
-            ><span style="color: var(--text)">apps/</span>
-├─ <span style="color: var(--green)">web/src/app/</span>
-│  ├─ <span style="color: var(--text)">core/</span>      api · auth · config · errors
-│  │             http · layout · logging · resilience
-│  ├─ <span style="color: var(--text)">state/</span>     app-wide SignalStores
-│  ├─ <span style="color: var(--text)">domain/</span>    <span style="color: var(--green)">business rules &amp; maths</span> · catalog
-│  ├─ <span style="color: var(--text)">features/</span>  onboarding · dashboard · gardens
-│  │             garden-detail/garden-map · profile · not-found
-│  └─ <span style="color: var(--text)">shared/ui/</span> one folder per component
-├─ <span style="color: var(--green)">web-e2e/src/</span> integration · mocked
-└─ <span style="color: var(--green)">api/</span>          provided Fastify backend
-<span style="color: var(--text)">docs/</span>  adr ×7 · architecture · design · presentation
-<span style="color: var(--text)">bruno/</span> · <span style="color: var(--text)">tools/</span>check-no-spinners.mjs</pre>
-          </div>
-          <div class="col grow">
-            <div class="card">
-              <h3>core</h3>
+          <div class="grid cols-3">
+            <div class="card r" style="--i: 2">
+              <span class="tag amber">Latency</span>
+              <h3>200 – 2000 ms</h3>
               <p>
-                App-wide singletons: API clients, session, the HTTP pipeline, the cache, error
-                handling.
+                Every response is delayed on purpose. Nothing may block the screen while it waits.
               </p>
             </div>
-            <div class="card">
-              <h3>shared</h3>
+            <div class="card r" style="--i: 3">
+              <span class="tag amber">Failures</span>
+              <h3>1 in 10 requests fails</h3>
               <p>
-                Reusable UI and <b>pure functions</b> — the business rules, testable without
-                TestBed.
+                A three-request screen would break 27 % of the time. Failure is the normal case.
               </p>
             </div>
-            <div class="card">
-              <h3>features</h3>
-              <p>Routed screens, each owning its components and, where it needs one, its store.</p>
+            <div class="card r" style="--i: 4">
+              <span class="tag">The answer</span>
+              <h3>Design for it, don't hide it</h3>
+              <p>
+                Cache, retry, skeletons and ghosts — and never a spinner, never a lie about the
+                data.
+              </p>
             </div>
           </div>
         </div>
-      </section>
-
-      <!-- ═════════════════════════ S07 ═════════════════════════ -->
-      <section class="slide roomy" id="S07" data-title="The Angular 22 Approach" data-est="45">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">Modern APIs, each for a reason</h2>
-        </header>
-        <div class="body mid-col" style="flex-direction: column; gap: 26px">
-          <div class="grid g4">
-            <div class="card">
-              <span class="label green">Zoneless</span>
-              <p>Change detection follows signals. zone.js isn't installed.</p>
-            </div>
-            <div class="card">
-              <span class="label green">OnPush · 28 / 28</span>
-              <p>Every component renders from data, not from events.</p>
-            </div>
-            <div class="card">
-              <span class="label green">Standalone + inject()</span>
-              <p>0 NgModules, 0 constructor DI — explicit dependencies.</p>
-            </div>
-            <div class="card">
-              <span class="label green">input() · output() · model()</span>
-              <p>Typed contracts; map ↔ table selection is one two-way model.</p>
-            </div>
-            <div class="card accent">
-              <span class="label green">computed 109 · effect 2</span>
-              <p>Derive, don't sync. Effects only bridge to the outside world.</p>
-            </div>
-            <div class="card">
-              <span class="label green">linkedSignal</span>
-              <p>The planner camera re-fits on resize but keeps a user's zoom.</p>
-            </div>
-            <div class="card">
-              <span class="label green">@defer on viewport</span>
-              <p>The planner ships as its own lazy chunk behind a matching skeleton.</p>
-            </div>
-            <div class="card">
-              <span class="label green">Router features</span>
-              <p>Lazy routes, route params as inputs, view transitions.</p>
-            </div>
-          </div>
-          <div class="card soft" style="display: flex; gap: 22px; align-items: center">
-            <span class="label amber" style="white-space: nowrap">Evaluated, not adopted</span>
-            <p class="note" style="margin: 0">
-              <b>httpResource</b> and <b>Signal Forms</b> — a tested SWR cache and typed Reactive
-              Forms already solve these here; both are clean future migrations.
-            </p>
-          </div>
+        <div class="foot">
+          <span><b>apps/api</b> — Fastify, SQLite, chaos on by default</span
+          ><span>docs/architecture/API-INTEGRATION.md</span>
         </div>
       </section>
 
-      <!-- ═════════════════════════ S08 ═════════════════════════ -->
-      <section class="slide roomy" id="S08" data-title="Signals &amp; State" data-est="70">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">Four kinds of state, never mixed</h2>
-        </header>
-        <div class="body mid-col" style="flex-direction: column; gap: 34px; margin-top: 34px">
-          <div class="flow">
-            <div class="node">
-              <h4>API</h4>
-              <p>typed DTOs</p>
+      <!-- S03 -->
+      <section class="slide" id="S03" data-title="The Stack" data-est="45">
+        <div class="kicker"><span class="part">Part 1 · Engineering</span></div>
+        <h2 class="title r" style="--i: 0">Every dependency earned its place</h2>
+        <p class="lede r" style="--i: 1">
+          Straight from <code>package.json</code> — the latest of each, and nothing that isn't used.
+        </p>
+        <div class="body">
+          <div class="stack">
+            <div class="tech r pop" style="--i: 2">
+              <b>Angular</b><span class="v">22.1 · zoneless</span>
+              <p>Signals, <code>@defer</code>, Signal Forms, standalone everything.</p>
             </div>
-            <div class="arrow">
-              <svg><use href="#i-right" /></svg>
+            <div class="tech r pop" style="--i: 3">
+              <b>NgRx SignalStore</b><span class="v">22.0</span>
+              <p>Structure without ceremony: withProps, withLinkedState, signalMethod.</p>
             </div>
-            <div class="node blue">
-              <h4>QueryCache</h4>
-              <p>SWR 30 s · in-flight dedup</p>
+            <div class="tech r pop" style="--i: 4">
+              <b>Angular Material + CDK</b><span class="v">22.1 · M3</span>
+              <p>Themed to the product; the CDK for focus traps and test harnesses.</p>
             </div>
-            <div class="arrow">
-              <svg><use href="#i-right" /></svg>
+            <div class="tech r pop" style="--i: 5">
+              <b>Highcharts</b><span class="v">13</span>
+              <p>Two charts, loaded on demand, with the accessibility module.</p>
             </div>
-            <div class="node hi">
-              <h4>Source state</h4>
-              <p>SignalStores: gardens, plants by garden</p>
+            <div class="tech r pop" style="--i: 6">
+              <b>TypeScript</b><span class="v">6.0 · strict+</span>
+              <p>Exact optional properties, strict standalone, typed host bindings.</p>
             </div>
-            <div class="arrow">
-              <svg><use href="#i-right" /></svg>
+            <div class="tech r pop" style="--i: 7">
+              <b>Nx</b><span class="v">22 · monorepo</span>
+              <p>Web, API and e2e as one workspace, one install, cached targets.</p>
             </div>
-            <div class="node hi">
-              <h4>computed</h4>
-              <p>used · free · occupancy · drift</p>
+            <div class="tech r pop" style="--i: 8">
+              <b>Vitest + Playwright</b><span class="v">1.63 · axe-core</span>
+              <p>Unit, component, three e2e projects, WCAG scans on every story.</p>
             </div>
-            <div class="arrow">
-              <svg><use href="#i-right" /></svg>
-            </div>
-            <div class="node">
-              <h4>Components</h4>
-              <p>OnPush views</p>
-            </div>
-            <div class="arrow">
-              <svg><use href="#i-right" /></svg>
-            </div>
-            <div class="node amber">
-              <h4>Planner</h4>
-              <p>pure layout → view model</p>
+            <div class="tech r pop" style="--i: 9">
+              <b>Fastify + zod</b><span class="v">5.2 · 4.1</span>
+              <p>The API's schemas are the client's types — one contract, inferred.</p>
             </div>
           </div>
-          <div class="grid g4">
-            <div class="card">
-              <span class="label green">Source</span>
-              <ul class="ticks tight" style="margin-top: 16px">
-                <li>gardens · garden</li>
-                <li>plants — <b>one owner</b></li>
-                <li>server-confirmed only</li>
-              </ul>
-            </div>
-            <div class="card">
-              <span class="label green">Derived</span>
-              <ul class="ticks tight" style="margin-top: 16px">
-                <li>used · free area</li>
-                <li>occupancy · status</li>
-                <li>humidity drift · insights</li>
-                <li><b>never stored</b></li>
-              </ul>
-            </div>
-            <div class="card">
-              <span class="label blue">Local UI</span>
-              <ul class="ticks tight" style="margin-top: 16px">
-                <li>camera · layers</li>
-                <li>selection (model)</li>
-                <li>timeline · drag</li>
-                <li>table sort</li>
-              </ul>
-            </div>
-            <div class="card">
-              <span class="label amber">Async</span>
-              <ul class="ticks tight" style="margin-top: 16px">
-                <li>status per request</li>
-                <li>saving = single-flight</li>
-                <li>pending updates / deletes</li>
-                <li>pending create area</li>
-              </ul>
-            </div>
+          <div class="pills" style="margin-top: 28px">
+            <span class="pill r" style="--i: 10"><b>Storybook 10</b> the UI kit, 43 stories</span>
+            <span class="pill r" style="--i: 11"><b>ESLint 9</b> + angular-eslint, type-aware</span>
+            <span class="pill r" style="--i: 12"
+              ><b>Inter &amp; Sora</b> self-hosted variable fonts</span
+            >
+            <span class="pill r" style="--i: 13"><b>esbuild</b> builds both apps</span>
           </div>
-          <p class="note" style="margin: 0">
-            <b>Why SignalStore, not classic NgRx:</b> structure and testability without actions,
-            reducers and effects for every interaction. The detail store is component-provided — it
-            lives and dies with the page.
-          </p>
+        </div>
+        <div class="foot">
+          <span
+            >Angular over React was agreed up front — <b>ADR-001</b> maps the concepts for React
+            readers</span
+          >
         </div>
       </section>
 
-      <!-- ═════════════════════════ S09 ═════════════════════════ -->
-      <section class="slide roomy" id="S09" data-title="The Capacity Rule" data-est="55">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">One rule, one function, everywhere</h2>
-        </header>
-        <div class="body mid">
-          <div class="col" style="flex: 0 0 900px">
-            <div class="code">
-              <span class="c">// domain/garden-insights/garden-insights.ts</span><br /><span
-                class="k"
-                >wouldOvercrowd</span
-              >(garden, plants, requested,
-              <span class="a">excludePlantId</span>)<br />&nbsp;&nbsp;<span class="g"
-                >otherArea</span
+      <!-- S04 -->
+      <section class="slide" id="S04" data-title="Architecture" data-est="55">
+        <div class="kicker"><span class="part">Part 1 · Engineering</span></div>
+        <h2 class="title r" style="--i: 0">Dependencies only point down — and lint says so</h2>
+        <p class="lede r" style="--i: 1">
+          Five layers, each testable alone. The boundaries are not a diagram in a document: they are
+          ESLint rules that fail the build.
+        </p>
+        <div class="body">
+          <div class="layers">
+            <div class="layer r" style="--i: 2">
+              <b>features/</b
+              ><span
+                >one lazy route per folder — dashboard, gardens, garden detail, the planner</span
               >
-              + requested <span class="a">&gt;</span> garden.totalSurfaceArea
             </div>
-            <ul class="ticks">
-              <li>
-                Mirrors the server's strict <b>&gt;</b> — a garden can be exactly <b>100%</b> full
-              </li>
-              <li>Editing a plant <b>excludes its own area</b></li>
-              <li>
-                The client prevents; <b>the server decides</b> — a 400 lands inline, input kept
-              </li>
-              <li>Garden edit warns before shrinking below what's planted</li>
-            </ul>
-          </div>
-          <div class="col grow">
-            <div class="card">
-              <span class="label">Back Garden</span>
-              <div
-                style="
-                  display: flex;
-                  justify-content: space-between;
-                  margin-top: 16px;
-                  font-size: 26px;
-                "
+            <div class="arrow-down r" style="--i: 3">↓</div>
+            <div class="layer r" style="--i: 3">
+              <b>shared/ui</b
+              ><span
+                >the presentational kit: inputs in, outputs out, BEM-named, Storybook-tested</span
               >
-                <b class="tnum">19.5 / 20 m²</b
-                ><span style="color: var(--amber); font-weight: 650">98%</span>
+            </div>
+            <div class="arrow-down r" style="--i: 4">↓</div>
+            <div class="layer hi r" style="--i: 4">
+              <b>state/</b><span>SignalStores — the single writable owners of server state</span>
+            </div>
+            <div class="arrow-down r" style="--i: 5">↓</div>
+            <div class="layer hi r" style="--i: 5">
+              <b>domain/</b
+              ><span
+                >pure functions: the capacity rule, humidity maths, the treemap layout — no HTTP, no
+                stores, no text</span
+              >
+            </div>
+            <div class="arrow-down r" style="--i: 6">↓</div>
+            <div class="layer r" style="--i: 6">
+              <b>core/</b
+              ><span
+                >typed API services, mappers, the cache, the interceptors — the only code that knows
+                the backend</span
+              >
+            </div>
+          </div>
+        </div>
+        <div class="foot">
+          <span><b>11 ADRs</b> record every decision and its trade-off</span
+          ><span>apps/web/eslint.config.mjs · docs/architecture/ARCHITECTURE.md</span>
+        </div>
+      </section>
+
+      <!-- S05 -->
+      <section class="slide" id="S05" data-title="Reactivity &amp; State" data-est="60">
+        <div class="kicker"><span class="part">Part 1 · Engineering</span></div>
+        <h2 class="title r" style="--i: 0">Signals all the way, with the library's own idioms</h2>
+        <div class="body">
+          <div class="grid cols-2">
+            <div class="card r" style="--i: 1">
+              <span class="tag">Zoneless</span>
+              <h3>Change detection only where a signal changed</h3>
+              <p>
+                No zone.js in the bundle. Every derived value — used area, occupancy, drift — is a
+                <code>computed()</code>, never stored where it could go stale.
+              </p>
+            </div>
+            <div class="card r" style="--i: 2">
+              <span class="tag">SignalStore</span>
+              <h3>Three stores, three scopes</h3>
+              <p>
+                <code>withProps</code> for collaborators, <code>withLinkedState</code> for what
+                resets with a key, <code>signalMethod</code> to follow the route,
+                <code>withHooks</code> on destroy. Mutations return typed verdicts.
+              </p>
+            </div>
+            <div class="card r" style="--i: 3">
+              <span class="tag blue">Signal Forms</span>
+              <h3>The model is a signal, the rules a schema</h3>
+              <p>
+                The garden and plant dialogs on <code>@angular/forms/signals</code>; the capacity
+                rule is a validator that judges as you type — the same function the server runs.
+              </p>
+            </div>
+            <div class="card r" style="--i: 4">
+              <span class="tag blue">One contract</span>
+              <h3>DTO types inferred from the API's zod schemas</h3>
+              <p>
+                A schema change is a compile error on the client. Type-only, so nothing of the API
+                reaches the browser.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="foot">
+          <span
+            ><b>ADR-002</b> SignalStore · <b>ADR-011</b> Signal Forms · <b>ADR-006</b> the shared
+            contract</span
+          >
+        </div>
+      </section>
+
+      <!-- S06 -->
+      <section class="slide" id="S06" data-title="Resilience" data-est="55">
+        <div class="kicker"><span class="part">Part 1 · Engineering</span></div>
+        <h2 class="title r" style="--i: 0">A flaky API, handled once — in one place</h2>
+        <div class="body">
+          <div class="points" style="max-width: 1500px">
+            <div class="point r" style="--i: 1">
+              <span class="ic">1</span>
+              <div>
+                <b>Stale-while-revalidate cache</b
+                ><span
+                  >A repeat visit renders instantly from memory; identical in-flight reads collapse
+                  into one request; hovering a card prefetches its garden.</span
+                >
               </div>
-              <div
-                style="
-                  height: 14px;
-                  border-radius: 999px;
-                  background: rgb(255 255 255 / 0.06);
-                  margin-top: 14px;
-                  overflow: hidden;
-                "
-              >
+            </div>
+            <div class="point r" style="--i: 2">
+              <span class="ic">2</span>
+              <div>
+                <b>Retry — only when it is safe</b
+                ><span
+                  >Reads retry with backoff. Every POST carries an <code>Idempotency-Key</code> and
+                  the API replays a completed one from memory: a lost answer never creates
+                  twice.</span
+                >
+              </div>
+            </div>
+            <div class="point r" style="--i: 3">
+              <span class="ic">3</span>
+              <div>
+                <b>Races closed by construction</b
+                ><span
+                  >Per-profile cache keys, stale loads discarded by token, writes addressed to the
+                  garden they target — switch profiles mid-load and the wrong gardens never
+                  flash.</span
+                >
+              </div>
+            </div>
+            <div class="point r" style="--i: 4">
+              <span class="ic">4</span>
+              <div>
+                <b>Pending is part of the design</b
+                ><span
+                  >Content-shaped skeletons on reads, in-place ghosts on writes, an explicit retry
+                  when something really fails. No spinners — the build checks.</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="foot">
+          <span
+            ><b>ADR-004</b> resilience layer · core/resilience/query-cache.ts ·
+            core/http/api-interceptors.ts</span
+          >
+        </div>
+      </section>
+
+      <!-- S07 -->
+      <section class="slide" id="S07" data-title="Performance" data-est="50">
+        <div class="kicker"><span class="part">Part 1 · Engineering</span></div>
+        <h2 class="title r" style="--i: 0">A bundle the CI keeps honest</h2>
+        <div class="body">
+          <div class="grid cols-3">
+            <div class="stat r pop" style="--i: 1">
+              <div class="n"><span data-count="381">0</span><small>kB</small></div>
+              <div class="l">
+                initial bundle, raw — down from 511 kB: the shell's account menu is a deferred block
+              </div>
+              <div class="bar"><div class="bar-fill" style="--i: 1; width: 75%"></div></div>
+            </div>
+            <div class="stat blue r pop" style="--i: 2">
+              <div class="n"><span data-count="107">0</span><small>kB</small></div>
+              <div class="l">
+                transferred on first load, gzip — every route lazy, charts and planner in their own
+                chunks
+              </div>
+              <div class="bar">
                 <div
+                  class="bar-fill"
                   style="
-                    width: 97.5%;
-                    height: 100%;
-                    background: linear-gradient(90deg, #b45309, #f59e0b);
+                    --i: 2;
+                    width: 78%;
+                    background: linear-gradient(90deg, #1d6fa3, var(--blue));
                   "
                 ></div>
               </div>
-              <p style="margin-top: 18px">
-                + 1 m² plant → <b style="color: var(--red)">blocked</b> · only 0.5 m² free
-              </p>
             </div>
-            <div class="card soft">
-              <span class="label green">Reused by</span>
-              <div class="pills" style="margin-top: 16px">
-                <span class="pill">plant dialog meter</span><span class="pill">submit guard</span
-                ><span class="pill">detail header</span><span class="pill">planner HUD</span
-                ><span class="pill">dashboard</span><span class="pill">capacity chip</span
-                ><span class="pill">recommendations</span><span class="pill">utilization sort</span>
+            <div class="stat amber r pop" style="--i: 3">
+              <div class="n"><span data-count="3">0</span><small>%</small></div>
+              <div class="l">
+                the growth tolerance: <code>bundle:check</code> diffs every chunk against a
+                committed baseline in CI
               </div>
+              <div class="bar"><div class="bar-fill amber" style="--i: 3; width: 30%"></div></div>
             </div>
           </div>
+          <div class="pills" style="margin-top: 34px">
+            <span class="pill r" style="--i: 4"
+              ><b>Budgets per chunk</b> dashboard, gardens, detail, planner</span
+            >
+            <span class="pill r" style="--i: 5"
+              ><b>@defer</b> the planner and both charts, behind same-size ghosts</span
+            >
+            <span class="pill r" style="--i: 6"
+              ><b>Fonts preloaded</b> from a stable URL, self-hosted</span
+            >
+            <span class="pill r" style="--i: 7"
+              ><b>Web Vitals</b> measured in the app, CLS 0.00 on a phone</span
+            >
+          </div>
+        </div>
+        <div class="foot">
+          <span>docs/architecture/PERFORMANCE-AND-CACHING.md · tools/bundle-check.mjs</span>
         </div>
       </section>
 
-      <!-- ═════════════════════════ S10 ═════════════════════════ -->
-      <section class="slide" id="S10" data-title="Backend Integration" data-est="45">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">Measure the contract, then design for it</h2>
-        </header>
-        <div class="body mid-col" style="flex-direction: column; gap: 30px">
-          <div class="flow">
-            <div class="node">
-              <h4>Store intent</h4>
-              <p>createPlant(…)</p>
-            </div>
-            <div class="arrow">
-              <svg><use href="#i-right" /></svg>
-            </div>
-            <div class="node">
-              <h4>Typed API class</h4>
-              <p>Promise + DTO mapping</p>
-            </div>
-            <div class="arrow">
-              <svg><use href="#i-right" /></svg>
-            </div>
-            <div class="node hi">
-              <h4>Interceptors</h4>
-              <p>base URL · retry 5xx / network</p>
-            </div>
-            <div class="arrow">
-              <svg><use href="#i-right" /></svg>
-            </div>
-            <div class="node">
-              <h4>/api proxy</h4>
-              <p>same-origin</p>
-            </div>
-            <div class="arrow">
-              <svg><use href="#i-right" /></svg>
-            </div>
-            <div class="node amber">
-              <h4>Fastify + zod</h4>
-              <p>Swagger at /docs</p>
-            </div>
-          </div>
-          <div class="grid g3 grow">
-            <div class="card">
-              <span class="label amber">Measured first · 60 calls</span>
-              <div style="display: flex; gap: 34px; margin-top: 18px">
-                <div>
-                  <div class="stat tnum" style="font-size: 50px">1.08 s</div>
-                  <p class="stat-sub" style="font-size: 19px">median</p>
-                </div>
-                <div>
-                  <div class="stat tnum" style="font-size: 50px">1.88 s</div>
-                  <p class="stat-sub" style="font-size: 19px">p95</p>
-                </div>
-                <div>
-                  <div class="stat amber tnum" style="font-size: 50px">1 / 6</div>
-                  <p class="stat-sub" style="font-size: 19px">failed</p>
-                </div>
-              </div>
-            </div>
-            <div class="card">
-              <span class="label">Contract quirks, handled</span>
-              <ul class="ticks tight" style="margin-top: 16px">
-                <li>missing garden's plants → <b>400</b>, not 404</li>
-                <li>error bodies normalised once</li>
-                <li>409 e-mail → <b>continue as that profile</b></li>
-              </ul>
-            </div>
-            <div class="card">
-              <span class="label">One error taxonomy</span>
-              <ul class="ticks tight" style="margin-top: 16px">
-                <li><b>technical</b> 5xx · network → retry, then retry UI</li>
-                <li><b>functional</b> 4xx → inline message</li>
-                <li><b>not-found</b> 404 → designed page</li>
-              </ul>
-            </div>
-          </div>
-          <p class="note" style="margin: 0">
-            <b>One additive backend change</b> (ADR-003):
-            <span class="mono">targetHumidityLevel</span> — migration, zod 0–100, default 50 so
-            existing rows stay valid.
-          </p>
-        </div>
-      </section>
-
-      <!-- ═════════════════════════ S11 ═════════════════════════ -->
-      <section class="slide" id="S11" data-title="Async UX: Why No Spinners" data-est="70">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">Pending is part of the design</h2>
-        </header>
-        <div class="body" style="gap: 40px">
-          <div class="col" style="flex: 0 0 860px; gap: 18px">
-            <div class="grid g2" style="gap: 18px">
-              <figure class="shot" style="height: 290px">
-                <img
-                  decoding="async"
-                  src="../screenshots/dashboard-skeleton.jpg"
-                  alt="Dashboard skeleton while data loads"
-                />
-                <figcaption>Pending</figcaption>
-              </figure>
-              <figure class="shot" style="height: 290px">
-                <img
-                  decoding="async"
-                  src="../screenshots/dashboard.jpg"
-                  alt="Dashboard with data"
-                />
-                <figcaption class="green">Loaded</figcaption>
-              </figure>
-            </div>
-            <figure class="shot" style="height: 290px">
-              <img
-                decoding="async"
-                src="../screenshots/plant-edit-pending.jpg"
-                alt="Editing a plant: ghost save button and grayed table row"
-                style="object-position: center 30%"
-              />
-              <figcaption class="amber">
-                PUT in flight — only that row and the button ghost
-              </figcaption>
-            </figure>
-          </div>
-          <div class="col grow" style="gap: 20px">
-            <table class="t">
-              <thead>
-                <tr>
-                  <th>Verb</th>
-                  <th>Feedback</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>GET · cold</td>
-                  <td>
-                    content-shaped skeleton, appears after <b style="color: var(--text)">150 ms</b>
-                  </td>
-                </tr>
-                <tr>
-                  <td>GET · refresh</td>
-                  <td>stale content stays readable (SWR)</td>
-                </tr>
-                <tr>
-                  <td>POST</td>
-                  <td>creation ghost where it will land</td>
-                </tr>
-                <tr>
-                  <td>PUT</td>
-                  <td>only that row · card · bed grays out</td>
-                </tr>
-                <tr>
-                  <td>DELETE</td>
-                  <td>stays a ghost until the server confirms</td>
-                </tr>
-              </tbody>
-            </table>
-            <div class="pills">
-              <span class="pill"><span class="dot"></span>one skeleton engine</span>
-              <span class="pill"><span class="dot"></span>ghosts ±2 px of real size</span>
-              <span class="pill blue"><span class="dot"></span>role=status · aria-busy</span>
-              <span class="pill blue"><span class="dot"></span>reduced-motion pulse</span>
-              <span class="pill amber"><span class="dot"></span>spinners banned in CI</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═════════════════════════ S12 ═════════════════════════ -->
-      <section class="slide" id="S12" data-title="Success, Empty, Error, Recovery" data-est="35">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">Designed for more than the happy path</h2>
-        </header>
-        <div class="body mid">
-          <div class="grid g4 grow" style="align-content: stretch">
-            <div class="col" style="gap: 16px">
-              <figure class="shot" style="height: 250px">
-                <img
-                  decoding="async"
-                  src="../screenshots/gardens.jpg"
-                  alt="Gardens list with data"
-                />
-              </figure>
-              <div class="card grow">
-                <span class="label green">Success</span>
-                <p>Content, with numbers that only change once the server confirms.</p>
-              </div>
-            </div>
-            <div class="col" style="gap: 16px">
-              <figure class="shot" style="height: 250px">
-                <img
-                  decoding="async"
-                  src="../screenshots/planner-empty.jpg"
-                  alt="Empty garden invitation on the planner"
-                  style="object-position: center"
-                />
-              </figure>
-              <div class="card grow">
-                <span class="label blue">Empty</span>
-                <p>Designed invitations — "Your garden has space to grow."</p>
-              </div>
-            </div>
-            <div class="col" style="gap: 16px">
-              <figure class="shot" style="height: 250px">
-                <img
-                  decoding="async"
-                  src="../screenshots/gardens-error.jpg"
-                  alt="Couldn't load your gardens with Try again"
-                  style="object-position: center 30%"
-                />
-              </figure>
-              <div class="card grow">
-                <span class="label amber">Error</span>
-                <p>Specific states: Try again for failures, a real page for 404s.</p>
-              </div>
-            </div>
-            <div class="col" style="gap: 16px">
-              <div class="card accent" style="height: 250px; display: grid; align-content: center">
-                <h3>Recovery ladder</h3>
-                <p>retry → stale cache → real item back + Try again toast</p>
-              </div>
-              <div class="card grow">
-                <span class="label green">Recovery</span>
-                <p>
-                  A failed create keeps the dialog and input. A 500 never ends a session — only a
-                  404 does.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═════════════════════════ S13 ═════════════════════════ -->
-      <section class="slide" id="S13" data-title="Welcome &amp; Dashboard" data-est="30">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">"Which garden needs me?" — answered first</h2>
-        </header>
-        <div class="body" style="gap: 32px">
-          <div class="col grow" style="gap: 16px">
-            <figure class="shot" style="height: 470px">
-              <img
-                decoding="async"
-                src="../screenshots/welcome.jpg"
-                alt="Welcome screen with profiles"
-              />
-            </figure>
-            <p class="note" style="margin: 0">
-              <b>Welcome</b> — pick a profile or create one inline; a duplicate e-mail offers
-              "continue as".
-            </p>
-          </div>
-          <div class="col grow" style="gap: 16px">
-            <figure class="shot" style="height: 470px">
-              <img
-                decoding="async"
-                src="../screenshots/dashboard.jpg"
-                alt="Dashboard control center"
-              />
-            </figure>
-            <p class="note" style="margin: 0">
-              <b>Dashboard</b> — KPIs, attention sorted by severity, health cards with botanical
-              previews. All derived.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═════════════════════════ S14 ═════════════════════════ -->
-      <section class="slide" id="S14" data-title="Garden Management" data-est="25">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">Manage every plot at a glance</h2>
-        </header>
-        <div class="body" style="gap: 32px">
-          <figure class="shot" style="flex: 0 0 900px; height: 562px">
-            <img
-              decoding="async"
-              src="../screenshots/gardens.jpg"
-              alt="Gardens grid with capacity and humidity"
-            />
-          </figure>
-          <div class="col grow">
-            <figure class="shot" style="height: 290px">
-              <img
-                decoding="async"
-                src="../screenshots/garden-create-ghost.jpg"
-                alt="New garden dialog with presets and a pending ghost button"
-                style="object-position: center 20%"
-              />
-              <figcaption class="amber">Create in flight</figcaption>
-            </figure>
-            <ul class="ticks tight">
-              <li>
-                Search by name or location; sort by name, size or <b>utilization</b> — remembered
-              </li>
-              <li>Size &amp; humidity <b>presets</b>; validated forms</li>
-              <li>Delete → confirm → <b>ghost until confirmed</b></li>
-              <li>Hover or focus <b>prefetches</b> the detail page</li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═════════════════════════ S15 ═════════════════════════ -->
-      <section class="slide" id="S15" data-title="The Plant Experience" data-est="35">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">Recommend, pre-fill — and stop what won't fit</h2>
-        </header>
-        <div class="body" style="gap: 36px">
-          <figure class="shot" style="flex: 0 0 1000px; height: 625px">
-            <img
-              decoding="async"
-              src="../screenshots/add-plant.jpg"
-              alt="Add plant dialog with ranked recommendations and a blocked capacity fit"
-            />
-          </figure>
-          <div class="col grow">
-            <ul class="ticks">
-              <li>
-                Local catalog of <b>27 plants</b>, ranked for <b>this</b> garden: humidity match ·
-                fits free area · not yet planted
-              </li>
-              <li>
-                One click pre-fills — <b>every field stays editable</b>, custom plants welcome
-              </li>
-              <li>Area presets 0.5 · 1 · 2 m²</li>
-              <li>Live <b>Garden fit</b> blocks before the server has to</li>
-              <li>Preview uses the planner's own artwork</li>
-            </ul>
-            <div class="card soft">
-              <p style="margin: 0">
-                Recommendations are <b>suggestions</b>, not business truth — the capacity rule and
-                the server decide.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═════════════════════════ S16 ═════════════════════════ -->
-      <section class="slide" id="S16" data-title="Interactive Garden Planner" data-est="70">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">Capacity you can see</h2>
-        </header>
-        <div class="body" style="gap: 32px; margin-top: 30px">
-          <div class="col" style="flex: 0 0 1130px; gap: 16px">
-            <figure class="shot" style="height: 502px">
-              <img
-                decoding="async"
-                src="../screenshots/planner-selected.jpg"
-                alt="Garden planner with a selected bed and the inspector"
-              />
-            </figure>
-            <div class="grid g3" style="gap: 16px">
-              <figure class="shot" style="height: 150px">
-                <img
-                  decoding="async"
-                  src="../screenshots/planner-zones.jpg"
-                  alt="Watering zones and neighbour clashes"
-                />
-                <figcaption>Zones &amp; clashes</figcaption>
-              </figure>
-              <figure class="shot" style="height: 150px">
-                <img
-                  decoding="async"
-                  src="../screenshots/planner-drag.jpg"
-                  alt="Dragging a bed with home slot and guides"
-                />
-                <figcaption>Drag assist</figcaption>
-              </figure>
-              <figure class="shot" style="height: 150px">
-                <img
-                  decoding="async"
-                  src="../screenshots/planner-timeline.jpg"
-                  alt="Planting timeline replay"
-                />
-                <figcaption>Timeline</figcaption>
-              </figure>
-            </div>
-          </div>
-          <div class="col grow" style="gap: 18px">
-            <div class="card">
-              <span class="label green">Explore</span>
-              <p>
-                Area-honest beds · pan, zoom, fit · layers · fullscreen · selection synced with the
-                table
-              </p>
-            </div>
-            <div class="card">
-              <span class="label green">Arrange</span>
-              <p>
-                Drag with magnetic edges, guides and a home magnet · keyboard moves · undo / redo ·
-                layout remembered
-              </p>
-            </div>
-            <div class="card">
-              <span class="label green">Understand</span>
-              <p>Watering zones · neighbour clashes · group by water needs · planting timeline</p>
-            </div>
-            <div class="card accent">
-              <p style="margin: 0">
-                Positions are <b>visual preference</b> — moving a bed never changes capacity or
-                calls the API.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═════════════════════════ S17 ═════════════════════════ -->
-      <section
-        class="slide roomy"
-        id="S17"
-        data-title="Planner Architecture &amp; Why SVG"
-        data-est="55"
-      >
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">A pure pipeline, rendered as SVG</h2>
-        </header>
-        <div class="body mid-col" style="flex-direction: column; gap: 34px">
-          <div class="flow">
-            <div class="node">
-              <h4>Store state</h4>
-              <p>garden + plants</p>
-            </div>
-            <div class="arrow">
-              <svg><use href="#i-right" /></svg>
-            </div>
-            <div class="node hi">
-              <h4>Treemap layout</h4>
-              <p>pure · deterministic · drawn m² = real m²</p>
-            </div>
-            <div class="arrow">
-              <svg><use href="#i-right" /></svg>
-            </div>
-            <div class="node hi">
-              <h4>Positions</h4>
-              <p>clamped overrides · local, versioned</p>
-            </div>
-            <div class="arrow">
-              <svg><use href="#i-right" /></svg>
-            </div>
-            <div class="node">
-              <h4>View model</h4>
-              <p>beds · soil · art · labels · camera</p>
-            </div>
-            <div class="arrow">
-              <svg><use href="#i-right" /></svg>
-            </div>
-            <div class="node amber">
-              <h4>SVG + DOM</h4>
-              <p>renderer + inspector</p>
-            </div>
-          </div>
-          <table class="t">
-            <thead>
-              <tr>
-                <th></th>
-                <th>SVG, rendered by Angular — chosen</th>
-                <th>PixiJS / WebGL — rejected</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Bundle</td>
-                <td class="win">no rendering library · whole planner chunk 19 kB over the wire</td>
-                <td>~100–140 kB library before app code</td>
-              </tr>
-              <tr>
-                <td>Accessibility</td>
-                <td class="win">real focusable beds, labels, keyboard</td>
-                <td>needs a parallel a11y layer</td>
-              </tr>
-              <tr>
-                <td>Theming</td>
-                <td class="win">CSS tokens — dark mode for free</td>
-                <td>colours re-implemented in JS</td>
-              </tr>
-              <tr>
-                <td>Testing</td>
-                <td class="win">jsdom + Playwright selectors</td>
-                <td>pixel / visual testing</td>
-              </tr>
-              <tr>
-                <td>Sweet spot</td>
-                <td class="win">tens to hundreds of shapes</td>
-                <td>thousands of animated sprites</td>
-              </tr>
-            </tbody>
-          </table>
-          <p class="note" style="margin: 0">
-            <b>Revisit</b> if the planner grows to thousands of animated entities — the pure view
-            model means only the renderer would change.
-          </p>
-        </div>
-      </section>
-
-      <!-- ═════════════════════════ S18 ═════════════════════════ -->
-      <section class="slide" id="S18" data-title="Live Demo" data-est="180">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">Three minutes in the real app</h2>
-        </header>
-        <div class="body" style="gap: 44px">
-          <ol class="steps" style="flex: 0 0 760px; margin: 0; padding: 0">
-            <li>
-              <span><b>Welcome</b> — choose a profile</span>
-            </li>
-            <li>
-              <span><b>Dashboard</b> — the garden that needs attention</span>
-            </li>
-            <li>
-              <span><b>Garden Detail</b> — header, plan, plant table</span>
-            </li>
-            <li>
-              <span><b>Select a bed</b> — inspector, zone, clash note</span>
-            </li>
-            <li>
-              <span><b>Drag a bed</b> — guides, readout, snap home, undo</span>
-            </li>
-            <li>
-              <span><b>Layers</b> — watering zones</span>
-            </li>
-            <li>
-              <span><b>Add plant</b> — recommendations, capacity blocks</span>
-            </li>
-            <li>
-              <span><b>Edit a plant</b> — mutation ghost, numbers on confirm</span>
-            </li>
-            <li>
-              <span><b>Fullscreen / timeline</b> — if time allows</span>
-            </li>
-          </ol>
-          <div class="col grow">
-            <figure class="shot" style="height: 560px">
-              <img
-                decoding="async"
-                src="../screenshots/planner-fullscreen.jpg"
-                alt="Fullscreen planner with layers panel"
-              />
-              <figcaption>Fullscreen planner · layers</figcaption>
-            </figure>
-            <p class="note" style="margin: 0">
-              <b>Fallback:</b> if the environment misbehaves, slides S13–S17 carry the same flow.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═════════════════════════ S19 ═════════════════════════ -->
-      <section class="slide roomy" id="S19" data-title="Performance" data-est="40">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">Perceived speed ≠ actual speed</h2>
-        </header>
-        <div class="body mid" style="gap: 44px">
-          <div class="col" style="flex: 0 0 980px">
-            <div class="card">
-              <div style="display: flex; justify-content: space-between; align-items: baseline">
-                <span class="label green">Production build · estimated transfer</span
-                ><span class="note">raw in brackets</span>
-              </div>
-              <div class="bars" style="margin-top: 22px">
-                <div class="bar-row">
-                  <span class="name"><b>Initial</b></span>
-                  <div class="track"><div class="fill" style="width: 100%"></div></div>
-                  <span class="v">133.1 kB <small>(498.0)</small></span>
-                </div>
-                <div class="bar-row">
-                  <span class="name">garden-detail</span>
-                  <div class="track"><div class="fill dim" style="width: 28%"></div></div>
-                  <span class="v">38.8 kB <small>(181.2)</small></span>
-                </div>
-                <div class="bar-row">
-                  <span class="name">garden-map · @defer</span>
-                  <div class="track"><div class="fill dim" style="width: 14.6%"></div></div>
-                  <span class="v">19.4 kB <small>(82.6)</small></span>
-                </div>
-                <div class="bar-row">
-                  <span class="name">dashboard</span>
-                  <div class="track"><div class="fill dim" style="width: 6.4%"></div></div>
-                  <span class="v">10.5 kB <small>(35.8)</small></span>
-                </div>
-                <div class="bar-row">
-                  <span class="name">onboarding</span>
-                  <div class="track"><div class="fill dim" style="width: 4.3%"></div></div>
-                  <span class="v">5.7 kB <small>(20.9)</small></span>
-                </div>
-                <div class="bar-row">
-                  <span class="name">garden-list</span>
-                  <div class="track"><div class="fill dim" style="width: 3.4%"></div></div>
-                  <span class="v">4.5 kB <small>(15.0)</small></span>
-                </div>
-                <div class="bar-row">
-                  <span class="name">profile-dialog</span>
-                  <div class="track"><div class="fill dim" style="width: 1.4%"></div></div>
-                  <span class="v">1.9 kB <small>(4.8)</small></span>
-                </div>
-              </div>
-            </div>
-            <p class="note" style="margin: 0">
-              <b>Honest edges:</b> initial sits just under its 500 kB raw warning budget; the
-              planner stylesheet is 13.4 kB against a 12 kB warning (16 kB error).
-            </p>
-          </div>
-          <div class="col grow">
-            <div class="card">
-              <span class="label blue">Perceived</span>
-              <ul class="ticks tight" style="margin-top: 16px">
-                <li>skeleton after 150 ms — no flash</li>
-                <li>mutation ghosts, no blocking</li>
-                <li>no layout shift when data lands</li>
-              </ul>
-            </div>
-            <div class="card">
-              <span class="label green">Actual</span>
-              <ul class="ticks tight" style="margin-top: 16px">
-                <li>fresh cache (&lt; 30 s) = 0 requests</li>
-                <li>identical in-flight GETs deduplicated</li>
-                <li>hover / focus prefetch</li>
-                <li>lazy routes · @defer · SVG art</li>
-                <li>one lazy WebP photo (75 / 237 kB)</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═════════════════════════ S20 ═════════════════════════ -->
-      <section class="slide" id="S20" data-title="Accessibility &amp; Responsive" data-est="40">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">Usable by keyboard, on a phone, in the dark</h2>
-        </header>
-        <div class="body" style="gap: 40px">
-          <div class="col" style="flex: 0 0 720px">
-            <ul class="ticks">
-              <li>Target: <b>WCAG 2.2 AA</b> · skip link · visible focus everywhere</li>
-              <li>Dialogs trap and <b>return focus</b> (CDK)</li>
-              <li>Real table · sortable headers with <b>aria-sort</b></li>
-              <li>
-                Planner beds are buttons: select, <b>move with arrows</b>, Home to reset — announced
-              </li>
-              <li>Loading regions: <b>role=status</b> + aria-busy</li>
-              <li><b>Reduced motion</b> everywhere — timeline won't auto-play</li>
-              <li>Status never by colour alone · axe in the suite</li>
-            </ul>
-          </div>
-          <div
-            class="grid grow"
-            style="grid-template-columns: 250px 250px minmax(0, 1fr); gap: 20px; align-items: start"
-          >
-            <figure class="shot" style="height: 540px">
-              <img
-                decoding="async"
-                src="../screenshots/mobile-dashboard.jpg"
-                alt="Dashboard on a phone"
-              />
-              <figcaption>390 px</figcaption>
-            </figure>
-            <figure class="shot" style="height: 540px">
-              <img
-                decoding="async"
-                src="../screenshots/mobile-planner.jpg"
-                alt="Garden detail on a phone"
-                style="object-position: center 60%"
-              />
-              <figcaption>Planner</figcaption>
-            </figure>
-            <figure class="shot" style="height: 540px">
-              <img
-                decoding="async"
-                src="../screenshots/dark-planner.jpg"
-                alt="Garden detail in dark theme"
-              />
-              <figcaption>Dark theme</figcaption>
-            </figure>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═════════════════════════ S21 ═════════════════════════ -->
-      <section class="slide" id="S21" data-title="Testing Strategy" data-est="65">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">Each layer proves something different</h2>
-        </header>
-        <div class="body" style="gap: 44px">
-          <div class="pyramid" style="flex: 0 0 880px; align-content: center">
-            <div class="lvl" style="width: 52%">
-              <div>
-                <h4>Real backend</h4>
-                <p>core flows, real flaky API</p>
-              </div>
-              <span class="n">6</span>
-            </div>
-            <div class="lvl" style="width: 70%">
-              <div>
-                <h4>Playwright · mocked network</h4>
-                <p>latency, failures, ghosts, planner, 375 px</p>
-              </div>
-              <span class="n">67 + 6 a11y</span>
-            </div>
-            <div class="lvl" style="width: 86%; border-color: rgb(79 212 131 / 0.4)">
-              <div>
-                <h4>Stores &amp; components</h4>
-                <p>races, single-flight, all four UI states</p>
-              </div>
-              <span class="n" style="font-size: 26px">Vitest + TestBed</span>
-            </div>
-            <div class="lvl" style="width: 100%; border-color: rgb(79 212 131 / 0.4)">
-              <div>
-                <h4>Pure domain &amp; infrastructure</h4>
-                <p>capacity rule, layout, camera, cache, retry</p>
-              </div>
-              <span class="n" style="font-size: 26px">Vitest</span>
-            </div>
-            <p class="note" style="margin: 6px 0 0; justify-self: center">
-              <b>815 web + 31 API Vitest tests</b> across the base layers
-            </p>
-          </div>
-          <div class="col grow">
-            <span class="label green">What the critical tests prove</span>
-            <ul class="ticks tight">
-              <li>capacity boundary + edit self-exclusion</li>
-              <li>a stale response never overwrites a fresh one</li>
-              <li>three clicks → one POST</li>
-              <li>retry never retries a 4xx</li>
-              <li>slow GET → skeleton; writes → ghosts → recovery</li>
-              <li>planner: drag stays inside the fence, keyboard moves</li>
-              <li>375 px: no horizontal overflow</li>
-            </ul>
-            <p class="note" style="margin: 0">
-              <b>Mocked</b> = deterministic states the random backend can't guarantee.
-              <b>Integration</b> = the real contract. 95% coverage gate configured; Playwright not
-              yet in CI.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═════════════════════════ S22 ═════════════════════════ -->
-      <section class="slide roomy" id="S22" data-title="Production Readiness" data-est="30">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">Built like it ships</h2>
-        </header>
-        <div class="body mid" style="gap: 40px">
-          <div class="col" style="flex: 0 0 900px">
-            <table class="t">
-              <thead>
-                <tr>
-                  <th></th>
-                  <th>Development</th>
-                  <th>Production</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Compile</td>
-                  <td>dev server, fast rebuilds</td>
-                  <td>AOT · optimized · hashed</td>
-                </tr>
-                <tr>
-                  <td>Source maps</td>
-                  <td>on</td>
-                  <td class="win">off — 0 .map files shipped</td>
-                </tr>
-                <tr>
-                  <td>API</td>
-                  <td>/api → proxy → :3000</td>
-                  <td>/api same-origin, reverse proxy</td>
-                </tr>
-                <tr>
-                  <td>Budgets</td>
-                  <td>—</td>
-                  <td>initial 500 / 600 kB · styles 12 / 16 kB</td>
-                </tr>
-                <tr>
-                  <td>Licenses</td>
-                  <td>—</td>
-                  <td>extracted</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="col grow">
-            <ul class="ticks">
-              <li>One <b>API base URL</b> via config + interceptor</li>
-              <li>SPA fallback &amp; cache headers documented</li>
-              <li><b>No secrets</b> in the repository</li>
-              <li>CI: lint · typecheck · unit · build · <b>no-spinner guard</b></li>
-            </ul>
-            <div class="card soft">
-              <span class="label amber">Documented, not configured</span>
-              <p>CSP and security headers — they belong to the hosting layer.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═════════════════════════ S23 ═════════════════════════ -->
-      <section class="slide roomy" id="S23" data-title="Trade-offs &amp; What's Next" data-est="50">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">What I left out — and what comes next</h2>
-        </header>
-        <div class="body mid" style="gap: 36px">
-          <div class="card grow">
-            <span class="label amber">Deliberately not built</span>
-            <ul class="ticks" style="margin-top: 20px">
-              <li><b>SSR</b> — a signed-in management app, no SEO value</li>
-              <li><b>Classic NgRx</b> — ceremony without a problem to solve</li>
-              <li><b>PixiJS / WebGL</b> — SVG fits tens of beds</li>
-              <li><b>A query library</b> — a ~120-line SWR cache is enough</li>
-              <li><b>Fake security</b> — a profile session, plus a real design</li>
-            </ul>
-          </div>
-          <div class="card accent grow">
-            <span class="label green">Next, in a real product</span>
-            <ul class="ticks" style="margin-top: 20px">
-              <li><b>Auth</b>: OIDC via a BFF, httpOnly cookie session</li>
-              <li><b>Idempotency keys</b>; retries only where safe</li>
-              <li><b>Backend</b>: paging and user scoping, ETag revalidation</li>
-              <li><b>Observability</b>: errors + Web Vitals behind the logger seam</li>
-              <li><b>Security headers</b>, server-side planner layouts</li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═════════════════════════ S24 ═════════════════════════ -->
-      <section class="slide" id="S24" data-title="Questions" data-est="25">
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title" style="font-size: 96px; margin-top: 30px">
-            Thank you.<br /><span style="color: var(--green)">Questions?</span>
-          </h2>
-        </header>
-        <div class="body" style="gap: 40px; align-items: flex-end">
-          <div class="grid g3 grow">
-            <div class="card">
-              <span class="label green">Product</span>
-              <p>A complete garden manager with a planner that makes capacity visible.</p>
-            </div>
-            <div class="card">
-              <span class="label green">Architecture</span>
-              <p>Layered, signal-driven, resilient against a backend that fails on purpose.</p>
-            </div>
-            <div class="card">
-              <span class="label green">Judgment</span>
-              <p>One rule, one owner, derived state, honest pending states.</p>
-            </div>
-          </div>
-          <figure class="shot" style="flex: 0 0 640px; height: 285px; opacity: 0.92">
-            <img decoding="async" src="../screenshots/planner.jpg" alt="Garden planner overview" />
-          </figure>
-        </div>
-      </section>
-
-      <!-- ═════════════════════════ Appendix ═════════════════════════ -->
-      <section
-        class="slide"
-        id="A01"
-        data-title="Request Lifecycle &amp; Dependencies"
-        data-est="0"
-        data-appendix
-      >
-        <span class="appendix-tag">Appendix</span>
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">One GET, through every layer</h2>
-        </header>
-        <div class="body" style="gap: 40px">
-          <ol class="steps" style="flex: 0 0 980px; margin: 0; padding: 0; gap: 11px">
-            <li>
-              <span
-                >Component reads a store signal; the route input triggers
-                <b>store.load(id)</b></span
-              >
-            </li>
-            <li>
-              <span
-                ><b>QueryCache</b>: fresh → return · stale → return + revalidate · miss →
-                fetch</span
-              >
-            </li>
-            <li>
-              <span>Miss: status <b>loading</b> → SkeletonGroup shows the ghost after 150 ms</span>
-            </li>
-            <li>
-              <span>Typed API class → <b>requestAsPromise</b> → HttpClient (withFetch)</span>
-            </li>
-            <li>
-              <span
-                >Interceptors: <b>base URL</b>, then <b>retry</b> 5xx / network with full
-                jitter</span
-              >
-            </li>
-            <li>
-              <span>DTO mapped → cache written → <b>patchState</b> (stale tokens dropped)</span>
-            </li>
-            <li><span>computed recalculates → OnPush view renders the content</span></li>
-          </ol>
-          <div class="col grow">
-            <div class="card">
-              <span class="label amber">On failure</span>
-              <p>
-                <b>toApiError</b> → technical · functional · not-found. The store sets its status;
-                the global handler shows technical errors as toasts.
-              </p>
-            </div>
-            <div class="card">
-              <span class="label green">Guards</span>
-              <p>
-                Monotonic load tokens · cache write versions · single-flight saving · per-entity
-                pending sets.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section
-        class="slide roomy"
-        id="A02"
-        data-title="Backend Behaviour"
-        data-est="0"
-        data-appendix
-      >
-        <span class="appendix-tag">Appendix</span>
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">How the API misbehaves — exactly</h2>
-        </header>
-        <div class="body mid" style="gap: 40px">
-          <div class="col grow">
-            <table class="t">
-              <thead>
-                <tr>
-                  <th>Behaviour</th>
-                  <th>Mechanism</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Latency</td>
-                  <td>onSend hook · uniform 200–2000 ms · skips /docs</td>
-                </tr>
-                <tr>
-                  <td>Failures</td>
-                  <td>
-                    onRequest hook · 10% → 500 ·
-                    <b style="color: var(--text)">before any handler runs</b>
-                  </td>
-                </tr>
-                <tr>
-                  <td>Switch</td>
-                  <td>hard-coded on — no environment flag</td>
-                </tr>
-                <tr>
-                  <td>Routes</td>
-                  <td>17 — gardens · plants · users</td>
-                </tr>
-                <tr>
-                  <td>Docs</td>
-                  <td>Swagger UI at /docs, generated from zod</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="col" style="flex: 0 0 640px">
-            <div class="card">
-              <span class="label">Failure maths</span>
-              <table class="t" style="margin-top: 14px">
-                <thead>
-                  <tr>
-                    <th></th>
-                    <th class="num">No retry</th>
-                    <th class="num">3 retries</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>1 request</td>
-                    <td class="num">10%</td>
-                    <td class="num win">0.01%</td>
-                  </tr>
-                  <tr>
-                    <td>3-request screen</td>
-                    <td class="num">27.1%</td>
-                    <td class="num win">0.03%</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <p class="note" style="margin: 0">
-              Retrying writes is safe <b>only</b> because failures are injected before handlers.
-              Production answer: idempotency keys.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section
-        class="slide roomy"
-        id="A03"
-        data-title="SignalStore Detail"
-        data-est="0"
-        data-appendix
-      >
-        <span class="appendix-tag">Appendix</span>
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">Three stores, three scopes</h2>
-        </header>
-        <div class="body mid-col" style="flex-direction: column; gap: 34px">
-          <table class="t">
-            <thead>
-              <tr>
-                <th>Store</th>
-                <th>Scope</th>
-                <th>Owns</th>
-                <th>Notable</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>GardensStore</td>
-                <td>root</td>
-                <td>gardens · status · saving · pending sets · query / sort</td>
-                <td>SWR load · list view persisted · ghost-confirmed delete</td>
-              </tr>
-              <tr>
-                <td>PlantsIndexStore</td>
-                <td>root</td>
-                <td>plants by garden · failed flags</td>
-                <td>
-                  <b style="color: var(--text)">single plant owner</b> · rxMethod fan-out with
-                  distinctUntilChanged
-                </td>
-              </tr>
-              <tr>
-                <td>GardenDetailStore</td>
-                <td>component</td>
-                <td>garden · statuses · pending create area · last created id</td>
-                <td>
-                  plants = computed view of the index · load tokens · usedArea, freeArea, occupancy,
-                  drift
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="grid g3">
-            <div class="card">
-              <span class="label green">Mutations</span>
-              <p>Pessimistic writes with ghost UI; deletes leave only after the server confirms.</p>
-            </div>
-            <div class="card">
-              <span class="label green">Effects</span>
-              <p>Two in the app: route id → load, and the document title.</p>
-            </div>
-            <div class="card">
-              <span class="label green">Signal services</span>
-              <p>Session, Theme and Toast stores — plain signals, no store library.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="slide" id="A04" data-title="Testing Matrix" data-est="0" data-appendix>
-        <span class="appendix-tag">Appendix</span>
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">Concern → layer → proof</h2>
-        </header>
+      <!-- S08 -->
+      <section class="slide" id="S08" data-title="Quality" data-est="55">
+        <div class="kicker"><span class="part">Part 1 · Engineering</span></div>
+        <h2 class="title r" style="--i: 0">Each layer proves something different</h2>
         <div class="body">
-          <table class="t">
-            <thead>
-              <tr>
-                <th>Concern</th>
-                <th>Layer</th>
-                <th>Where</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Capacity rule &amp; area honesty</td>
-                <td>Vitest · pure</td>
-                <td>garden-insights, garden-map-layout specs</td>
-              </tr>
-              <tr>
-                <td>Planner tools</td>
-                <td>Vitest · pure + component</td>
-                <td>garden-planner, garden-map-planner, map-inspector specs</td>
-              </tr>
-              <tr>
-                <td>SWR, dedup, retry, error mapping</td>
-                <td>Vitest · infrastructure</td>
-                <td>query-cache, interceptor specs</td>
-              </tr>
-              <tr>
-                <td>Races, single-flight, ghosts</td>
-                <td>Vitest · stores</td>
-                <td>garden-detail-store, gardens-store specs</td>
-              </tr>
-              <tr>
-                <td>Slow GET, failures, recovery</td>
-                <td>Playwright · mocked</td>
-                <td>async-states, mutation-ghosts, contract-resilience</td>
-              </tr>
-              <tr>
-                <td>No redundant requests</td>
-                <td>Playwright · mocked</td>
-                <td>request-ownership</td>
-              </tr>
-              <tr>
-                <td>Planner, responsive, a11y</td>
-                <td>Playwright · mocked</td>
-                <td>garden-map, garden-planner, responsive, accessibility</td>
-              </tr>
-              <tr>
-                <td>End-to-end contract</td>
-                <td>Playwright · real API</td>
-                <td>garden-workflows (6 flows)</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section
-        class="slide"
-        id="A05"
-        data-title="Bundle &amp; Performance Numbers"
-        data-est="0"
-        data-appendix
-      >
-        <span class="appendix-tag">Appendix</span>
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">Measured on the final production build</h2>
-        </header>
-        <div class="body" style="gap: 40px">
-          <table class="t" style="flex: 0 0 1000px">
-            <thead>
-              <tr>
-                <th>File</th>
-                <th class="num">Raw</th>
-                <th class="num">Est. transfer</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Initial total</td>
-                <td class="num">498.2 kB</td>
-                <td class="num">133.1 kB</td>
-              </tr>
-              <tr>
-                <td>└ main</td>
-                <td class="num">195.1 kB</td>
-                <td class="num">46.9 kB</td>
-              </tr>
-              <tr>
-                <td>└ styles</td>
-                <td class="num">20.5 kB</td>
-                <td class="num">4.2 kB</td>
-              </tr>
-              <tr>
-                <td>garden-detail (lazy)</td>
-                <td class="num">186.6 kB</td>
-                <td class="num">38.8 kB</td>
-              </tr>
-              <tr>
-                <td>garden-map (@defer)</td>
-                <td class="num">82.6 kB</td>
-                <td class="num">19.4 kB</td>
-              </tr>
-              <tr>
-                <td>dashboard · onboarding · garden-list</td>
-                <td class="num">35.8 · 20.9 · 15.0</td>
-                <td class="num">8.5 · 5.7 · 4.5</td>
-              </tr>
-              <tr>
-                <td>profile-dialog (on demand)</td>
-                <td class="num">4.8 kB</td>
-                <td class="num">1.9 kB</td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="col grow">
-            <div class="card">
-              <span class="label green">Timing constants</span>
-              <ul class="ticks tight" style="margin-top: 14px">
-                <li>cache fresh for 30 s</li>
-                <li>skeleton appears after 150 ms</li>
-                <li>retry caps 250 / 750 / 2250 ms, jittered</li>
-              </ul>
+          <div class="grid cols-4">
+            <div class="stat r pop" style="--i: 1">
+              <div class="n"><span data-count="1041">0</span></div>
+              <div class="l">
+                unit and component tests — 998 web, 43 API — at ≥ 95 % on every axis
+              </div>
             </div>
-            <div class="card soft">
-              <span class="label amber">Budgets</span>
+            <div class="stat blue r pop" style="--i: 2">
+              <div class="n"><span data-count="86">0</span></div>
+              <div class="l">
+                Playwright tests in three projects: the real hostile API, a mocked one, and the
+                Dutch build
+              </div>
+            </div>
+            <div class="stat r pop" style="--i: 3">
+              <div class="n"><span data-count="43">0</span></div>
+              <div class="l">
+                Storybook stories, each scanned by axe for WCAG 2.2 AA — a violation fails the run
+              </div>
+            </div>
+            <div class="stat amber r pop" style="--i: 4">
+              <div class="n"><span data-count="0">0</span></div>
+              <div class="l">
+                spinners, <code>waitForTimeout</code> calls, or DOM-of-Material queries: Material is
+                driven through CDK harnesses
+              </div>
+            </div>
+          </div>
+          <div class="grid cols-2" style="margin-top: 30px">
+            <div class="card r" style="--i: 5">
+              <span class="tag">CI on every push</span>
               <p>
-                Initial 500 kB warn / 600 kB error. Component styles 12 / 16 kB — the planner
-                stylesheet warns at 13.4 kB.
+                Lint and typecheck → API tests → web tests with the coverage gate → production build
+                with budgets → bundle diff → Storybook + axe → Playwright ×3 → a container image,
+                started and checked in both languages.
+              </p>
+            </div>
+            <div class="card r" style="--i: 6">
+              <span class="tag blue">Tests read as behaviour</span>
+              <p>
+                <i>“blocks an over-capacity plant client-side and never calls the API”</i>,
+                <i
+                  >“a DELETE that keeps failing: ghost while retried, then the plant is back with a
+                  retry”</i
+                >.
               </p>
             </div>
           </div>
         </div>
+        <div class="foot">
+          <span>docs/architecture/TESTING-STRATEGY.md · .github/workflows/ci.yml</span>
+        </div>
       </section>
 
-      <section
-        class="slide roomy"
-        id="A06"
-        data-title="Production Roadmap"
-        data-est="0"
-        data-appendix
-      >
-        <span class="appendix-tag">Appendix</span>
-        <header>
-          <p class="kicker"></p>
-          <h2 class="title">From case study to product</h2>
-        </header>
-        <div class="body mid">
-          <div class="grid g3 grow" style="align-content: start">
-            <div class="card">
-              <span class="label green">1 · Trust</span>
-              <ul class="ticks tight" style="margin-top: 16px">
-                <li>OIDC + BFF, httpOnly session</li>
-                <li>owner-scoped data</li>
-                <li>idempotency keys</li>
-                <li>CSP &amp; security headers</li>
+      <!-- S09 -->
+      <section class="slide" id="S09" data-title="Design System, i18n, Accessibility" data-est="50">
+        <div class="kicker"><span class="part">Part 1 · Engineering</span></div>
+        <h2 class="title r" style="--i: 0">
+          A stylesheet with an architecture, two languages, WCAG 2.2
+        </h2>
+        <div class="body">
+          <div class="grid cols-3">
+            <div class="card r" style="--i: 1">
+              <span class="tag">Styles</span>
+              <h3>Tokens → abstracts → layers</h3>
+              <ul>
+                <li>Every colour, size and z-index is a token; the dark theme is a remap</li>
+                <li>A breakpoint map, one card recipe, one zone-colour mixin</li>
+                <li><code>@layer</code>: the foundations can never outrank a component</li>
+                <li>The shared kit is named in BEM</li>
               </ul>
             </div>
-            <div class="card">
-              <span class="label green">2 · Operate</span>
-              <ul class="ticks tight" style="margin-top: 16px">
-                <li>WebKit run as a merge gate</li>
-                <li>error tracking behind the Logger seam</li>
-                <li>Web Vitals &amp; tracing</li>
-                <li>private source-map upload</li>
+            <div class="card r" style="--i: 2">
+              <span class="tag blue">Languages</span>
+              <h3>English and Dutch</h3>
+              <ul>
+                <li>Compile-time i18n: one build per language, no runtime, no flash</li>
+                <li>517 messages, the catalog checked in CI</li>
+                <li>Dutch numbers and dates from the locale</li>
+                <li>The Dutch build boots in its own e2e project</li>
               </ul>
             </div>
-            <div class="card">
-              <span class="label green">3 · Scale the product</span>
-              <ul class="ticks tight" style="margin-top: 16px">
-                <li>paging and user scoping</li>
-                <li>ETag revalidation</li>
-                <li>server-side planner layouts</li>
-                <li>external plant catalog via the provider seam</li>
+            <div class="card r" style="--i: 3">
+              <span class="tag amber">Accessibility</span>
+              <h3>Tested, not declared</h3>
+              <ul>
+                <li>
+                  Skip link and a <code>main</code> landmark on every page; focus follows navigation
+                </li>
+                <li>
+                  The planner's beds are real focusable SVG elements; the plan also exists as a
+                  table
+                </li>
+                <li>The fullscreen planner traps and returns focus like a dialog</li>
+                <li>axe on every screen in both themes</li>
               </ul>
             </div>
           </div>
         </div>
+        <div class="foot">
+          <span
+            >docs/design/DESIGN-SYSTEM.md §9 · <b>ADR-010</b> i18n ·
+            docs/architecture/ACCESSIBILITY.md</span
+          >
+        </div>
       </section>
 
-      <div class="chrome" aria-hidden="true">
-        <span class="brandmark"
-          ><svg><use href="#i-sprout" /></svg>HomeGarden · Frontend Architecture</span
-        >
-        <span class="counter" id="counter"></span>
-      </div>
-      <div class="progress" id="progress" aria-hidden="true"></div>
-    </main>
+      <!-- ═══════════════════ PART 2 · THE PRODUCT ═══════════════════ -->
 
-    <nav class="controls" aria-label="Presentation controls">
-      <button type="button" id="btn-prev" aria-label="Previous slide">←</button>
-      <button type="button" id="btn-next" aria-label="Next slide">→</button>
-      <button type="button" id="btn-overview" aria-label="Slide overview">Slides</button>
-      <button type="button" id="btn-appendix" aria-label="Go to appendix">Appendix</button>
-      <button type="button" id="btn-full" aria-label="Toggle fullscreen">Fullscreen</button>
-      <button type="button" id="btn-help" aria-label="Keyboard shortcuts">?</button>
-    </nav>
-
-    <div
-      class="overlay"
-      id="help"
-      hidden
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="help-title"
-    >
-      <div class="panel-box">
-        <h2 id="help-title">Keyboard shortcuts</h2>
-        <div class="keys">
-          <span><kbd>→</kbd> <kbd>Space</kbd></span
-          ><span>Next slide</span> <span><kbd>←</kbd></span
-          ><span>Previous slide</span> <span><kbd>Home</kbd> <kbd>End</kbd></span
-          ><span>First / last main slide</span> <span><kbd>F</kbd></span
-          ><span>Fullscreen (Esc exits)</span> <span><kbd>G</kbd></span
-          ><span>Slide overview</span> <span><kbd>A</kbd></span
-          ><span>Jump to appendix / back</span> <span><kbd>?</kbd></span
-          ><span>This help</span> <span><kbd>Esc</kbd></span
-          ><span>Close overlays</span>
-        </div>
-        <p class="note" style="margin-top: 18px">
-          The prompter (home-garden-prompter.html) uses the same slide IDs and can follow this deck
-          when both are open in the same browser.
+      <!-- S10 -->
+      <section class="slide divider" id="S10" data-title="Part 2 — The Product" data-est="15">
+        <div class="num r" style="--i: 0">PART 2</div>
+        <h1 class="r" style="--i: 1">The <em>product</em></h1>
+        <p class="sub r" style="--i: 2">
+          Welcome, dashboard, gardens, a garden and its planner — every screen designed for the slow
+          path as much as the happy one.
         </p>
-        <button type="button" data-close style="margin-top: 8px">Close</button>
-      </div>
+        <div class="foot"><span>docs/DEMO-GUIDE.md</span></div>
+      </section>
+
+      <!-- S11 -->
+      <section class="slide" id="S11" data-title="Welcome" data-est="35">
+        <div class="kicker"><span class="part">Part 2 · Product</span></div>
+        <h2 class="title r" style="--i: 0">Welcome — choose a profile, or create one inline</h2>
+        <div class="body split">
+          <div class="shot r pop" style="--i: 1">
+            <img
+              src="../screenshots/welcome-skip-link.jpg"
+              alt="The welcome page with the skip link revealed by the first Tab"
+            /><span class="cap">First Tab: the skip link, on every page</span>
+          </div>
+          <div class="points">
+            <div class="point r" style="--i: 2">
+              <span class="ic">1</span>
+              <div>
+                <b>Profiles, as cards</b
+                ><span
+                  >Content-shaped ghosts while they load; a new profile is created right here, with
+                  a friendly 409 if the email exists.</span
+                >
+              </div>
+            </div>
+            <div class="point r" style="--i: 3">
+              <span class="ic">2</span>
+              <div>
+                <b>Each profile sees its own gardens</b
+                ><span
+                  >Plus the shared ones. The session survives a refresh and is revalidated on
+                  boot.</span
+                >
+              </div>
+            </div>
+            <div class="point r" style="--i: 4">
+              <span class="ic">3</span>
+              <div>
+                <b>Theme and language, before signing in</b
+                ><span
+                  >Light and dark; English and Dutch as two builds — the choice is remembered.</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="foot">
+          <span
+            >features/onboarding · <b>ADR-005</b> the profile session, and the authentication design
+            for production</span
+          >
+        </div>
+      </section>
+
+      <!-- S12 -->
+      <section class="slide" id="S12" data-title="Dashboard" data-est="50">
+        <div class="kicker"><span class="part">Part 2 · Product</span></div>
+        <h2 class="title r" style="--i: 0">Dashboard — “which garden needs me?”, answered first</h2>
+        <div class="body split">
+          <div class="shot r pop" style="--i: 1">
+            <img
+              src="../screenshots/dashboard-current.jpg"
+              alt="The dashboard: greeting, KPI tiles, the portfolio map"
+            /><span class="cap"
+              >Greeting, KPIs, needs attention, portfolio map, garden health, water today</span
+            >
+          </div>
+          <div class="points">
+            <div class="point r" style="--i: 2">
+              <span class="ic">1</span>
+              <div>
+                <b>The portfolio in one line</b
+                ><span
+                  >How many gardens are healthy, how many need attention, how many beds to water
+                  today.</span
+                >
+              </div>
+            </div>
+            <div class="point r" style="--i: 3">
+              <span class="ic">2</span>
+              <div>
+                <b>The portfolio map</b
+                ><span
+                  >Every planted garden by how full it is and how far its plants' humidity drifts
+                  from the target; the attention rules drawn as bands. Choose a bubble to open
+                  it.</span
+                >
+              </div>
+            </div>
+            <div class="point r" style="--i: 4">
+              <span class="ic">3</span>
+              <div>
+                <b>Water today</b
+                ><span
+                  >Which beds need water, by garden and watering zone, from each plant's zone and
+                  planting date — plus the outdoor humidity from Open-Meteo.</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="foot">
+          <span
+            >features/dashboard · <b>ADR-008</b> Highcharts, loaded on demand ·
+            domain/watering-plan</span
+          >
+        </div>
+      </section>
+
+      <!-- S13 -->
+      <section class="slide" id="S13" data-title="Gardens" data-est="40">
+        <div class="kicker"><span class="part">Part 2 · Product</span></div>
+        <h2 class="title r" style="--i: 0">Gardens — every plot at a glance</h2>
+        <div class="body split">
+          <div class="shot r pop" style="--i: 1">
+            <img
+              src="../screenshots/gardens-search.jpg"
+              alt="The gardens grid narrowed by a search"
+            /><span class="cap"
+              >Search and sort — the result count is announced to screen readers</span
+            >
+          </div>
+          <div class="points">
+            <div class="point r" style="--i: 2">
+              <span class="ic">1</span>
+              <div>
+                <b>A capacity bar on every card</b
+                ><span
+                  >Used against total, a status chip, the plant count — each card enriched as its
+                  plants arrive, never a fake zero.</span
+                >
+              </div>
+            </div>
+            <div class="point r" style="--i: 3">
+              <span class="ic">2</span>
+              <div>
+                <b>Create, edit, delete — with Undo</b
+                ><span
+                  >A new garden appears as a ghost until the server confirms; a deleted one comes
+                  back from the toast.</span
+                >
+              </div>
+            </div>
+            <div class="point r" style="--i: 4">
+              <span class="ic">3</span>
+              <div>
+                <b>Designed states</b
+                ><span>Loading, empty, error with a retry, no matches with a clear button.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="foot">
+          <span>features/gardens · state/gardens-store · <b>ADR-009</b> garden ownership</span>
+        </div>
+      </section>
+
+      <!-- S14 -->
+      <section class="slide" id="S14" data-title="A Garden" data-est="40">
+        <div class="kicker"><span class="part">Part 2 · Product</span></div>
+        <h2 class="title r" style="--i: 0">A garden — the numbers, the gauge, the plants</h2>
+        <div class="body split">
+          <div class="shot r pop" style="--i: 1">
+            <img src="../screenshots/garden-detail.jpg" alt="A garden's detail page" /><span
+              class="cap"
+              >Header stats, humidity gauge, outdoor reading, then the plan and the plants</span
+            >
+          </div>
+          <div class="points">
+            <div class="point r" style="--i: 2">
+              <span class="ic">1</span>
+              <div>
+                <b>Used, free, plants — as ghosts until true</b
+                ><span
+                  >The garden can arrive before its plants; every derived number holds its line box
+                  until the data lands.</span
+                >
+              </div>
+            </div>
+            <div class="point r" style="--i: 3">
+              <span class="ic">2</span>
+              <div>
+                <b>The humidity gauge</b
+                ><span
+                  >Average plant humidity against the garden's target, with the drift in
+                  words.</span
+                >
+              </div>
+            </div>
+            <div class="point r" style="--i: 4">
+              <span class="ic">3</span>
+              <div>
+                <b>The plants table and the humidity profile</b
+                ><span
+                  >Sortable, with inline edit and delete; below, one column per plant, as wide as
+                  its area and as tall as its humidity.</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="foot">
+          <span>features/garden-detail · garden-detail-store (route-scoped)</span>
+        </div>
+      </section>
+
+      <!-- S15 -->
+      <section class="slide" id="S15" data-title="The Planner" data-est="70">
+        <div class="kicker"><span class="part">Part 2 · Product</span></div>
+        <h2 class="title r" style="--i: 0">The planner — capacity you can see</h2>
+        <div class="body split">
+          <div class="shot r pop" style="--i: 1">
+            <img
+              src="../screenshots/planner-fullscreen-current.jpg"
+              alt="The garden planner in fullscreen"
+            /><span class="cap">Every bed at its real m² — a 98 %-full garden looks 98 % full</span>
+          </div>
+          <div class="points">
+            <div class="point r" style="--i: 2">
+              <span class="ic">1</span>
+              <div>
+                <b>Drag, snap, undo</b
+                ><span
+                  >Beds magnetise to the fence and to neighbours; positions are saved per garden;
+                  every move is undoable.</span
+                >
+              </div>
+            </div>
+            <div class="point r" style="--i: 3">
+              <span class="ic">3</span>
+              <div>
+                <b>Watering zones, clashes, regrouping</b
+                ><span
+                  >Layers tint each bed by water needs, mark neighbours that clash, and “Group by
+                  water needs” rearranges the garden in one step.</span
+                >
+              </div>
+            </div>
+            <div class="point r" style="--i: 4">
+              <span class="ic">3</span>
+              <div>
+                <b>Timeline, plan list, fullscreen, PNG</b
+                ><span
+                  >Replay the garden day by day; read the same plan as a table; expand to the
+                  viewport with focus trapped like a dialog; save the drawing.</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="foot">
+          <span
+            ><b>ADR-007</b> SVG over a canvas engine · domain/garden-map-layout (a squarified
+            treemap) · docs/design/INTERACTIVE-GARDEN-UX.md</span
+          >
+        </div>
+      </section>
+
+      <!-- S16 -->
+      <section class="slide" id="S16" data-title="Adding a Plant" data-est="45">
+        <div class="kicker"><span class="part">Part 2 · Product</span></div>
+        <h2 class="title r" style="--i: 0">
+          Adding a plant — recommend, pre-fill, and stop what won't fit
+        </h2>
+        <div class="body split">
+          <div class="shot r pop" style="--i: 1">
+            <img
+              src="../screenshots/plant-form-overcrowded.jpg"
+              alt="The plant form refusing a plant that would overcrowd the garden"
+            /><span class="cap">The rule judges while you type — and the server agrees</span>
+          </div>
+          <div class="points">
+            <div class="point r" style="--i: 2">
+              <span class="ic">1</span>
+              <div>
+                <b>A catalog ranked for this garden</b
+                ><span
+                  >27 common plants, scored by how well they fit; picking one only pre-fills the
+                  form.</span
+                >
+              </div>
+            </div>
+            <div class="point r" style="--i: 3">
+              <span class="ic">2</span>
+              <div>
+                <b>Garden fit, live</b
+                ><span
+                  >Available, this plant, remaining — the breakdown updates on every keystroke; an
+                  over-capacity plant is refused before any request.</span
+                >
+              </div>
+            </div>
+            <div class="point r" style="--i: 4">
+              <span class="ic">3</span>
+              <div>
+                <b>One rule, one function</b
+                ><span
+                  >The same <code>wouldOvercrowd</code> runs in the form, the store and the server;
+                  the verdict describes its field for screen readers.</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="foot">
+          <span
+            >domain/garden-insights · features/garden-detail/plant-form-dialog ·
+            <b>ADR-011</b> Signal Forms</span
+          >
+        </div>
+      </section>
+
+      <!-- S17 -->
+      <section class="slide" id="S17" data-title="Async UX" data-est="45">
+        <div class="kicker"><span class="part">Part 2 · Product</span></div>
+        <h2 class="title r" style="--i: 0">The slow path, designed</h2>
+        <div class="body">
+          <div class="grid cols-3">
+            <div class="shot r pop" style="--i: 1; height: 520px">
+              <img src="../screenshots/dashboard-skeleton.jpg" alt="The dashboard skeleton" /><span
+                class="cap"
+                >Read: content-shaped ghosts — zero layout shift when data lands</span
+              >
+            </div>
+            <div class="shot r pop" style="--i: 2; height: 520px">
+              <img
+                src="../screenshots/plant-edit-pending.jpg"
+                alt="A plant edit pending as a ghost"
+              /><span class="cap">Write: the row ghosts in place until the server confirms</span>
+            </div>
+            <div class="shot r pop" style="--i: 3; height: 520px">
+              <img src="../screenshots/gardens-error.jpg" alt="The gardens error state" /><span
+                class="cap"
+                >Fail: an honest state, a retry — never a stale screen pretending</span
+              >
+            </div>
+          </div>
+          <div class="pills" style="margin-top: 28px">
+            <span class="pill r" style="--i: 4"
+              ><b>150 ms grace</b> a fast answer never flashes a ghost</span
+            >
+            <span class="pill r" style="--i: 5"
+              ><b>Retries you never press</b> transient failures are absorbed</span
+            >
+            <span class="pill r" style="--i: 6"
+              ><b>Reduced motion</b> the shimmer becomes a slow pulse</span
+            >
+          </div>
+        </div>
+        <div class="foot">
+          <span
+            >docs/design/ASYNC-UX.md · styles/_skeleton.scss — one engine for every loading
+            surface</span
+          >
+        </div>
+      </section>
+
+      <!-- S18 -->
+      <section class="slide" id="S18" data-title="Everywhere" data-est="35">
+        <div class="kicker"><span class="part">Part 2 · Product</span></div>
+        <h2 class="title r" style="--i: 0">In Dutch, in the dark, on a phone</h2>
+        <div class="body">
+          <div class="grid" style="grid-template-columns: 1.3fr 1.3fr 0.6fr; height: 640px">
+            <div class="shot r pop" style="--i: 1">
+              <img src="../screenshots/dashboard-nl.jpg" alt="The dashboard in Dutch" /><span
+                class="cap"
+                >/nl/ — the same build, compiled in Dutch, Dutch numbers included</span
+              >
+            </div>
+            <div class="shot r pop" style="--i: 2">
+              <img src="../screenshots/dark-planner.jpg" alt="The planner in the dark theme" /><span
+                class="cap"
+                >Dark theme: a token remap, not a redesign</span
+              >
+            </div>
+            <div class="shot r pop" style="--i: 3">
+              <img
+                src="../screenshots/mobile-dashboard-current.jpg"
+                alt="The dashboard on a phone"
+              /><span class="cap">375 → 1920 px</span>
+            </div>
+          </div>
+        </div>
+        <div class="foot">
+          <span
+            >Responsive e2e matrix at 375, 768, 1024, 1440 and 1920 px · axe in both themes</span
+          >
+        </div>
+      </section>
+
+      <!-- S19 -->
+      <section class="slide" id="S19" data-title="Live Demo" data-est="180">
+        <div class="kicker"><span class="part">Live</span></div>
+        <h2 class="title r" style="--i: 0">Three minutes in the real app</h2>
+        <p class="lede r" style="--i: 1">
+          <code>npm run demo</code> → http://localhost:8080 — the production build, a fresh
+          database, the demo data, the hostile API on.
+        </p>
+        <div class="body">
+          <div class="points" style="max-width: 1500px">
+            <div class="point r" style="--i: 2">
+              <span class="ic">1</span>
+              <div>
+                <b>Sign in as Demo Account</b
+                ><span
+                  >Dashboard: <i>Needs attention</i>, the portfolio map — choose Antwerp
+                  Allotment.</span
+                >
+              </div>
+            </div>
+            <div class="point r" style="--i: 3">
+              <span class="ic">2</span>
+              <div>
+                <b>Antwerp Allotment is 95 % full</b
+                ><span>Add a 1 m² plant: refused while typing; the server agrees.</span>
+              </div>
+            </div>
+            <div class="point r" style="--i: 4">
+              <span class="ic">3</span>
+              <div>
+                <b>Ghent Courtyard Garden</b
+                ><span
+                  >Drag a bed, Undo, Group by water needs, replay the timeline, Expand and
+                  Escape.</span
+                >
+              </div>
+            </div>
+            <div class="point r" style="--i: 5">
+              <span class="ic">4</span>
+              <div>
+                <b>Spare Cutting Bed</b
+                ><span
+                  >Delete it — and bring it back from the toast. Then the same page in Dutch.</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="foot">
+          <span>docs/DEMO-GUIDE.md — the ten features and the technical tour</span>
+        </div>
+      </section>
+
+      <!-- S20 -->
+      <section class="slide title-slide" id="S20" data-title="Thank you" data-est="20">
+        <div class="leaf floaty" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#4fd483"
+            stroke-width="1.4"
+            stroke-linecap="round"
+          >
+            <path
+              d="M12 21 V11 M12 13 C12 8 8 6.5 4.5 7 C5 11.5 8.5 13.6 12 13 Z M12 11 C12 6.5 15.5 4.5 19.5 5 C19 10 15.5 12 12 11 Z"
+            />
+          </svg>
+        </div>
+        <div class="kicker r" style="--i: 0">HomeGarden</div>
+        <h1 class="r" style="--i: 1">Thank <em>you</em></h1>
+        <p class="sub r" style="--i: 2">
+          Questions — or pick any screen and we go through the code behind it.
+        </p>
+        <div class="meta">
+          <span class="pill r" style="--i: 3"><b>github.com/Liviu29/home-garden-case</b></span>
+          <span class="pill r" style="--i: 4"><b>README</b> → the 60-second tour</span>
+          <span class="pill r" style="--i: 5"
+            ><b>docs/</b> 11 ADRs, architecture, design, testing</span
+          >
+        </div>
+        <div class="foot"><span>Liviu Nita</span></div>
+      </section>
     </div>
 
-    <div
-      class="overlay"
-      id="overview"
-      hidden
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="overview-title"
-    >
-      <div class="panel-box overview">
-        <h2 id="overview-title">Slides</h2>
-        <ol id="overview-main"></ol>
-        <h3>Appendix</h3>
-        <ol id="overview-appendix"></ol>
-        <button type="button" data-close style="margin-top: 18px">Close</button>
+    <div id="progress"></div>
+    <div id="counter"></div>
+    <div class="hud">
+      <button id="btn-prev" title="Previous (←)">‹</button>
+      <button id="btn-next" title="Next (→)">›</button>
+      <button id="btn-overview" title="Overview (O)">☷</button>
+      <button id="btn-full" title="Fullscreen (F)">⛶</button>
+      <button id="btn-help" title="Help (?)">?</button>
+    </div>
+
+    <div class="overlay" id="help" hidden>
+      <div class="panel">
+        <h3>Keys</h3>
+        <p>
+          <kbd>→</kbd><kbd>Space</kbd> next · <kbd>←</kbd> previous · <kbd>Home</kbd
+          ><kbd>End</kbd> first / last · <kbd>O</kbd> overview · <kbd>F</kbd> fullscreen ·
+          <kbd>Esc</kbd> close
+        </p>
+        <p>
+          The prompter (<code>home-garden-prompter.html</code>) follows this deck when both are open
+          in the same browser: open it on the laptop screen, the deck on the projector.
+        </p>
+        <button data-close>Close</button>
+      </div>
+    </div>
+    <div class="overlay" id="overview" hidden>
+      <div class="panel">
+        <h3>Slides</h3>
+        <ol id="overview-list"></ol>
+        <button data-close>Close</button>
       </div>
     </div>
 
     <script>
       (() => {
         'use strict';
-
         const deck = document.getElementById('deck');
         const slides = [...deck.querySelectorAll('.slide')];
-        const main = slides.filter((s) => !s.hasAttribute('data-appendix'));
-        const appendix = slides.filter((s) => s.hasAttribute('data-appendix'));
         const counter = document.getElementById('counter');
         const progress = document.getElementById('progress');
         const help = document.getElementById('help');
         const overview = document.getElementById('overview');
         const SYNC_KEY = 'homegarden-deck-slide';
         let current = 0;
-        let lastMain = 0;
 
-        // Kicker text comes from each slide's own data — one source for ID + title.
         for (const s of slides) {
           const k = s.querySelector('.kicker');
-          if (k) {
-            k.innerHTML = `<span class="sid">${s.id}</span>${s.dataset.title}`;
+          if (k && !s.classList.contains('title-slide')) {
+            k.insertAdjacentHTML(
+              'afterbegin',
+              `<span class="sid">${s.id}</span>${s.dataset.title}`,
+            );
           }
         }
 
@@ -3073,7 +1683,21 @@
           deck.style.setProperty('--scale', String(scale));
         };
 
-        const groupOf = (i) => (slides[i].hasAttribute('data-appendix') ? appendix : main);
+        // Numbers count up when their slide arrives.
+        const countUp = (slide) => {
+          for (const el of slide.querySelectorAll('[data-count]')) {
+            const target = Number(el.dataset.count);
+            const start = performance.now();
+            const dur = 1100;
+            const tick = (now) => {
+              const t = Math.min(1, (now - start) / dur);
+              const eased = 1 - Math.pow(1 - t, 3);
+              el.textContent = Math.round(target * eased).toLocaleString('en-US');
+              if (t < 1) requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+          }
+        };
 
         const show = (i, { push = true } = {}) => {
           current = Math.max(0, Math.min(slides.length - 1, i));
@@ -3083,51 +1707,25 @@
             s.setAttribute('aria-hidden', n === current ? 'false' : 'true');
           });
           const slide = slides[current];
-          const group = groupOf(current);
-          const pos = group.indexOf(slide) + 1;
-          if (group === main) {
-            lastMain = current;
-            counter.innerHTML = `<b>${String(pos).padStart(2, '0')}</b> / ${String(main.length).padStart(2, '0')}`;
-            progress.style.width = `${(pos / main.length) * 100}%`;
-          } else {
-            counter.innerHTML = `Appendix <b>${slide.id}</b> · ${pos} / ${appendix.length}`;
-            progress.style.width = '0%';
-          }
+          counter.innerHTML = `<b>${String(current + 1).padStart(2, '0')}</b> / ${String(slides.length).padStart(2, '0')} · ${slide.dataset.title}`;
+          progress.style.width = `${((current + 1) / slides.length) * 100}%`;
           document.title = `${slide.id} · ${slide.dataset.title} — HomeGarden`;
-          if (push && location.hash !== `#${slide.id}`) {
+          if (push && location.hash !== `#${slide.id}`)
             history.replaceState(null, '', `#${slide.id}`);
-          }
           try {
             localStorage.setItem(SYNC_KEY, JSON.stringify({ id: slide.id, at: Date.now() }));
           } catch {
-            /* storage unavailable (private mode, file policy) — sync is optional */
+            /* the prompter sync is optional */
           }
+          countUp(slide);
           renderOverview();
         };
-
-        const step = (delta) => {
-          const group = groupOf(current);
-          const pos = group.indexOf(slides[current]);
-          const next = group[Math.max(0, Math.min(group.length - 1, pos + delta))];
-          show(slides.indexOf(next));
-        };
-
-        const toggleAppendix = () => {
-          if (groupOf(current) === main) {
-            show(slides.indexOf(appendix[0]));
-          } else {
-            show(lastMain);
-          }
-        };
+        const step = (d) => show(current + d);
 
         const toggleFullscreen = () => {
-          if (document.fullscreenElement) {
-            document.exitFullscreen?.();
-          } else {
-            document.documentElement.requestFullscreen?.().catch(() => undefined);
-          }
+          if (document.fullscreenElement) document.exitFullscreen?.();
+          else document.documentElement.requestFullscreen?.().catch(() => undefined);
         };
-
         const openOverlay = (el) => {
           el.hidden = false;
           el.querySelector('button, a')?.focus();
@@ -3136,14 +1734,14 @@
           help.hidden = true;
           overview.hidden = true;
         };
-
         function renderOverview() {
-          const item = (s) =>
-            `<li><a href="#${s.id}" data-go="${s.id}" class="${slides[current] === s ? 'is-current' : ''}"><b>${s.id}</b>${s.dataset.title}</a></li>`;
-          document.getElementById('overview-main').innerHTML = main.map(item).join('');
-          document.getElementById('overview-appendix').innerHTML = appendix.map(item).join('');
+          document.getElementById('overview-list').innerHTML = slides
+            .map(
+              (s) =>
+                `<li><a href="#${s.id}" data-go="${s.id}" class="${slides[current] === s ? 'is-current' : ''}">${s.dataset.title}</a></li>`,
+            )
+            .join('');
         }
-
         overview.addEventListener('click', (e) => {
           const link = e.target.closest('[data-go]');
           if (link) {
@@ -3154,105 +1752,63 @@
         });
         for (const el of [help, overview]) {
           el.addEventListener('click', (e) => {
-            if (e.target === el || e.target.closest('[data-close]')) {
-              closeOverlays();
-            }
+            if (e.target === el || e.target.closest('[data-close]')) closeOverlays();
           });
         }
-
         document.getElementById('btn-prev').addEventListener('click', () => step(-1));
         document.getElementById('btn-next').addEventListener('click', () => step(1));
         document
           .getElementById('btn-overview')
           .addEventListener('click', () => openOverlay(overview));
-        document.getElementById('btn-appendix').addEventListener('click', toggleAppendix);
         document.getElementById('btn-full').addEventListener('click', toggleFullscreen);
         document.getElementById('btn-help').addEventListener('click', () => openOverlay(help));
 
         document.addEventListener('keydown', (e) => {
-          if (e.altKey || e.ctrlKey || e.metaKey) {
-            return;
-          }
+          if (e.altKey || e.ctrlKey || e.metaKey) return;
           const overlayOpen = !help.hidden || !overview.hidden;
-          if (e.key === 'Escape') {
-            closeOverlays();
-            return;
-          }
-          if (overlayOpen && e.key !== '?') {
-            return;
-          }
+          if (e.key === 'Escape') return closeOverlays();
+          if (overlayOpen && e.key !== '?') return;
           switch (e.key) {
             case 'ArrowRight':
             case 'PageDown':
             case ' ':
+              e.preventDefault();
               step(1);
               break;
             case 'ArrowLeft':
             case 'PageUp':
+              e.preventDefault();
               step(-1);
               break;
             case 'Home':
               show(0);
               break;
             case 'End':
-              show(slides.indexOf(main[main.length - 1]));
+              show(slides.length - 1);
+              break;
+            case 'o':
+            case 'O':
+              openOverlay(overview);
               break;
             case 'f':
             case 'F':
               toggleFullscreen();
               break;
-            case 'g':
-            case 'G':
-              openOverlay(overview);
-              break;
-            case 'a':
-            case 'A':
-              toggleAppendix();
-              break;
             case '?':
-              help.hidden ? openOverlay(help) : closeOverlays();
+              openOverlay(help);
               break;
-            default:
-              return;
           }
-          e.preventDefault();
         });
-
-        // Touch: horizontal swipe.
-        let touchX = null;
-        document.addEventListener('touchstart', (e) => (touchX = e.touches[0].clientX), {
-          passive: true,
-        });
-        document.addEventListener('touchend', (e) => {
-          if (touchX === null) return;
-          const dx = e.changedTouches[0].clientX - touchX;
-          if (Math.abs(dx) > 50) step(dx < 0 ? 1 : -1);
-          touchX = null;
-        });
-
+        window.addEventListener('resize', fit);
         window.addEventListener('hashchange', () => {
           const i = slides.findIndex((s) => `#${s.id}` === location.hash);
           if (i >= 0 && i !== current) show(i, { push: false });
         });
-        window.addEventListener('resize', fit);
-
-        // Controls stay out of the way: visible on mouse movement, hidden when idle.
-        const controls = document.querySelector('.controls');
-        let idleTimer;
-        const wake = () => {
-          controls.classList.remove('idle');
-          clearTimeout(idleTimer);
-          idleTimer = setTimeout(() => controls.classList.add('idle'), 2500);
-        };
-        document.addEventListener('mousemove', wake, { passive: true });
-        controls.classList.add('idle');
 
         fit();
         const start = slides.findIndex((s) => `#${s.id}` === location.hash);
-        deck.classList.add('no-anim');
-        show(start >= 0 ? start : 0, { push: start >= 0 });
-        void slides[current].offsetWidth; // commit the final style before transitions return
-        requestAnimationFrame(() => requestAnimationFrame(() => deck.classList.remove('no-anim')));
+        show(start >= 0 ? start : 0, { push: false });
+        requestAnimationFrame(() => deck.classList.remove('no-anim'));
       })();
     </script>
   </body>
